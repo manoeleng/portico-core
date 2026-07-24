@@ -8,7 +8,10 @@ export class ModalResults {
    * @param {Map}           nodeIndex     nodeId → 0-based sequential index
    * @param {number[]}      freeDOF       global indices of unconstrained DOFs
    * @param {{omega2,vec}[]} modes        sorted structural modes (ascending ω²)
-   * @param {Float64Array}  M             global mass matrix (nDOF², row-major flat)
+   * @param {Float64Array|{mv:(x:Float64Array)=>Float64Array}} M  global mass matrix,
+   *        either the dense nDOF² row-major flat array OR an object exposing a matvec
+   *        `mv(x) → M·x` (used by the sparse path so nDOF² is never densified). Every use
+   *        of M below is a matvec / quadratic form, so both forms give identical results.
    * @param {number}        nDOF
    */
   constructor(model, nodeIndex, freeDOF, modes, M, nDOF) {
@@ -16,6 +19,11 @@ export class ModalResults {
     this.nodeIndex = nodeIndex;
     this.nDOF      = nDOF;
     this.nModes    = modes.length;
+
+    // Unify M into a matvec closure: dense flat array → row·x loop, else use M.mv.
+    const mvM = (M && typeof M.mv === 'function')
+      ? M.mv
+      : (x) => { const y = new Float64Array(nDOF); for (let i = 0; i < nDOF; i++) { let s = 0; const off = i * nDOF; for (let j = 0; j < nDOF; j++) s += M[off + j] * x[j]; y[i] = s; } return y; };
 
     this.omega2 = modes.map(m => m.omega2);
     this.omega  = modes.map(m => Math.sqrt(m.omega2));
@@ -47,16 +55,12 @@ export class ModalResults {
 
     // Generalized modal mass: phi_i^T · M · phi_i  (needed for spectral analysis AND participation)
     this.genMass = this.modeShapes.map(phi => {
-      let gm = 0;
-      for (let i = 0; i < nDOF; i++) {
-        let row = 0;
-        for (let j = 0; j < nDOF; j++) row += M[i*nDOF+j] * phi[j];
-        gm += phi[i] * row;
-      }
+      const Mphi = mvM(phi);
+      let gm = 0; for (let i = 0; i < nDOF; i++) gm += phi[i] * Mphi[i];
       return gm;
     });
 
-    this._participation = this._computeParticipation(M, nDOF);
+    this._participation = this._computeParticipation(mvM, nDOF);
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -99,7 +103,8 @@ export class ModalResults {
   }
 
   // ── Mass participation ─────────────────────────────────────────────────────
-  _computeParticipation(M, nDOF) {
+  // mvM(x) → M·x (dense or sparse); every mass use here is a matvec / quadratic form.
+  _computeParticipation(mvM, nDOF) {
     // ── Build influence vectors r_d for X, Y, Rz ──────────────────────────
     // X and Y: unit at all free UX / UY DOFs respectively.
     // Rz (torsion): the diaphragm mass is at TRANSLATIONAL DOFs (UX, UY),
@@ -147,23 +152,14 @@ export class ModalResults {
 
     const dirs = ['X', 'Y', 'Rz'];
 
-    // Total activatable mass: r_dᵀ · M · r_d  (scalar per direction)
-    const totalMass = iota.map(r => {
-      let tot = 0;
-      for (let i = 0; i < nDOF; i++) {
-        if (r[i] === 0) continue;
-        for (let j = 0; j < nDOF; j++) tot += r[i] * M[i*nDOF+j] * r[j];
-      }
-      return tot;
-    });
-
     // Precompute M·r_d for each direction (vector length nDOF)
-    const Mrd = iota.map(r => {
-      const mr = new Float64Array(nDOF);
-      for (let i = 0; i < nDOF; i++) {
-        for (let j = 0; j < nDOF; j++) mr[i] += M[i*nDOF+j] * r[j];
-      }
-      return mr;
+    const Mrd = iota.map(r => mvM(r));
+
+    // Total activatable mass: r_dᵀ · M · r_d  (scalar per direction)
+    const totalMass = iota.map((r, di) => {
+      let tot = 0; const mr = Mrd[di];
+      for (let i = 0; i < nDOF; i++) tot += r[i] * mr[i];
+      return tot;
     });
 
     // For each mode: Γ_d = φᵀ·M·r_d,  m_eff = Γ²/M̄,  pct = m_eff/totalMass

@@ -20,7 +20,7 @@ import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
 import { listMacros, getMacro, insertMacro } from './model/macro_registry.js?v=7';
 import { assembleKgInto } from './solver/geometric.js?v=7';
-import { makeFactor } from './solver/linsolve.js?v=7';
+import { makeFactor, makeFactorCSR, permRCMcsr } from './solver/linsolve.js?v=7';
 import { ModalResults }                    from './solver/modal_results.js?v=7';
 import { parseAccelerogram, accStats, scaleToPGA, DEMO_PRESETS, G as GACC } from './solver/accelerograms.js?v=7';
 import { tendonEquivalentLoads, applyTendon, tendonEcc } from './solver/tendon.js?v=7';
@@ -2555,24 +2555,56 @@ class App {
       // ×N auto-discretization (same as static) for the modal (#36).
       this._applyAutoDiscIfEnabled();
 
-      // ── Assemble stiffness / mass on main thread ─────────────────────────────
+      // ── Free DOFs (shared by the dense and sparse paths; in 2D uy/rx/rz restrained)
       const nodeIndex = buildNodeIndex(this.model);
-      const { K, M, nDOF } = assembleK(this.model, nodeIndex);
-
-      // Extract free DOFs (in 2D models, uy/rx/rz are restrained)
+      const nDOF = nodeIndex.size * 6;
       const is2D = this.model.mode === '2D';
       const freeDOF = [];
       for (const node of this.model.nodes.values()) {
-        const d = getNodeDOFs(nodeIndex, node.id);
-        const r = node.restraints;
-        [r.ux, is2D ? 1 : r.uy, r.uz, is2D ? 1 : r.rx, r.ry, is2D ? 1 : r.rz].forEach((fixed, li) => {
-          if (!fixed) freeDOF.push(d[li]);
-        });
+        const d = getNodeDOFs(nodeIndex, node.id), r = node.restraints;
+        [r.ux, is2D ? 1 : r.uy, r.uz, is2D ? 1 : r.rx, r.ry, is2D ? 1 : r.rz].forEach((fixed, li) => { if (!fixed) freeDOF.push(d[li]); });
       }
       if (freeDOF.length === 0) throw new Error('No hay grados de libertad libres.');
       const nF = freeDOF.length;
+      const freeMap = new Int32Array(nDOF).fill(-1);
+      for (let i = 0; i < nF; i++) freeMap[freeDOF[i]] = i;
 
-      // Build Kff / Mff as flat Float64Arrays for zero-copy transfer to worker
+      // Large models solve the eigenproblem on CSR (banded Cholesky + O(nnz) products,
+      // no nF² densification); small models keep the proven dense banded worker. The
+      // "matriz completa" flag forces the dense path.
+      const SPARSE_MODAL_MIN = 2000;
+      const useSparse = nF > SPARSE_MODAL_MIN && !modalDense;
+
+      let modes, massForResults, kgInfo = '';
+      if (useSparse) {
+        const { S: Ks, M: Ms } = assembleSparseGlobal(this.model, nodeIndex, { withMass: true });
+        // P-Δ / prestress: solve the reference state and add Kg into Ks before extraction.
+        if (useKg) {
+          const { contribs, label } = this._resolvePattern(pattern);
+          const Fref = new Float64Array(nDOF);
+          for (const c of contribs) { const Fi = assembleF(this.model, nodeIndex, c.lcId, !!c.selfWeight); for (let i = 0; i < nDOF; i++) Fref[i] += c.factor * Fi[i]; }
+          const K0 = extractFreeCSR(Ks, freeMap, nF).csr;
+          const fac0 = makeFactorCSR(K0, permRCMcsr(K0));
+          if (!fac0.ok) throw new Error('El estado de referencia para Kg es singular/inestable. Revise apoyos.');
+          const Ff = new Float64Array(nF); for (let i = 0; i < nF; i++) Ff[i] = Fref[freeDOF[i]];
+          const uf = fac0.solve(Ff);
+          const u = new Float64Array(nDOF); for (let i = 0; i < nF; i++) u[freeDOF[i]] = uf[i];
+          const { Nmax } = assembleKgInto(Ks.writer(), this.model, nodeIndex, u);
+          if (Nmax < 1e-9) throw new Error('El estado de referencia no genera fuerzas axiales (sin efecto P-Δ).');
+          kgInfo = ` · con Kg(${label})`;
+        }
+        const Kcsr = extractFreeCSR(Ks, freeMap, nF).csr;
+        const Mcsr = extractFreeCSR(Ms, freeMap, nF).csr;
+        modes = await new Promise((resolve, reject) => {
+          const w = new Worker(new URL('./solver/modal_worker_sparse.js?v=7', import.meta.url), { type: 'module' });
+          w.onmessage = ev => { w.terminate(); ev.data.error ? reject(new Error(ev.data.error)) : resolve(ev.data.modes); };
+          w.onerror = ev => { w.terminate(); reject(new Error(ev.message || 'Error en worker modal disperso')); };
+          w.postMessage({ Kcsr, Mcsr, nModes, method: modalMethod });
+        });
+        massForResults = { mv: (x) => Ms.mv(x) };   // participation over the full sparse M (O(nnz))
+      } else {
+      // ── DENSE banded path ────────────────────────────────────────────────────
+      const { K, M } = assembleK(this.model, nodeIndex);
       const Kff_flat = new Float64Array(nF * nF);
       const Mff_flat = new Float64Array(nF * nF);
       for (let i = 0; i < nF; i++) {
@@ -2585,7 +2617,6 @@ class App {
       // ── #55: geometric stiffness from a reference state (P-Δ / pre-stress).
       // Modal on (K + Kg) vs M: tension stiffens and compression softens the
       // frequencies. Kg is evaluated with the u of the reference state (like SAP2000).
-      let kgInfo = '';
       if (useKg) {
         const { contribs, label } = this._resolvePattern(pattern);
         const Fref = new Float64Array(nDOF);
@@ -2602,8 +2633,6 @@ class App {
         // Add the geometric stiffness straight into the free–free Kff (no dense nDOF²
         // intermediate): a writer scatters each Kg entry to its free index, reusing the
         // sparse Kg kernel (assembleKgInto) from the P-Δ/buckling path.
-        const freeMap = new Int32Array(nDOF).fill(-1);
-        for (let i = 0; i < nF; i++) freeMap[freeDOF[i]] = i;
         const kgWriter = { add: (i, j, v) => { const fi = freeMap[i]; if (fi < 0) return; const fj = freeMap[j]; if (fj < 0) return; Kff_flat[fi * nF + fj] += v; } };
         const { Nmax } = assembleKgInto(kgWriter, this.model, nodeIndex, u);
         if (Nmax < 1e-9) throw new Error('El estado de referencia no genera fuerzas axiales (sin efecto P-Δ).');
@@ -2636,7 +2665,7 @@ class App {
       // dense = "complete/heavy" (dense factorization, no reordering); banded =
       // "fast optimized" (banded Cholesky + RCM). Selectable per run.
       const denseModal = modalDense;
-      let modes = await new Promise((resolve, reject) => {
+      modes = await new Promise((resolve, reject) => {
         const worker = new Worker(new URL('./solver/modal_worker.js?v=7', import.meta.url), { type: 'module' });
         worker.postMessage({ Kff_flat: postK, Mff_flat: postM, nF: postN, nModes, dense: denseModal, method: modalMethod },
           [postK.buffer, postM.buffer]); // transfer — zero copy
@@ -2651,8 +2680,10 @@ class App {
         };
       });
       if (expandGuyan) modes = modes.map(m => ({ omega2: m.omega2, vec: expandGuyan(m.vec) }));
+      massForResults = M;
+      }
 
-      this._modalResults = new ModalResults(this.model, nodeIndex, freeDOF, modes, M, nDOF);
+      this._modalResults = new ModalResults(this.model, nodeIndex, freeDOF, modes, massForResults, nDOF);
       this._modalMode    = 0;
       this._modalPlaying = false;
 

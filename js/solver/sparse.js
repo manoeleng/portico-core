@@ -34,6 +34,12 @@ export class SparseSym {
   diag(i) { return this.rows[i].get(i) || 0; }
   // "writer" interface consumed by the shared logic in diaphragm.js
   writer() { return { add: (i, j, v) => this.add(i, j, v), diag: (i) => this.diag(i) }; }
+  // y = S·x over ALL DOFs (O(nnz)) — used for modal participation without densifying.
+  mv(x, out) {
+    const y = out || new Float64Array(this.n);
+    for (let i = 0; i < this.n; i++) { let s = 0; for (const [j, v] of this.rows[i]) s += v * x[j]; y[i] = s; }
+    return y;
+  }
 }
 
 // Global DOFs (0-based) of a node
