@@ -3038,9 +3038,9 @@ class App {
 
     const thOpts = opts.silent ? this._thDefaults() : await this._timeHistoryDialog();
     if (!thOpts) return;
-    const { dir, zeta, nModes, ag, dt, agName, method = 'modal', plasticHinges = false, mp = 0, hardening = 0.03 } = thOpts;
+    const { dir, zeta, nModes, ag, dt, agName, method = 'modal', plasticHinges = false, mp = 0, hardening = 0.03, np = 0, mpSel = null, plasticSel = null } = thOpts;
     if (!ag || ag.length < 2) { this.toast('Acelerograma vacío o no reconocido.', 'warn'); return; }
-    this._lastTH = { dir, zeta, nModes, method, plasticHinges, mp, hardening };
+    this._lastTH = { dir, zeta, nModes, method, plasticHinges, mp, hardening, np, mpSel };
     if (plasticHinges && mp > 0) this._lastMp = mp;
 
     if (this.viewport._inResultsMode) this.viewport.clearResults();
@@ -3133,11 +3133,17 @@ class App {
         const nSteps = ag.length;
         const bytes = nF * nSteps * 8;
         if (bytes > 500e6) throw new Error(`La reproducción de integración directa necesita ~${(bytes / 1e6).toFixed(0)} MB (${nF} GDL × ${nSteps} pasos). Reduzca la duración / suba Δt del registro.`);
-        // Optional concentrated plastic hinges: a uniform Mp on every element (Mz).
+        // Optional concentrated plastic hinges. Mp is uniform, or per-selection: the
+        // selected elements take mpSel and the rest mp. Np (>0) adds P–M interaction.
         let plastic = null;
         if (plasticHinges && mp > 0) {
+          const selSet = plasticSel ? new Set(plasticSel) : null;
           const capByElem = new Map();
-          for (const el of model.elements.values()) capByElem.set(el.id, { Mz: mp });
+          for (const el of model.elements.values()) {
+            const Mz = (selSet && selSet.has(el.id) && mpSel > 0) ? mpSel : mp;
+            const cap = { Mz }; if (np > 0) cap.N = np;
+            capByElem.set(el.id, cap);
+          }
           plastic = { capByElem, hardening };
         }
         const dres = await this._nlDirectSolveInWorker(model, { ag, dt, direction: dir, a0, a1, plastic });
@@ -3432,6 +3438,7 @@ class App {
       document.getElementById('modal-title').textContent = i18n.t('Time-history modal (acelerograma en la base)');
       document.getElementById('modal-cancel').style.display = '';
       const d = this._lastTH || {};
+      const selEls = this._selElems ? this._selElems() : [];   // for per-selection Mp (nldirect plastic)
       document.getElementById('modal-body').innerHTML = `
         <div class="prop-row cols1">
           <div class="prop-field"><label>Método de integración</label>
@@ -3441,10 +3448,16 @@ class App {
               <option value="nldirect" ${d.method==='nldirect'?'selected':''}>Integración directa NO lineal (corotacional) — geometría, 2D</option>
             </select></div>
         </div>
-        <div class="prop-row" id="th-plastic-box" style="display:none;margin-top:4px">
-          <label style="flex:1;display:flex;align-items:center;gap:6px"><input type="checkbox" id="th-plastic" ${d.plasticHinges?'checked':''}> Rótulas plásticas (Mz, histerético)</label>
-          <div class="prop-field" style="width:130px"><label>Mp [kN·m]</label><input type="number" id="th-mp" value="${d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:100px"></div>
-          <div class="prop-field" style="width:120px"><label>Endurec. b</label><input type="number" id="th-hard" value="${d.hardening ?? 0.03}" min="0" max="0.5" step="0.01" style="width:80px"></div>
+        <div id="th-plastic-box" style="display:none;margin-top:4px">
+          <div class="prop-row">
+            <label style="flex:1;display:flex;align-items:center;gap:6px"><input type="checkbox" id="th-plastic" ${d.plasticHinges?'checked':''}> Rótulas plásticas (Mz, histerético)</label>
+            <div class="prop-field" style="width:150px"><label>Mp [kN·m]${selEls.length ? ' (resto)' : ''}</label><input type="number" id="th-mp" value="${d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:110px"></div>
+          </div>
+          <div class="prop-row" style="margin-top:4px">
+            <div class="prop-field" style="width:120px"><label>Endurec. b</label><input type="number" id="th-hard" value="${d.hardening ?? 0.03}" min="0" max="0.5" step="0.01" style="width:80px"></div>
+            <div class="prop-field" style="width:180px"><label>Np axial [kN] (0 = sin P–M)</label><input type="number" id="th-np" value="${d.np ?? 0}" min="0" step="100" style="width:100px"></div>
+            ${selEls.length ? `<div class="prop-field" style="width:170px"><label>Mp selección [kN·m] (${selEls.length} el.)</label><input type="number" id="th-mpsel" value="${d.mpSel ?? d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:100px"></div>` : ''}
+          </div>
         </div>
         <div class="prop-row">
           <div class="prop-field"><label>Dirección de excitación</label>
@@ -3507,12 +3520,17 @@ class App {
           const demo = DEMO_PRESETS[src](); ag = demo.a; dt = demo.dt; agName = demo.name;
         }
         if (pga > 0) ag = scaleToPGA(ag, pga);
-        // Plastic hinges (nldirect only): uniform Mp + bilinear hardening ratio.
+        // Plastic hinges (nldirect only): Mp (uniform, or "rest" when a selection exists),
+        // optional Mp for the selected elements, bilinear hardening b, axial Np (P–M).
         const plasticHinges = method === 'nldirect' && document.getElementById('th-plastic').checked;
         const mp = Math.max(0, parseFloat(document.getElementById('th-mp').value) || 0);
         const hardening = Math.max(0, Math.min(0.5, parseFloat(document.getElementById('th-hard').value) || 0));
+        const np = Math.max(0, parseFloat(document.getElementById('th-np')?.value) || 0);
+        const mpSelEl = document.getElementById('th-mpsel');
+        const mpSel = mpSelEl ? Math.max(0, parseFloat(mpSelEl.value) || 0) : null;
+        const plasticSel = selEls.length ? [...selEls] : null;   // element ids that take mpSel
         overlay.classList.add('hidden');
-        resolve({ dir, zeta, nModes, ag, dt, agName, method, plasticHinges, mp, hardening });
+        resolve({ dir, zeta, nModes, ag, dt, agName, method, plasticHinges, mp, hardening, np, mpSel, plasticSel });
       };
       overlay._reject = () => resolve(null);
     });
