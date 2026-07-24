@@ -19,7 +19,7 @@ import { assembleSparseGlobal, extractFreeCSR } from './solver/sparse.js?v=7';
 import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
 import { listMacros, getMacro, insertMacro } from './model/macro_registry.js?v=7';
-import { assembleKg } from './solver/geometric.js?v=7';
+import { assembleKgInto } from './solver/geometric.js?v=7';
 import { makeFactor } from './solver/linsolve.js?v=7';
 import { ModalResults }                    from './solver/modal_results.js?v=7';
 import { parseAccelerogram, accStats, scaleToPGA, DEMO_PRESETS, G as GACC } from './solver/accelerograms.js?v=7';
@@ -2599,9 +2599,14 @@ class App {
         if (!fac.ok) throw new Error('El estado de referencia para Kg es singular/inestable. Revise apoyos.');
         const uf = fac.solve(Ff);
         const u = new Float64Array(nDOF); for (let i = 0; i < nF; i++) u[freeDOF[i]] = uf[i];
-        const { Kg, Nmax } = assembleKg(this.model, nodeIndex, u);
+        // Add the geometric stiffness straight into the free–free Kff (no dense nDOF²
+        // intermediate): a writer scatters each Kg entry to its free index, reusing the
+        // sparse Kg kernel (assembleKgInto) from the P-Δ/buckling path.
+        const freeMap = new Int32Array(nDOF).fill(-1);
+        for (let i = 0; i < nF; i++) freeMap[freeDOF[i]] = i;
+        const kgWriter = { add: (i, j, v) => { const fi = freeMap[i]; if (fi < 0) return; const fj = freeMap[j]; if (fj < 0) return; Kff_flat[fi * nF + fj] += v; } };
+        const { Nmax } = assembleKgInto(kgWriter, this.model, nodeIndex, u);
         if (Nmax < 1e-9) throw new Error('El estado de referencia no genera fuerzas axiales (sin efecto P-Δ).');
-        for (let i = 0; i < nF; i++) { const ri = freeDOF[i] * nDOF; for (let j = 0; j < nF; j++) Kff_flat[i * nF + j] += Kg[ri + freeDOF[j]]; }
         kgInfo = ` · con Kg(${label})`;
       }
 
