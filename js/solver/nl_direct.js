@@ -27,6 +27,7 @@
 // conserves energy (average-acceleration Newmark); (4) Rayleigh damping decays it.
 // ──────────────────────────────────────────────────────────────────────────────
 import { corotBeamForceTangent, corotPrep } from './corotbeam.js?v=7';
+import { corotPlasticForceTangent } from './corot_plastic.js?v=7';
 import { SparseSym, extractFreeCSR } from './sparse.js?v=7';
 import { makeFactorCSR, permRCMcsr, csrMv, csrLinComb } from './linsolve.js?v=7';
 import { buildCorotProblem } from './nl_frame.js?v=7';
@@ -44,12 +45,17 @@ function diagCSR(d) {
 
 // Assemble the corotational resisting force F_int(nF) and tangent K_t (CSR, nF×nF) over
 // the free DOFs at the current full displacement `u` (3·nNode). Reuses the validated
-// per-element kernel; the tangent is symmetric (material Bᵀ·Cl·B + geometric).
-function assembleCorotFree(coords, u, elems, dofMap, nF, idMap) {
+// per-element kernel; the tangent is symmetric (material Bᵀ·Cl·B + geometric). Elements
+// with a finite el.Mp use the elasto-plastic hinge kernel, reading the COMMITTED plastic
+// rotations (hp1/hp2) — read-only here; the step commits them after it converges.
+function assembleCorotFree(coords, u, elems, dofMap, nF, idMap, hp1, hp2) {
   const S = new SparseSym(nF);
   const Fint = new Float64Array(nF);
-  for (const el of elems) {
-    const { fint, Kt } = corotBeamForceTangent(coords, u, el);
+  for (let e = 0; e < elems.length; e++) {
+    const el = elems[e];
+    const { fint, Kt } = isFinite(el.Mp)
+      ? corotPlasticForceTangent(coords, u, el, hp1[e], hp2[e])
+      : corotBeamForceTangent(coords, u, el);
     const gd = [3 * el.n1, 3 * el.n1 + 1, 3 * el.n1 + 2, 3 * el.n2, 3 * el.n2 + 1, 3 * el.n2 + 2];
     for (let a = 0; a < 6; a++) {
       const fa = dofMap[gd[a]]; if (fa < 0) continue;
@@ -107,6 +113,11 @@ export function newmarkCorot(o) {
   let nF = 0; for (const d of freeList) dofMap[d] = nF++;
   const idMap = new Int32Array(nF); for (let i = 0; i < nF; i++) idMap[i] = i;
 
+  // Committed plastic-hinge rotations (per element, both ends). Zero for elastic
+  // elements; the ones with a finite el.Mp evolve, committed after each converged step.
+  const hp1 = new Float64Array(elems.length), hp2 = new Float64Array(elems.length);
+  const anyPlastic = elems.some(el => isFinite(el.Mp));
+
   const Mfree = new Float64Array(nF);
   for (let i = 0; i < nF; i++) Mfree[i] = o.Mlump[freeList[i]];
   const Mcsr = diagCSR(Mfree);
@@ -125,7 +136,7 @@ export function newmarkCorot(o) {
   if (o.v0) for (let i = 0; i < nF; i++) vF[i] = o.v0[freeList[i]];
 
   // Initial tangent K0 (at u0) → Rayleigh C = a0·M + a1·K0 (built once).
-  const { Fint: Fint0, csr: K0 } = assembleCorotFree(coords, u, elems, dofMap, nF, idMap);
+  const { Fint: Fint0, csr: K0 } = assembleCorotFree(coords, u, elems, dofMap, nF, idMap, hp1, hp2);
   const a0 = o.a0 ?? 0, a1 = o.a1 ?? 0;
   const Ccsr = csrLinComb(Mcsr, a0, K0, a1);
 
@@ -155,6 +166,11 @@ export function newmarkCorot(o) {
   const hist = new Map(recDofs.map(d => [d, new Float64Array(nSteps)]));
   const keepAll = !!o.keepAll;
   const U = keepAll ? new Float64Array(nSteps * nF) : null;
+  // Optional per-step probe of one element's end moments / plastic rotation (verification).
+  const probe = (anyPlastic && Number.isInteger(o.plasticProbe)) ? o.plasticProbe : -1;
+  const probeM1 = probe >= 0 ? new Float64Array(nSteps) : null;
+  const probeM2 = probe >= 0 ? new Float64Array(nSteps) : null;
+  const probeTp = probe >= 0 ? new Float64Array(nSteps) : null;
   const store = (k) => {
     t[k] = k * dt;
     for (let i = 0; i < nF; i++) { const av = Math.abs(u[freeList[i]]); if (av > peak[i]) peak[i] = av; }
@@ -162,6 +178,7 @@ export function newmarkCorot(o) {
     if (keepAll) for (let i = 0; i < nF; i++) U[k * nF + i] = u[freeList[i]];
   };
   store(0);
+  if (probe >= 0) { const r = corotPlasticForceTangent(coords, u, elems[probe], hp1[probe], hp2[probe]); probeM1[0] = r.M1; probeM2[0] = r.M2; probeTp[0] = r.tp1; }
 
   // Reusable buffers
   const du = new Float64Array(nF), aN = new Float64Array(nF), vN = new Float64Array(nF);
@@ -178,7 +195,7 @@ export function newmarkCorot(o) {
     csrMv(Ccsr, vF, CvkArr);
     let it = 0, converged = false, fac = null, Fint = null, Kt = null, Fintk = null, r0 = 0;
     for (; it < maxIter; it++) {
-      ({ Fint, csr: Kt } = assembleCorotFree(coords, u, elems, dofMap, nF, idMap));
+      ({ Fint, csr: Kt } = assembleCorotFree(coords, u, elems, dofMap, nF, idMap, hp1, hp2));
       if (it === 0) Fintk = Fint;                // F_int(u_n): first iterate has u = u_n
       // Newmark kinematics from du = u − u_n
       for (let i = 0; i < nF; i++) {
@@ -221,13 +238,24 @@ export function newmarkCorot(o) {
       vF[i] = vn; aF[i] = an;
     }
     for (const d of freeList) uk[d] = u[d];
+
+    // Commit plastic-hinge state at the converged u (backward Euler: the return map is
+    // path-dependent, so it advances ONCE per step, not per Newton iteration). Optionally
+    // record the probed element's end moments / plastic rotations for verification.
+    if (anyPlastic) for (let e = 0; e < elems.length; e++) {
+      if (!isFinite(elems[e].Mp)) continue;
+      const r = corotPlasticForceTangent(coords, u, elems[e], hp1[e], hp2[e]);
+      hp1[e] = r.tp1; hp2[e] = r.tp2;
+      if (probe === e) { probeM1[k + 1] = r.M1; probeM2[k + 1] = r.M2; probeTp[k + 1] = r.tp1; }
+    }
     store(k + 1);
   }
 
   return {
     t, nSteps, n: nF, peak, hist,
     avgNewton: newtonSum / Math.max(1, nSteps - 1), maxNewton: newtonMax,
-    notConverged, ok,
+    notConverged, ok, anyPlastic,
+    hingeHist: probe >= 0 ? { M1: probeM1, M2: probeM2, tp1: probeTp } : undefined,
     U: keepAll ? U : undefined,
     uAt: keepAll ? (s) => U.subarray(s * nF, s * nF + nF) : undefined,
   };
@@ -249,6 +277,10 @@ export function newmarkCorot(o) {
  *   a0,a1     numbers        explicit Rayleigh coefficients (override rayleighFreqs).
  *   record    [{node,dof}]   node id + planar dof (0=ux,1=uz,2=ry) histories to keep.
  *   alpha     number         HHT-α numerical dissipation (default −0.05; 0 = none).
+ *   plastic   {capByElem:Map<elemId,{Mz}>, hardening?:number}  concentrated elasto-plastic
+ *             moment hinges: per-element plastic moment Mp (about the in-plane axis) and a
+ *             bilinear kinematic-hardening ratio b (default 0.03). Elements not in the map
+ *             (or with a non-finite Mz) stay elastic.
  *   maxIter, tol, keepAll, gamma, beta   forwarded to newmarkCorot.
  * @returns {{ok:false, reason}} on an empty/ill-posed model, else the newmarkCorot
  *   result plus: nodeIds, idxOf, freeMap, nF,
@@ -257,8 +289,21 @@ export function newmarkCorot(o) {
 export function nlDirectTimeHistory(model, o = {}) {
   const P = buildCorotProblem(model);
   if (!P.ok) return { ok: false, reason: P.reason };
-  const { coords, elems, free, idxOf, nodeIds } = P;
+  const { coords, elems, free, idxOf, nodeIds, elemIds } = P;
   const nNode = nodeIds.length, nDOF = 3 * nNode;
+
+  // Concentrated plastic hinges: attach the plastic moment Mp and the bilinear
+  // kinematic-hardening ratio b to the reduced elements (the hardening modulus Hp is
+  // derived from b and the element's kb=EI/L0 inside the kernel). b = 0 gives
+  // elastic-perfectly-plastic hinges; elements not in the map stay elastic.
+  if (o.plastic?.capByElem) {
+    const b = Math.max(0, Math.min(0.5, o.plastic.hardening ?? 0.03));
+    for (let e = 0; e < elems.length; e++) {
+      const cap = o.plastic.capByElem.get(elemIds[e]);
+      const Mp = cap && isFinite(cap.Mz) ? cap.Mz : Infinity;
+      if (isFinite(Mp)) { elems[e].Mp = Mp; elems[e].b = b; }
+    }
+  }
 
   // Lumped mass per global planar DOF: ρ·A·L split half to each end (u,w); rotational 0.
   const Mlump = new Float64Array(nDOF);
@@ -301,10 +346,13 @@ export function nlDirectTimeHistory(model, o = {}) {
 
   const recPairs = (o.record || []).map(({ node, dof }) => ({ node, dof, gi: dofMap[3 * idxOf.get(node) + dof] }))
                                     .filter(p => p.gi >= 0);
+  // Optional element-moment probe: accept an element id, map it to its reduced index.
+  const probeIdx = o.plasticProbe != null ? elemIds.indexOf(o.plasticProbe) : -1;
   const res = newmarkCorot({
     coords, elems, free, Mlump, ag: o.ag, dt: o.dt, iota, a0, a1,
     record: recPairs.map(p => p.gi), keepAll: o.keepAll,
     maxIter: o.maxIter, tol: o.tol, gamma: o.gamma, beta: o.beta, alpha: o.alpha,
+    plasticProbe: probeIdx >= 0 ? probeIdx : undefined,
   });
 
   const recKey = new Map(recPairs.map(p => [`${p.node}:${p.dof}`, p.gi]));
