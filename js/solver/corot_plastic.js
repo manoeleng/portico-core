@@ -100,10 +100,18 @@ export function corotPlasticCore(x1, z1, t1, x2, z2, t2, el, tp1_0, tp2_0) {
 
   const ka = el.EA / el.L0, kb = el.EI / el.L0;
   const N = ka * ubar;                                   // axial stays elastic
+  // Axial–moment (P–M) interaction: the plastic moment shrinks with the axial force,
+  // Mp_eff = Mp·(1 − |N|/Np)^exp (linear by default), so a beam-column yields in bending
+  // sooner under compression/tension. Np = axial squash load. The coupling is treated in a
+  // staggered way — Mp_eff uses the current N but the ∂M/∂N cross term is omitted from the
+  // local tangent (a standard, robust approximation; global Newton still converges, helped
+  // by the HHT-α dissipation). Without Np the moment capacity is constant.
+  let MpEff = el.Mp;
+  if (isFinite(el.Np) && el.Np > 0) MpEff = el.Mp * Math.max(0, 1 - Math.pow(Math.min(1, Math.abs(N) / el.Np), el.pmExp || 1));
   // Kinematic hardening modulus from the ratio b (post-yield stiffness ≈ b·elastic):
   // Hp = b/(1−b)·6kb. el.Hp overrides if given directly. b = 0 → perfectly plastic.
   const Hp = el.Hp != null ? el.Hp : (el.b > 0 ? el.b / (1 - el.b) * 6 * kb : 0);
-  const { M1, M2, tp1, tp2, C } = hingeReturnMap(kb, tb1, tb2, tp1_0, tp2_0, el.Mp, Hp);
+  const { M1, M2, tp1, tp2, C } = hingeReturnMap(kb, tb1, tb2, tp1_0, tp2_0, MpEff, Hp);
 
   const a = [-c, -s, 0, c, s, 0];
   const z = [s, -c, 0, -s, c, 0];

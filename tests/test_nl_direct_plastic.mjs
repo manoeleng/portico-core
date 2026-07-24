@@ -15,7 +15,7 @@
 //
 // Run:  node test_nl_direct_plastic.mjs
 import { newmarkCorot, nlDirectTimeHistory } from '../js/solver/nl_direct.js';
-import { hingeReturnMap } from '../js/solver/corot_plastic.js';
+import { hingeReturnMap, corotPlasticForceTangent } from '../js/solver/corot_plastic.js';
 import { solveCorotBeam } from '../js/solver/corotbeam.js';
 import { Model } from '../js/model/model.js';
 
@@ -128,6 +128,44 @@ console.log('\n── (5) driver (nlDirectTimeHistory) with plastic hinges ─�
     const empty = nlDirectTimeHistory(new Model(), { ag, dt, rayleighFreqs: [10, 40], plastic: { capByElem } });
     check(!empty.ok, 'empty model → refusal', `(${empty.reason})`);
   }
+}
+
+// ── (6) Axial–moment (P–M) interaction ────────────────────────────────────────
+console.log('\n── (6) P–M interaction: Mp shrinks with axial force ──');
+{
+  // One horizontal element, L0 = 1, EPP hinges. Stretch it axially (→ N) and impose a
+  // rotation large enough to yield end 1; the capped moment must be Mp·(1 − |N|/Np).
+  const EA = E * A, EI = E * I, Np = 2.1e5, Mp0 = 120;
+  const mk = (Np_) => ({ n1: 0, n2: 1, EA, EI, L0: 1, beta0: 0, Mp: Mp0, Np: Np_, b: 0 });
+  for (const ratio of [0, 0.3, 0.6]) {
+    const dx = ratio * Np / EA;                    // N = EA·dx = ratio·Np
+    const coords = new Float64Array([0, 0, 1, 0]);
+    const u = new Float64Array([0, 0, 0.02, dx, 0, -0.01]);   // node1 stretched + rotations → end1 yields
+    const r = corotPlasticForceTangent(coords, u, mk(Np), 0, 0);
+    const MpEff = Mp0 * (1 - ratio);
+    check(Math.abs(Math.abs(r.M1) - MpEff) / Mp0 < 0.02, `N/Np=${ratio} → |M1| = Mp·(1−N/Np)`, `(|M1|=${Math.abs(r.M1).toFixed(1)} vs ${MpEff.toFixed(1)}, N=${r.N.toFixed(0)})`);
+  }
+  // No Np → constant capacity (recovers the plain hinge)
+  const r0 = corotPlasticForceTangent(new Float64Array([0, 0, 1, 0]), new Float64Array([0, 0, 0.02, 0.03, 0, -0.01]), { n1: 0, n2: 1, EA, EI, L0: 1, beta0: 0, Mp: Mp0, b: 0 }, 0, 0);
+  check(Math.abs(Math.abs(r0.M1) - Mp0) / Mp0 < 0.02, 'without Np the capacity stays Mp', `(|M1|=${Math.abs(r0.M1).toFixed(1)})`);
+}
+
+// ── (7) Driver with P–M interaction stays convergent ──────────────────────────
+console.log('\n── (7) driver with P–M interaction converges ──');
+{
+  const m = new Model(); m.mode = '2D'; m.materials.clear(); m.sections.clear();
+  const mat = m.addMaterial({ name: 'S', E, G: 8e7, nu: 0.3, rho });
+  const sec = m.addSection({ name: 'C', A, Iy: I, Iz: I, J: 1e-6, Avy: 1e30, Avz: 1e30, kappay: 1, kappaz: 1 });
+  const n0 = m.addNode(0, 0, 0, { ux: 1, uy: 1, uz: 1, rx: 1, ry: 1, rz: 1 });
+  const n1 = m.addNode(0, 0, 2), n2 = m.addNode(0, 0, 4);
+  const e1 = m.addElement(n0.id, n1.id, mat.id, sec.id), e2 = m.addElement(n1.id, n2.id, mat.id, sec.id);
+  n1.nodeMass = { mx: 10, mz: 10 }; n2.nodeMass = { mx: 10, mz: 10 };
+  const dt = 0.02, nSteps = 500, ag = new Float64Array(nSteps);
+  for (let k = 0; k < nSteps; k++) ag[k] = 6 * Math.sin(2 * Math.PI * 0.9 * k * dt) * Math.exp(-k * dt / 8);
+  const capByElem = new Map([[e1.id, { Mz: 60, N: 4000 }], [e2.id, { Mz: 60, N: 4000 }]]);
+  const r = nlDirectTimeHistory(m, { ag, dt, direction: 'X', rayleighFreqs: [7, 35], zeta: 0.03, plastic: { capByElem, hardening: 0.03 }, plasticProbe: e1.id });
+  check(r.ok && r.anyPlastic, 'driver ran with P–M hinges', r.ok ? `(avgNewton=${r.avgNewton.toFixed(2)}, notConv=${r.notConverged})` : `(${r.reason})`);
+  check(r.ok && r.notConverged < nSteps * 0.05, 'convergence stays good with the staggered P–M coupling', `(notConv=${r.notConverged}/${nSteps})`);
 }
 
 console.log(`\n=== ${failures === 0 ? 'ALL OK' : failures + ' FAILURE(S)'} ===`);

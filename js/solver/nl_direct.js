@@ -298,10 +298,14 @@ export function nlDirectTimeHistory(model, o = {}) {
   // elastic-perfectly-plastic hinges; elements not in the map stay elastic.
   if (o.plastic?.capByElem) {
     const b = Math.max(0, Math.min(0.5, o.plastic.hardening ?? 0.03));
+    const pmExp = o.plastic.pmExp;   // P–M interaction exponent (default linear inside the kernel)
     for (let e = 0; e < elems.length; e++) {
       const cap = o.plastic.capByElem.get(elemIds[e]);
       const Mp = cap && isFinite(cap.Mz) ? cap.Mz : Infinity;
-      if (isFinite(Mp)) { elems[e].Mp = Mp; elems[e].b = b; }
+      if (isFinite(Mp)) {
+        elems[e].Mp = Mp; elems[e].b = b;
+        if (cap && isFinite(cap.N) && cap.N > 0) { elems[e].Np = cap.N; if (pmExp) elems[e].pmExp = pmExp; }   // axial squash → P–M interaction
+      }
     }
   }
 
