@@ -3038,9 +3038,10 @@ class App {
 
     const thOpts = opts.silent ? this._thDefaults() : await this._timeHistoryDialog();
     if (!thOpts) return;
-    const { dir, zeta, nModes, ag, dt, agName, method = 'modal' } = thOpts;
+    const { dir, zeta, nModes, ag, dt, agName, method = 'modal', plasticHinges = false, mp = 0, hardening = 0.03 } = thOpts;
     if (!ag || ag.length < 2) { this.toast('Acelerograma vacío o no reconocido.', 'warn'); return; }
-    this._lastTH = { dir, zeta, nModes, method };
+    this._lastTH = { dir, zeta, nModes, method, plasticHinges, mp, hardening };
+    if (plasticHinges && mp > 0) this._lastMp = mp;
 
     if (this.viewport._inResultsMode) this.viewport.clearResults();
     const btn = document.getElementById('btn-run'); if (btn) btn.classList.add('running');
@@ -3132,7 +3133,14 @@ class App {
         const nSteps = ag.length;
         const bytes = nF * nSteps * 8;
         if (bytes > 500e6) throw new Error(`La reproducción de integración directa necesita ~${(bytes / 1e6).toFixed(0)} MB (${nF} GDL × ${nSteps} pasos). Reduzca la duración / suba Δt del registro.`);
-        const dres = await this._nlDirectSolveInWorker(model, { ag, dt, direction: dir, a0, a1 });
+        // Optional concentrated plastic hinges: a uniform Mp on every element (Mz).
+        let plastic = null;
+        if (plasticHinges && mp > 0) {
+          const capByElem = new Map();
+          for (const el of model.elements.values()) capByElem.set(el.id, { Mz: mp });
+          plastic = { capByElem, hardening };
+        }
+        const dres = await this._nlDirectSolveInWorker(model, { ag, dt, direction: dir, a0, a1, plastic });
 
         let monitorDOF = null, monitorNodeId = null, peakU = -1;
         for (const node of model.nodes.values()) {
@@ -3140,13 +3148,14 @@ class App {
           if (fi >= 0 && dres.peak[fi] > peakU) { peakU = dres.peak[fi]; monitorDOF = g; monitorNodeId = node.id; }
         }
         const stats = accStats(ag, dt);
-        this._thResult = { method: 'nldirect', directRes: dres, dt, nodeIndex: dres.nodeIndex, nF: dres.nF, dir, zeta, ag, agName, nSteps, monitorDOF, monitorNodeId, stats, peakU, w1, wN, a0, a1 };
+        const plLabel = plastic ? ` · rótulas Mp=${mp}` : '';
+        this._thResult = { method: 'nldirect', directRes: dres, dt, nodeIndex: dres.nodeIndex, nF: dres.nF, dir, zeta, ag, agName, nSteps, monitorDOF, monitorNodeId, stats, peakU, w1, wN, a0, a1, plastic: !!plastic, mp };
         this._thRuns ??= new Map();
-        let label = `${agName} · ${dir} · directa NL`, kk = 1; while (this._thRuns.has(label) && this._thRuns.get(label) !== this._thResult) { kk++; label = `${agName} · ${dir} · directa NL (${kk})`; }
+        let label = `${agName} · ${dir} · directa NL${plastic ? ' plástica' : ''}`, kk = 1; while (this._thRuns.has(label) && this._thRuns.get(label) !== this._thResult) { kk++; label = `${agName} · ${dir} · directa NL${plastic ? ' plástica' : ''} (${kk})`; }
         this._thResult._label = label; this._thRuns.set(label, this._thResult);
         const T1 = (2 * Math.PI / w1).toFixed(3);
         const nc = dres.notConverged ? ` · ${dres.notConverged} paso(s) sin converger` : '';
-        this.toast(`Integración directa NO lineal OK · HHT-α + Newton (corotacional) · ${dir} · PGA ${stats.pga.toFixed(2)} m/s² · u_máx ${peakU.toExponential(2)} m (${i18n.t('nodo')} ${monitorNodeId}) · T₁=${T1}s · ${dres.avgNewton.toFixed(1)} iter/paso${nc}`, dres.notConverged ? 'warn' : 'ok');
+        this.toast(`Integración directa NO lineal OK · HHT-α + Newton (corotacional${plLabel}) · ${dir} · PGA ${stats.pga.toFixed(2)} m/s² · u_máx ${peakU.toExponential(2)} m (${i18n.t('nodo')} ${monitorNodeId}) · T₁=${T1}s · ${dres.avgNewton.toFixed(1)} iter/paso${nc}`, dres.notConverged ? 'warn' : 'ok');
         this._thOpenOverlay();
         this._updateResultsIndicator();
       } else {
@@ -3331,7 +3340,7 @@ class App {
     const data = await new Promise((resolve, reject) => {
       w.onmessage = ev => { w.terminate(); const d = ev.data; d.error ? reject(new Error(d.error)) : (d.ok === false ? reject(new Error('Integración directa no lineal: ' + d.reason)) : resolve(d)); };
       w.onerror = ev => { w.terminate(); reject(new Error(ev.message || 'Error en worker de integración directa no lineal')); };
-      w.postMessage({ modelJSON, opts: { ag: o.ag, dt: o.dt, direction: o.direction, a0: o.a0, a1: o.a1, alpha: o.alpha } });
+      w.postMessage({ modelJSON, opts: { ag: o.ag, dt: o.dt, direction: o.direction, a0: o.a0, a1: o.a1, alpha: o.alpha, plastic: o.plastic || undefined } });
     });
     return wrap(data);
   }
@@ -3432,6 +3441,11 @@ class App {
               <option value="nldirect" ${d.method==='nldirect'?'selected':''}>Integración directa NO lineal (corotacional) — geometría, 2D</option>
             </select></div>
         </div>
+        <div class="prop-row" id="th-plastic-box" style="display:none;margin-top:4px">
+          <label style="flex:1;display:flex;align-items:center;gap:6px"><input type="checkbox" id="th-plastic" ${d.plasticHinges?'checked':''}> Rótulas plásticas (Mz, histerético)</label>
+          <div class="prop-field" style="width:130px"><label>Mp [kN·m]</label><input type="number" id="th-mp" value="${d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:100px"></div>
+          <div class="prop-field" style="width:120px"><label>Endurec. b</label><input type="number" id="th-hard" value="${d.hardening ?? 0.03}" min="0" max="0.5" step="0.01" style="width:80px"></div>
+        </div>
         <div class="prop-row">
           <div class="prop-field"><label>Dirección de excitación</label>
             <select id="th-dir"><option value="X" ${d.dir==='X'?'selected':''}>X</option><option value="Y" ${d.dir==='Y'?'selected':''}>Y</option><option value="Z" ${d.dir==='Z'?'selected':''}>Z (vertical)</option></select></div>
@@ -3466,7 +3480,11 @@ class App {
       srcSel.addEventListener('change', () => { pasteBox.style.display = srcSel.value === 'paste' ? '' : 'none'; });
       // With direct integration the "N° de modos" only anchors the Rayleigh damping.
       const methodSel = document.getElementById('th-method'), nmLbl = document.getElementById('th-nmodes-lbl');
-      const syncMethod = () => { nmLbl.textContent = methodSel.value !== 'modal' ? 'N° modos (para ζ Rayleigh)' : 'N° de modos'; };
+      const plasticBox = document.getElementById('th-plastic-box');
+      const syncMethod = () => {
+        nmLbl.textContent = methodSel.value !== 'modal' ? 'N° modos (para ζ Rayleigh)' : 'N° de modos';
+        plasticBox.style.display = methodSel.value === 'nldirect' ? '' : 'none';   // hinges only for the nonlinear path
+      };
       methodSel.addEventListener('change', syncMethod); syncMethod();
       document.getElementById('th-file').addEventListener('change', async (e) => {
         const f = e.target.files?.[0]; if (!f) return;
@@ -3489,8 +3507,12 @@ class App {
           const demo = DEMO_PRESETS[src](); ag = demo.a; dt = demo.dt; agName = demo.name;
         }
         if (pga > 0) ag = scaleToPGA(ag, pga);
+        // Plastic hinges (nldirect only): uniform Mp + bilinear hardening ratio.
+        const plasticHinges = method === 'nldirect' && document.getElementById('th-plastic').checked;
+        const mp = Math.max(0, parseFloat(document.getElementById('th-mp').value) || 0);
+        const hardening = Math.max(0, Math.min(0.5, parseFloat(document.getElementById('th-hard').value) || 0));
         overlay.classList.add('hidden');
-        resolve({ dir, zeta, nModes, ag, dt, agName, method });
+        resolve({ dir, zeta, nModes, ag, dt, agName, method, plasticHinges, mp, hardening });
       };
       overlay._reject = () => resolve(null);
     });
