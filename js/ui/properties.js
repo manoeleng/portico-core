@@ -1558,14 +1558,15 @@ export class PropertiesPanel {
 
     // Releases labeled by FORCE (matching the result diagrams): releasing Mz ⇒ the
     // moment Mz is 0 at that end, etc.
-    // SAP-style named components (index into releases[12] / endSprings, per end).
+    // SAP2000-style named components (axis 1 = longitudinal; 2, 3 transverse local axes).
+    // Index into releases[12] / endSprings, per end.
     const relDefs = [
-      { i: 0, lbl: 'N',  tip: 'axial — eje de la barra (ux)',              rot: false },
-      { i: 1, lbl: 'V1', tip: 'corte en el plano local 1 — local y (uy)',  rot: false },
-      { i: 2, lbl: 'V2', tip: 'corte en el plano local 2 — local z (uz)',  rot: false },
-      { i: 3, lbl: 'T',  tip: 'torsión — eje de la barra (rx)',            rot: true  },
-      { i: 4, lbl: 'M1', tip: 'flexión sobre el eje local 1 — giro ry',    rot: true  },
-      { i: 5, lbl: 'M2', tip: 'flexión sobre el eje local 2 — giro rz',    rot: true  },
+      { i: 0, lbl: 'N',  tip: 'axial — eje local 1 (ux)',                    rot: false },
+      { i: 1, lbl: 'V2', tip: 'corte en la dirección local 2 (uy)',          rot: false },
+      { i: 2, lbl: 'V3', tip: 'corte en la dirección local 3 (uz)',          rot: false },
+      { i: 3, lbl: 'T',  tip: 'torsión — momento sobre el eje local 1 (rx)', rot: true  },
+      { i: 4, lbl: 'M2', tip: 'flexión — momento sobre el eje local 2 (ry)', rot: true  },
+      { i: 5, lbl: 'M3', tip: 'flexión — momento sobre el eje local 3 (rz)', rot: true  },
     ];
 
     // Orientation hint: which GLOBAL direction each bending corresponds to
@@ -1610,7 +1611,7 @@ export class PropertiesPanel {
       return `<div class="releases-half">
         <div class="releases-half-title">${label}
           <span class="rel-presets">
-            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="Rótula clásica: libera M1 y M2 en este extremo">Rótula</button>
+            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="Rótula clásica: libera M2 y M3 en este extremo">Rótula</button>
             <button type="button" class="rel-btn" data-rel-clear="${offset}" title="Fija todas las componentes de este extremo">Limpiar</button>
           </span>
         </div>
@@ -1648,7 +1649,7 @@ export class PropertiesPanel {
       </div>
 
       <div class="prop-section">
-        <div class="prop-title" title="Por componente (N, V1, V2, T, M1, M2) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.">Liberaciones / fijación parcial (rótulas y resortes)</div>
+        <div class="prop-title" title="Por componente (N, V2, V3, T, M2, M3) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.">Liberaciones / fijación parcial (rótulas y resortes)</div>
         ${orientHint ? `<p class="rel-hint">${orientHint}</p>` : ''}
         ${relHalf(`Extremo 1 — nodo ${elem.n1}`, 0)}
         ${relHalf(`Extremo 2 — nodo ${elem.n2}`, 6)}
