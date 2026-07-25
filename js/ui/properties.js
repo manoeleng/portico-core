@@ -1558,13 +1558,14 @@ export class PropertiesPanel {
 
     // Releases labeled by FORCE (matching the result diagrams): releasing Mz ⇒ the
     // moment Mz is 0 at that end, etc.
+    // SAP-style named components (index into releases[12] / endSprings, per end).
     const relDefs = [
-      { i: 0, lbl: 'N',  tip: 'fuerza axial' },
-      { i: 1, lbl: 'Vy', tip: 'corte local y' },
-      { i: 2, lbl: 'Vz', tip: 'corte local z' },
-      { i: 3, lbl: 'T',  tip: 'torsión' },
-      { i: 4, lbl: 'My', tip: 'flexión en plano local x–z' },
-      { i: 5, lbl: 'Mz', tip: 'flexión en plano local x–y' },
+      { i: 0, lbl: 'N',  tip: 'axial — eje de la barra (ux)',              rot: false },
+      { i: 1, lbl: 'V1', tip: 'corte en el plano local 1 — local y (uy)',  rot: false },
+      { i: 2, lbl: 'V2', tip: 'corte en el plano local 2 — local z (uz)',  rot: false },
+      { i: 3, lbl: 'T',  tip: 'torsión — eje de la barra (rx)',            rot: true  },
+      { i: 4, lbl: 'M1', tip: 'flexión sobre el eje local 1 — giro ry',    rot: true  },
+      { i: 5, lbl: 'M2', tip: 'flexión sobre el eje local 2 — giro rz',    rot: true  },
     ];
 
     // Orientation hint: which GLOBAL direction each bending corresponds to
@@ -1586,21 +1587,34 @@ export class PropertiesPanel {
       }
     }
 
+    // Per component: Fijo (rigid) · Libre (full release) · Resorte (partial fixity
+    // spring). Unifies releases[] and endSprings[] into one SAP-style control; the
+    // stiffness field shows only for «Resorte» (k→∞ rígido, k→0 rótula).
     const relHalf = (label, offset) => {
-      const boxes = relDefs.map(d =>
-        `<div class="releases-cell" title="Liberar ${d.lbl} (${d.tip}): el esfuerzo ${d.lbl} vale 0 en este extremo">
-          <input type="checkbox" data-rel="${offset + d.i}" ${elem.releases[offset + d.i] ? 'checked' : ''}>
-          <span>${d.lbl}</span>
-        </div>`
-      ).join('');
+      const rows = relDefs.map(d => {
+        const idx = offset + d.i;
+        const k = elem.endSprings?.[idx];
+        const mode = (k > 0 && isFinite(k)) ? 'resorte' : (elem.releases[idx] ? 'libre' : 'fijo');
+        const unit = d.rot ? 'kN·m/rad' : 'kN/m';
+        return `<div class="rel-comp" style="display:flex;align-items:center;gap:6px" title="${d.lbl}: ${d.tip}">
+          <span class="rel-comp-lbl" style="width:26px;font-weight:600">${d.lbl}</span>
+          <select class="rel-mode" data-rel="${idx}" style="flex:0 0 auto">
+            <option value="fijo"    ${mode === 'fijo'    ? 'selected' : ''}>Fijo</option>
+            <option value="libre"   ${mode === 'libre'   ? 'selected' : ''}>Libre</option>
+            <option value="resorte" ${mode === 'resorte' ? 'selected' : ''}>Resorte</option>
+          </select>
+          <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? k : ''}" min="0" step="100"
+            placeholder="${unit}" title="Rigidez del resorte (${unit})" style="width:96px;${mode === 'resorte' ? '' : 'display:none'}">
+        </div>`;
+      }).join('');
       return `<div class="releases-half">
         <div class="releases-half-title">${label}
           <span class="rel-presets">
-            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="Rótula clásica: libera My y Mz en este extremo">Rótula</button>
-            <button type="button" class="rel-btn" data-rel-clear="${offset}" title="Quitar todas las liberaciones de este extremo">Limpiar</button>
+            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="Rótula clásica: libera M1 y M2 en este extremo">Rótula</button>
+            <button type="button" class="rel-btn" data-rel-clear="${offset}" title="Fija todas las componentes de este extremo">Limpiar</button>
           </span>
         </div>
-        <div class="releases-grid">${boxes}</div>
+        <div class="releases-grid" style="display:flex;flex-direction:column;gap:3px">${rows}</div>
       </div>`;
     };
 
@@ -1634,11 +1648,11 @@ export class PropertiesPanel {
       </div>
 
       <div class="prop-section">
-        <div class="prop-title">Liberaciones (rótulas)</div>
+        <div class="prop-title" title="Por componente (N, V1, V2, T, M1, M2) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.">Liberaciones / fijación parcial (rótulas y resortes)</div>
         ${orientHint ? `<p class="rel-hint">${orientHint}</p>` : ''}
         ${relHalf(`Extremo 1 — nodo ${elem.n1}`, 0)}
         ${relHalf(`Extremo 2 — nodo ${elem.n2}`, 6)}
-        <p class="rel-warn">⚠ Liberar en exceso crea mecanismos (estructura inestable): el análisis lo detectará y avisará.</p>
+        <p class="rel-warn" style="color:var(--text-muted)"><b>Fijo</b> = rígido · <b>Libre</b> = rótula (esfuerzo 0) · <b>Resorte</b> = fijación parcial (rigidez k; rot. kN·m/rad, transl. kN/m). Se condensa en K (lineal F5). ⚠ Liberar en exceso crea mecanismos: el análisis lo avisará.</p>
       </div>
 
       <div class="prop-section">
@@ -1668,22 +1682,6 @@ export class PropertiesPanel {
         <p class="rel-warn" style="color:var(--text-muted)">Condensa un brazo rígido en cada extremo dentro de K/M (la luz flexible = L − cacho_i − cacho_j). Afecta el análisis lineal (F5). Útil para el ancho del nudo viga-columna.</p>
       </div>
 
-      <div class="prop-section">
-        <div class="prop-title" title="Resorte de extremo / fijación parcial (conexión semi-rígida, como «partial fixity» de SAP2000): rigidez ROTACIONAL kN·m/rad entre la barra y el nodo. Vacío = rígido; el solver lo condensa (k→∞ rígido, k→0 rótula). Afecta el análisis lineal (F5). My/Mz como en las liberaciones de arriba.">Resorte de extremo (fijación parcial)</div>
-        <div class="prop-row">
-          <div class="prop-field"><label title="Resorte rotacional My (flexión plano local x–z) en el extremo i.">My·i (kN·m/rad)</label>
-            <input type="number" id="e-spr-myi" value="${elem.endSprings?.[4] ?? ''}" min="0" step="100" placeholder="rígido"></div>
-          <div class="prop-field"><label title="Resorte rotacional Mz (flexión plano local x–y) en el extremo i.">Mz·i (kN·m/rad)</label>
-            <input type="number" id="e-spr-mzi" value="${elem.endSprings?.[5] ?? ''}" min="0" step="100" placeholder="rígido"></div>
-        </div>
-        <div class="prop-row">
-          <div class="prop-field"><label title="Resorte rotacional My (flexión plano local x–z) en el extremo j.">My·j (kN·m/rad)</label>
-            <input type="number" id="e-spr-myj" value="${elem.endSprings?.[10] ?? ''}" min="0" step="100" placeholder="rígido"></div>
-          <div class="prop-field"><label title="Resorte rotacional Mz (flexión plano local x–y) en el extremo j.">Mz·j (kN·m/rad)</label>
-            <input type="number" id="e-spr-mzj" value="${elem.endSprings?.[11] ?? ''}" min="0" step="100" placeholder="rígido"></div>
-        </div>
-        <p class="rel-warn" style="color:var(--text-muted)">Conexión semi-rígida miembro↔nodo (vacío = rígido). Condensado en K (análisis lineal F5). Combinable con liberaciones (no en el mismo GDL).</p>
-      </div>
 
       <div class="prop-section">
         <div class="prop-title" title="Viga sobre fundación elástica / resorte de LÍNEA (modelo de Winkler): módulo de balasto distribuido a lo largo de la barra, kN/m por metro (= kN/m²). Resiste la traslación transversal del miembro (suelo bajo una viga de fundación, pilote lateral…). Matriz consistente sumada a K. Afecta el análisis lineal (F5).">Fundación elástica (resorte de línea, Winkler)</div>
@@ -1744,18 +1742,22 @@ export class PropertiesPanel {
       const n2    = +sel.querySelector('#e-n2').value;
       const matId = +sel.querySelector('#e-mat').value;
       const secId = +sel.querySelector('#e-sec').value;
+      // Unified per-component control: Fijo → rigid; Libre → full release; Resorte →
+      // partial-fixity spring (endSprings). A «Resorte» with no valid k falls back to Libre.
       const releases = Array(12).fill(0);
-      sel.querySelectorAll('[data-rel]').forEach(cb => {
-        releases[+cb.dataset.rel] = cb.checked ? 1 : 0;
+      const endSprings = {};
+      sel.querySelectorAll('.rel-mode').forEach(s => {
+        const idx = +s.dataset.rel;
+        if (s.value === 'libre') releases[idx] = 1;
+        else if (s.value === 'resorte') {
+          const k = parseFloat(sel.querySelector(`.rel-k[data-relk="${idx}"]`)?.value);
+          if (k > 0 && isFinite(k)) endSprings[idx] = k; else releases[idx] = 1;
+        }
       });
       const cable    = sel.querySelector('#e-cable')?.checked || false;
       const compressionOnly = sel.querySelector('#e-componly')?.checked || false;
       const L0factor = parseFloat(sel.querySelector('#e-l0f')?.value) || 1;
       const rigidEnd = { i: parseFloat(sel.querySelector('#e-rig-i')?.value) || 0, j: parseFloat(sel.querySelector('#e-rig-j')?.value) || 0 };
-      // End spring / partial fixity (1-008): My/Mz per end → DOF 4/5/10/11.
-      const endSprings = {};
-      const addSpr = (id, dof) => { const v = parseFloat(sel.querySelector(id)?.value); if (v > 0 && isFinite(v)) endSprings[dof] = v; };
-      addSpr('#e-spr-myi', 4); addSpr('#e-spr-mzi', 5); addSpr('#e-spr-myj', 10); addSpr('#e-spr-mzj', 11);
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
       const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
       this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, foundation });
@@ -1766,8 +1768,13 @@ export class PropertiesPanel {
     sel.querySelectorAll('input[type=number]:not(#disc-n):not(#disc-len), select').forEach(inp =>
       inp.addEventListener('change', save)
     );
-    sel.querySelectorAll('[data-rel]').forEach(cb =>
-      cb.addEventListener('change', save)
+    // Release-mode selects: show the spring field only for «Resorte» (save is already
+    // wired via the generic select-change handler above).
+    sel.querySelectorAll('.rel-mode').forEach(s =>
+      s.addEventListener('change', () => {
+        const k = sel.querySelector(`.rel-k[data-relk="${s.dataset.rel}"]`);
+        if (k) k.style.display = s.value === 'resorte' ? '' : 'none';
+      })
     );
     const cb_cable = sel.querySelector('#e-cable');
     const cb_comp  = sel.querySelector('#e-componly');
@@ -1795,24 +1802,22 @@ export class PropertiesPanel {
       else this.app.toast('Ingrese una longitud válida', 'warn');
     });
 
-    // Release presets per end
+    // Release presets per end. Set the component selects (and hide any spring field).
+    const setMode = (idx, mode) => {
+      const s = sel.querySelector(`.rel-mode[data-rel="${idx}"]`); if (s) s.value = mode;
+      const k = sel.querySelector(`.rel-k[data-relk="${idx}"]`); if (k) k.style.display = mode === 'resorte' ? '' : 'none';
+    };
     sel.querySelectorAll('[data-rel-pin]').forEach(btn =>
       btn.addEventListener('click', () => {
         const off = +btn.dataset.relPin;
-        [4, 5].forEach(i => {           // classic hinge: My + Mz
-          const cb = sel.querySelector(`[data-rel="${off + i}"]`);
-          if (cb) cb.checked = true;
-        });
+        [4, 5].forEach(i => setMode(off + i, 'libre'));   // classic hinge: M1 + M2
         save();
       })
     );
     sel.querySelectorAll('[data-rel-clear]').forEach(btn =>
       btn.addEventListener('click', () => {
         const off = +btn.dataset.relClear;
-        for (let i = 0; i < 6; i++) {
-          const cb = sel.querySelector(`[data-rel="${off + i}"]`);
-          if (cb) cb.checked = false;
-        }
+        for (let i = 0; i < 6; i++) setMode(off + i, 'fijo');
         save();
       })
     );
