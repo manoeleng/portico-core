@@ -29,10 +29,10 @@
 import { finalize } from './aisc360.js?v=7';
 
 const MPA = 1000;
-const ratObj = (D, C, extra = {}) => ({
-  demand: +(+D).toFixed(4), capacity: +(+C).toFixed(4),
-  ratio: C > 1e-12 ? +(D / C).toFixed(4) : Infinity, ...extra,
-});
+const ratObj = (D, C, extra = {}) => {
+  const r = C > 1e-12 ? D / C : Infinity;
+  return { demand: +(+D).toFixed(4), capacity: +(+C).toFixed(4), ratio: Number.isFinite(r) ? +r.toFixed(4) : Infinity, ...extra };
+};
 
 // Tab. 3 — structural pieces (MPa): fb,k, ft0,k, fc0,k, fv,k, E0,m, E0,05
 const T3 = {
@@ -62,18 +62,22 @@ export function timberClass7190(name) {
 
 const kcOf = (lrel, bc) => {
   const k = 0.5 * (1 + bc * (lrel - 0.3) + lrel * lrel);
-  return 1 / (k + Math.sqrt(k * k - lrel * lrel));
+  return Math.min(1 / (k + Math.sqrt(k * k - lrel * lrel)), 1);
 };
 
 function checkNBR7190({ demands, mat, sec, member = {}, options = {} }) {
   const avisos = [];
   let naoVerificado = false;
   const cls = timberClass7190(mat.classe7190 ?? mat.design?.classe7190);
-  const X = cls || (mat.fc0k ? { fc0k: mat.fc0k, ft0k: mat.ft0k ?? mat.fc0k, fbk: mat.fbk ?? mat.fc0k, fvk: mat.fvk, E0med: mat.E0med, E005: mat.E005 ?? 0.7 * mat.E0med } : null);
-  if (!X || !(X.fvk > 0) || !(X.E005 > 0)) {
+  // explicit characteristic values: all required (ft0 = fm = fc0 only for Tab. 2 species, mat.tabela7190 = 2)
+  const tab2 = mat.tabela7190 === 2;
+  const X = cls || (mat.fc0k ? { fc0k: mat.fc0k, ft0k: mat.ft0k ?? (tab2 ? mat.fc0k : NaN), fbk: mat.fbk ?? (tab2 ? mat.fc0k : NaN),
+    fvk: mat.fvk, E0med: mat.E0med, E005: mat.E005 ?? (mat.E0med > 0 && tab2 ? 0.7 * mat.E0med : NaN) } : null);
+  const okX = X && [X.fc0k, X.ft0k, X.fbk, X.fvk, X.E0med, X.E005].every(v => v > 0);
+  if (!okX) {
     return finalize({ material: 'madeira', metodo: 'ABNT NBR 7190-1:2022',
       bending: ratObj(Infinity, 1), shear: ratObj(Infinity, 1), axial: ratObj(Infinity, 1), interaction: ratObj(Infinity, 1),
-      avisos: ['Madeira sem classe NBR 7190 (mat.classe7190) nem valores característicos: NÃO verificado.'] }, options);
+      avisos: ['Madeira sem classe NBR 7190 (mat.classe7190) nem valores característicos completos (fc0k, ft0k, fbk, fvk, E0med, E005): NÃO verificado.'] }, options);
   }
   if (options.kmod1 == null || options.kmod2 == null) avisos.push('kmod1/kmod2 não informados: adotados longa duração (0,70) e classe de umidade 2 (0,90) — confirme (Tab. 4/5).');
   const kmod1 = options.kmod1 ?? 0.70, kmod2 = options.kmod2 ?? 0.90;
@@ -85,19 +89,21 @@ function checkNBR7190({ demands, mat, sec, member = {}, options = {} }) {
   const bc = mlc ? 0.1 : 0.2;
 
   const b = sec.b, h = sec.h;
+  if (!(b > 0 && h > 0)) { naoVerificado = true; avisos.push('Seção sem b × h: NÃO verificado.'); }
   if (sec.shape && sec.shape !== 'rect') { naoVerificado = true; avisos.push(`Seção "${sec.shape}": a v1 verifica só seção retangular maciça — NÃO verificado.`); }
   const A = sec.A ?? b * h, Sz = sec.Sz ?? b * h * h / 6, Sy = sec.Sy ?? h * b * b / 6;
   const rz = sec.rz ?? h / Math.sqrt(12), ry = sec.ry ?? b / Math.sqrt(12);
   const kM = options.kM ?? 0.7;                                     // 6.3.5, rectangular
+  if (options.kM != null && options.kM !== 0.7) avisos.push(`kM = ${options.kM} informado (a NBR 7190-1:2022 6.3.5 dá 0,7 para seção retangular).`);
 
   const N = demands.N || 0;
   const sN = Math.abs(N) / A;
   const sMx = Math.abs(demands.Mz || 0) / Sz, sMy = Math.abs(demands.My || 0) / Sy;
-  const tau = 1.5 * Math.max(Math.abs(demands.Vy || 0), Math.abs(demands.Vz || 0)) / A;
+  const tau = 1.5 * Math.hypot(demands.Vy || 0, demands.Vz || 0) / A;   // resultant (6.4.2 silent on biaxial)
 
   const flex = Math.max(sMx / fmd + kM * sMy / fmd, kM * sMx / fmd + sMy / fmd);
   const bending = ratObj(flex, 1, { adim: true, kM, fmd, formula: 'σMx,d/fm,d + kM·σMy,d/fm,d ≤ 1 (6.3.5)' });
-  const shear = ratObj(tau, fvd, { formula: 'τd = 1,5·Vd/A ≤ fv0,d (6.4.2)' });
+  const shear = ratObj(tau, fvd, { formula: 'τd = 1,5·Vd/A ≤ fv0,d (6.4.2), Vd = √(Vy² + Vz²)' });
 
   let axial, interaction, estab = null;
   if (N > 0) {
@@ -105,10 +111,11 @@ function checkNBR7190({ demands, mat, sec, member = {}, options = {} }) {
     const r = Math.max(sN / ft0d + sMx / fmd + kM * sMy / fmd, sN / ft0d + kM * sMx / fmd + sMy / fmd);
     interaction = ratObj(r, 1, { adim: true, modo: 'flexo-tração', formula: '6.3.6 (linear)' });
     const L0t = member.L || 1;
-    if (L0t > 50 * Math.min(b, h)) avisos.push('Tração: L0 > 50 × menor dimensão (9.3).');
+    if (L0t > 50 * Math.min(b, h)) { naoVerificado = true; avisos.push(`Tração: L0 = ${L0t.toFixed(2)} m > 50 × menor dimensão (9.3) — não permitido.`); }
     avisos.push('Tração: verificada na seção bruta — descontar furos/entalhes (área líquida, 6.3.2).');
   } else {
-    const KE = member.KE ?? member.K ?? 1;
+    const KE = member.KE ?? 1;                                     // Tab. 7 (design.js always fills K = 1: not used)
+    if (member.KE == null) avisos.push('KE = 1,0 adotado (Tab. 7: 0,65 a 2,40 conforme os vínculos — em pórtico deslocável KE > 1): informe member.KE.');
     const L = member.L || 1;
     const Lz = member.Lz0 ?? KE * (member.Lx ?? L), Ly = member.Ly0 ?? KE * (member.Ly ?? L);
     const lz = Lz / rz, ly = Ly / ry;
@@ -123,18 +130,19 @@ function checkNBR7190({ demands, mat, sec, member = {}, options = {} }) {
     axial = ratObj(sN, Math.min(kcz, kcy) * fc0d, { modo: 'compressão', kc: Math.min(kcz, kcy), formula: 'σNc,d ≤ kc·fc0,d (6.5.5)' });
     interaction = ratObj(r, 1, { adim: true, modo: 'flexo-compressão', formula: '6.3.7 e 6.5.5' });
     if (sN > 0 && Math.max(lz, ly) > 140) { naoVerificado = true; avisos.push(`Esbeltez ${Math.max(lz, ly).toFixed(0)} > 140 (6.5.3) — não permitido.`); }
-    if (KE === 1 && member.KE == null && member.K == null) avisos.push('KE = 1,0 adotado (Tab. 7: informe member.KE conforme os vínculos).');
+    if (sN > 0 && (Lz > 40 * h || Ly > 40 * b)) { naoVerificado = true; avisos.push('L0 > 40 × dimensão transversal correspondente (9.3) — não permitido.'); }
   }
 
   // lateral stability of the beam (6.5.6), compressed edge braced every L1 (default: Lb or L)
-  if (sMx > 0) {
+  if (sMx > 0 && h / b >= 0.63) {
     const L1 = member.L1 ?? member.Lb ?? member.L ?? 1;
+    avisos.push('Estabilidade lateral (6.5.6): admite rotação impedida nos apoios de extremidade (condição a).');
     const E0ef = kmod1 * kmod2 * X.E0med;
     const hb = h / b;
     const betaM = (4 / Math.PI) * (4 / 1.4) * Math.pow(hb, 1.5) / Math.sqrt(Math.max(hb - 0.63, 1e-9));
     const okGeom = L1 / b <= E0ef / (betaM * fmd);
     const sLim = E0ef / ((L1 / b) * betaM);
-    const rL = okGeom ? 0 : sMx / sLim;
+    const rL = okGeom ? 0 : (sMx + (N < 0 ? sN : 0)) / sLim;     // σc,d: max compression stress
     estab = { ...(estab || {}), L1, betaM: +betaM.toFixed(3), lateralDispensada: okGeom };
     if (!okGeom) interaction = { ...interaction, ratio: +Math.max(interaction.ratio, rL).toFixed(4), demand: +Math.max(interaction.ratio, rL).toFixed(4), formula: interaction.formula + ' + estabilidade lateral (6.5.6)' };
   }

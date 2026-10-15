@@ -70,5 +70,22 @@ const rect = (b, h) => ({ shape: 'rect', b: b * mm, h: h * mm });
   assert('6b. λ = 208 > 140 → NÃO atende', s.ratioMax === Infinity, String(s.estab.lambdaY));
 }
 
+// (7) Revisão do especialista: cortante biaxial resultante, NaN, tração L0 > 50b, Ex.4 com kM = 0,7
+{
+  const base = { mat: { classe7190: 'C24' }, options: { kmod1: 0.7, kmod2: 0.9 } };
+  const v = nbr7190.check({ ...base, demands: { Vy: 10, Vz: 10 }, sec: rect(100, 200), member: { L: 2, L1: 0.1 } });
+  ok('7a. τd com Vd = √(Vy² + Vz²): 1,5·14,142/0,02 = 1060,7 kN/m²', v.shear.demand, 1060.66, 0.001);
+  const nan = nbr7190.check({ demands: { Mz: 2 }, mat: { fc0k: 30e3, fvk: 5e3, E005: 7e6 }, sec: rect(100, 200), member: { L: 3 }, options: { kmod1: 0.7, kmod2: 0.9 } });
+  assert('7b. valores explícitos incompletos (sem E0med/ft0k/fbk) → NÃO verificado (nunca NaN)', nan.ratioMax === Infinity);
+  const tr = nbr7190.check({ ...base, demands: { N: 5 }, sec: rect(50, 100), member: { L: 3 } });
+  assert('7c. tração com L0 = 3 m > 50 × 5 cm (9.3) → NÃO atende', tr.ratioMax === Infinity);
+  // Ex.4 com kM = 0,7 da 2022 (recálculo do revisor): o Pd do livro dá 1,042 → reprova
+  const mat = { fc0k: 30 * MPa, ft0k: 30 * MPa, fbk: 30 * MPa, fvk: 5 * MPa, E0med: 14500 * MPa, E005: 10150 * MPa };
+  const Pd = 42.228;
+  const e = nbr7190.check({ demands: { N: -Pd, Mz: Pd * 0.05, My: Pd * 0.025 }, mat, sec: rect(100, 200),
+    member: { L: 3.5, KE: 1, L1: 0.1 }, options: { kmod1: 0.7, kmod2: 1.0 } });
+  ok('7d. Ex.4 com kM = 0,7 (2022): índice 1,042', e.interaction.ratio, 1.042, 0.002);
+}
+
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
