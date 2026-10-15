@@ -244,6 +244,53 @@ function responseSpectrumNBR15421(ficha, s, { Tmax = 3.0, dT = 0.02 } = {}) {
 // ── SEISMIC (NCh433/DS61) ─────────────────────────────────────────────────────
 
 /** R* = 1 + T* / (0.10·To + T* / Ro), with T* from the modal analysis. */
+/**
+ * External Cpe of multi-span / central-gutter roofs, NBR 6123:2023 Tab. 9–12 (data in the preset
+ * rules.json, loads.wind). The single-span generator does not use them yet; this is the lookup for
+ * multi-span buildings or manual checks. θ between table rows → linear interpolation (practice, not a
+ * clause — flagged in `notas`); outside the table → `null` (not covered), never an extrapolated value.
+ * @param {object} w     reglas.loads.wind (NBR6123)
+ * @param {'calha'|'simetrico'|'assimetrico60'|'shed'} tipo   Tab. 9 / 10 / 11 / 12
+ * @param {object} o     { alpha: 0|90|180, theta (°, Tab. 10/12), a_b, hp_h (Tab. 9) }
+ * @returns {{ ce: object|null, notas: string[], tabela: string }}
+ */
+export function cpeTelhadoMultiplo(w, tipo, { alpha = 0, theta, a_b, hp_h } = {}) {
+  const notas = [];
+  const out = (ce, tabela) => ({ ce, notas, tabela });
+  const interp = (rows, key) => {
+    const ths = rows.map(r => r.theta);
+    if (!(theta >= ths[0] && theta <= ths[ths.length - 1])) { notas.push(`θ = ${theta}° fora da tabela (${ths[0]}°–${ths[ths.length - 1]}°): não coberto.`); return null; }
+    let i = 0; while (i < rows.length - 2 && theta > rows[i + 1].theta) i++;
+    const lo = rows[i], hi = rows[i + 1], u = (theta - lo.theta) / (hi.theta - lo.theta);
+    if (u > 0 && u < 1) notas.push(`Cpe interpolado em θ = ${theta}° (prática; a tabela não prescreve interpolação).`);
+    const A = key ? lo[key] : lo, B = key ? hi[key] : hi, ce = {};
+    for (const k of Object.keys(A)) if (k !== 'theta') ce[k] = +(A[k] + (B[k] - A[k]) * u).toFixed(3);
+    return ce;
+  };
+  if (tipo === 'calha') {
+    const t = w.cpe_telhado_calha_central;
+    const faixa = hp_h <= 0.05 ? '<=0.05' : (hp_h >= 0.1 && hp_h <= 0.2) ? '0.1-0.2' : null;
+    const r = t.linhas.find(l => l.a_b === a_b && l.hp_h === faixa);
+    if (!r) { notas.push(`Tab. 9 só cobre h/b = 0,5, a/b = 1 ou 2 e h'p/h ≤ 0,05 ou 0,1–0,2 (a/b = ${a_b}, h'p/h = ${hp_h}).`); return out(null, 'Tab. 9'); }
+    return out(alpha === 90 ? { ...r.a90 } : alpha === 0 ? { ...r.a0 } : null, 'Tab. 9');
+  }
+  if (tipo === 'simetrico') {
+    const t = w.cpe_telhados_multiplos_simetricos;
+    if (alpha === 90) return out(theta <= t.a90.theta_max ? { b1: t.a90.b1, b2: t.a90.b2, b3: t.a90.b3 } : null, 'Tab. 10');
+    return out(alpha === 0 ? interp(t.a0) : null, 'Tab. 10');
+  }
+  if (tipo === 'assimetrico60') {
+    const t = w.cpe_telhados_multiplos_assimetricos_60;
+    return out(alpha === 0 ? { ...t.a0 } : alpha === 180 ? { ...t.a180 } : alpha === 90 ? { ...t.a90 } : null, 'Tab. 11');
+  }
+  if (tipo === 'shed') {
+    const t = w.cpe_telhados_multiplos_agua_vertical;
+    const key = alpha === 0 ? 'a0' : alpha === 180 ? 'a180' : alpha === 90 ? 'a90' : null;
+    return out(key ? interp(t.linhas, key) : null, 'Tab. 12');
+  }
+  throw new Error(`tipo de telhado múltiplo inválido: ${tipo}`);
+}
+
 export function Rstar(Tstar, To, Ro = 11.0) {
   return 1 + Tstar / (0.10 * To + Tstar / Ro);
 }

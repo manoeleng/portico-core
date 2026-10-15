@@ -686,6 +686,255 @@
     -0.3,
     0
    ],
+   "cpe_telhado_calha_central": {
+    "_fonte": "NBR 6123:2023 Tabela 9 — duas águas simétricas de calha central, h/b = 0,5 (usar S2 da altura h). Cpe médio local: ver figura da tabela (não transcrito).",
+    "h_b": 0.5,
+    "linhas": [
+     {
+      "a_b": 1,
+      "hp_h": "<=0.05",
+      "a90": {
+       "EF": -0.6,
+       "GH": -0.2
+      },
+      "a0": {
+       "EG": -0.7,
+       "FH": -0.1
+      }
+     },
+     {
+      "a_b": 1,
+      "hp_h": "0.1-0.2",
+      "a90": {
+       "EF": -0.7,
+       "GH": -0.4
+      },
+      "a0": {
+       "EG": -0.7,
+       "FH": -0.3
+      }
+     },
+     {
+      "a_b": 2,
+      "hp_h": "<=0.05",
+      "a90": {
+       "EF": -0.8,
+       "GH": -0.3
+      },
+      "a0": {
+       "EG": -0.4,
+       "FH": 0.2
+      }
+     },
+     {
+      "a_b": 2,
+      "hp_h": "0.1-0.2",
+      "a90": {
+       "EF": -0.8,
+       "GH": -0.5
+      },
+      "a0": {
+       "EG": -0.5,
+       "FH": 0.2
+      }
+     }
+    ]
+   },
+   "cpe_telhados_multiplos_simetricos": {
+    "_fonte": "NBR 6123:2023 Tabela 10 — telhados múltiplos simétricos, tramos iguais, h ≤ a'. Águas a*, b*, c*, d*, m*, n*, x*, z* (figura); faixas b1, b2, b3 para α = 90° (θ ≤ 45°). Cpe médio: −1,5 / −2,0 nas faixas hachuradas. Para α = 0° o atrito já está incluído; α = 90°: 6.1.5.",
+    "a0": [
+     {
+      "theta": 5,
+      "a": -0.9,
+      "b": -0.6,
+      "c": -0.4,
+      "d": -0.3,
+      "m": -0.3,
+      "n": -0.3,
+      "x": -0.3,
+      "z": -0.3
+     },
+     {
+      "theta": 10,
+      "a": -1.1,
+      "b": -0.6,
+      "c": -0.4,
+      "d": -0.3,
+      "m": -0.3,
+      "n": -0.3,
+      "x": -0.3,
+      "z": -0.4
+     },
+     {
+      "theta": 20,
+      "a": -0.7,
+      "b": -0.6,
+      "c": -0.4,
+      "d": -0.3,
+      "m": -0.3,
+      "n": -0.3,
+      "x": -0.3,
+      "z": -0.5
+     },
+     {
+      "theta": 30,
+      "a": -0.2,
+      "b": -0.6,
+      "c": -0.4,
+      "d": -0.3,
+      "m": -0.2,
+      "n": -0.3,
+      "x": -0.2,
+      "z": -0.5
+     },
+     {
+      "theta": 45,
+      "a": 0.3,
+      "b": -0.6,
+      "c": -0.6,
+      "d": -0.4,
+      "m": -0.2,
+      "n": -0.4,
+      "x": -0.2,
+      "z": -0.5
+     }
+    ],
+    "a90": {
+     "theta_max": 45,
+     "b1": -0.8,
+     "b2": -0.6,
+     "b3": -0.2
+    },
+    "cpe_medio": [
+     -1.5,
+     -2.0
+    ]
+   },
+   "cpe_telhados_multiplos_assimetricos_60": {
+    "_fonte": "NBR 6123:2023 Tabela 11 — telhados múltiplos assimétricos, tramos iguais, água menor a 60°, h ≤ a'. Cpe médio −1,5 / −2,0.",
+    "a0": {
+     "a": 0.6,
+     "b": -0.7,
+     "c": -0.7,
+     "d": -0.4,
+     "m": -0.3,
+     "n": -0.2,
+     "x": -0.1,
+     "z": -0.3
+    },
+    "a180": {
+     "a": -0.5,
+     "b": -0.3,
+     "c": -0.3,
+     "d": -0.3,
+     "m": -0.4,
+     "n": -0.6,
+     "x": -0.6,
+     "z": -0.1
+    },
+    "a90": {
+     "b1": -0.8,
+     "b2": -0.6,
+     "b3": -0.2
+    },
+    "cpe_medio": [
+     -1.5,
+     -2.0
+    ]
+   },
+   "cpe_telhados_multiplos_agua_vertical": {
+    "_fonte": "NBR 6123:2023 Tabela 12 — telhados múltiplos com uma água vertical (shed), tramos iguais. Notas a/b: Ce = −0,3 na água m* adjacente a d* (θ = 30°, α = 0°); Ce = −0,5 na água n* adjacente a x* (θ = 30°, α = 180°). Atrito α = 0°/180°: Ft = Ct·q·a·b, Ct = 0,1 (0°) ou 0,001·θ + 0,02 (180°).",
+    "linhas": [
+     {
+      "theta": 10,
+      "a0": {
+       "a": 0.6,
+       "b": -0.6,
+       "c": -0.5,
+       "d": -0.2,
+       "m": 0.2,
+       "n": -0.2,
+       "x": 0.2,
+       "z": -0.2
+      },
+      "a180": {
+       "a": -0.2,
+       "b": -0.1,
+       "c": -0.2,
+       "d": -0.1,
+       "m": -0.2,
+       "n": -0.2,
+       "x": -0.4,
+       "z": -0.2
+      },
+      "a90": {
+       "b1": -0.8,
+       "b2": -0.6,
+       "b3": -0.2
+      }
+     },
+     {
+      "theta": 15,
+      "a0": {
+       "a": 0.6,
+       "b": -0.7,
+       "c": -0.6,
+       "d": -0.2,
+       "m": 0.1,
+       "n": -0.2,
+       "x": 0.1,
+       "z": -0.3
+      },
+      "a180": {
+       "a": -0.2,
+       "b": -0.1,
+       "c": -0.2,
+       "d": -0.1,
+       "m": -0.2,
+       "n": -0.2,
+       "x": -0.5,
+       "z": -0.2
+      },
+      "a90": {
+       "b1": -0.8,
+       "b2": -0.6,
+       "b3": -0.2
+      }
+     },
+     {
+      "theta": 30,
+      "a0": {
+       "a": 0.7,
+       "b": -0.7,
+       "c": -0.6,
+       "d": -0.4,
+       "m": 0.1,
+       "n": -0.2,
+       "x": 0.1,
+       "z": -0.2
+      },
+      "a180": {
+       "a": -0.2,
+       "b": -0.1,
+       "c": -0.1,
+       "d": -0.1,
+       "m": -0.2,
+       "n": -0.1,
+       "x": -0.6,
+       "z": 0.1
+      },
+      "a90": {
+       "b1": -0.9,
+       "b2": -0.6,
+       "b3": -0.3
+      }
+     }
+    ],
+    "cpe_medio": [
+     -1.5,
+     -2.0
+    ]
+   },
    "_cpi_nota": "Padrão: quatro faces igualmente permeáveis (−0,3 ou 0). Para duas faces opostas permeáveis use [0,2, −0,3]; abertura dominante: 6.3.2.1-c."
   },
   "seismic": {
