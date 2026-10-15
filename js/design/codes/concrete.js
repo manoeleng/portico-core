@@ -24,7 +24,7 @@ const barArea = dia => Math.PI * (dia / 1000) ** 2 / 4;
 // Reinforcement layers {As, dy} (dy = distance from the compression fiber) and total Ast.
 // Supports (a) explicit layers reb.layers:[{n,dia,d}], (b) reb.{nTop,nBot,dia},
 // (c) ratio ρ (2 symmetric layers As/2). h = depth in the bending direction.
-function rebarLayers(reb, h, b, cover, rho) {
+export function rebarLayers(reb, h, b, cover, rho) {
   if (Array.isArray(reb.layers) && reb.layers.length) {
     const layers = reb.layers.map(L => ({ As: L.As != null ? +L.As : (+L.n || 0) * barArea(+L.dia || 0), dy: +L.d }))
       .filter(L => L.As > 0 && Number.isFinite(L.dy));
@@ -84,7 +84,7 @@ function pmDiagram(b, h, fc, fy, layers, Ast, npts = 40) {
 }
 
 // Radial D/C: intersection of the ray origin→(Mu,Pu) with the diagram polyline.
-function pmRatio(diagram, Pu, Mu) {
+export function pmRatio(diagram, Pu, Mu) {
   const pts = diagram.pts;
   if (Mu < 1e-9 && Math.abs(Pu) < 1e-9) return 0;
   // Walks consecutive segments looking for the crossing with the ray t·(Mu,Pu), t>0.
@@ -105,7 +105,7 @@ function pmRatio(diagram, Pu, Mu) {
 // Moment capacity of the diagram at a given axial Pu (M on the envelope at the
 // level P=Pu; 0 if Pu exceeds the compression cap). For the biaxial load-contour
 // method (#65).
-function pmMomentAt(diag, Pu) {
+export function pmMomentAt(diag, Pu) {
   const pts = diag.pts; let M = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1];

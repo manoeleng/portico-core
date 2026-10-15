@@ -1,0 +1,74 @@
+{
+  "_fonte": "Carvalho & Figueiredo Filho, Calculo e Detalhamento de Estruturas Usuais de Concreto Armado, Vol. 1, 4a ed. (2014), base NBR 6118:2014. Paginas = numeracao impressa do livro. Valores ESPERADOS transcritos do livro (nenhum recalculado). PDF: C:/projetos/_referencias/Carvalho & Figueiredo Filho Vol1 4ed 2014 - ... .pdf (OCR parcial; digitos conferidos refazendo as contas do proprio livro).",
+  "_unidades": "como no livro: b,d,d' em cm; As em cm2; fck em MPa; aco CA-50 (fyk 500 MPa); M em kN.m; V em kN; tensoes em MPa; Asw/s em cm2/m. O teste converte para kN, m, kN/m2.",
+  "_nota": "Demandas aqui sao de CALCULO (Md, Vsd ja majorados por 1,4 no livro). gamma_c = 1,4; gamma_s = 1,15 (os mesmos do livro).",
+  "casos": {
+    "BR-6118-01a": {
+      "titulo": "Flexao simples, armadura simples, dominio 2",
+      "fonte": "Cap. 3, Exemplo 1 (e Exemplo 6a, mesmos dados via KMD/KX/KZ)", "paginas": "130-131 (Ex. 1); 143 (Ex. 6a)",
+      "dados": { "bw_cm": 12, "d_cm": 29, "fck_MPa": 20, "aco": "CA-50", "M_kNm": 12.2, "Md_kNm": 17.08 },
+      "esperado": { "x_m": 0.0545, "x_d": 0.188, "dominio": 2, "As_cm2": 1.46 },
+      "tol": { "x_d": 0.015, "As": 0.015 },
+      "tol_motivo": "livro arredonda x (0,0545), z (0,27) e As (1,46); recalculo exato da mesma formula daria As=1,465 (0,3%) e x=0,0546"
+    },
+    "BR-6118-01b": {
+      "titulo": "Flexao simples, armadura simples, dominio 3 (d adotado = d_min do livro, x/d proximo de 0,45)",
+      "fonte": "Cap. 3, Exemplo 6b (KMD=0,250; KX=0,4479; KZ=0,8208)", "paginas": "143-144",
+      "dados": { "bw_cm": 12, "d_cm": 20, "fck_MPa": 20, "aco": "CA-50", "Md_kNm": 17.08 },
+      "esperado": { "x_d": 0.4479, "dominio": 3, "As_cm2": 2.39 },
+      "tol": { "x_d": 0.015, "As": 0.015 },
+      "tol_motivo": "livro entra na tabela com KMD arredondado 0,250 (exato 0,2491 -> KX 0,4458, diferenca 0,5%); As 2,39 coincide com recalculo"
+    },
+    "BR-6118-01c": {
+      "titulo": "Flexao simples, armadura dupla (d < d_min), x/d = 0,45",
+      "fonte": "Cap. 3, Exemplo 7", "paginas": "146-147",
+      "dados": { "bw_cm": 12, "d_cm": 29, "dLinha_cm": 3.6, "fck_MPa": 20, "aco": "CA-50", "M_kNm": 45, "Md_kNm": 63.0,
+                 "dLinha_nota": "d' = 2,5 cobrimento + 0,6 estribo + 1,0/2 = 3,6 cm" },
+      "esperado": { "d_min_m": 0.383, "Mlim_kNm": 36.19, "xlim_d": 0.45, "dominio": 3, "As1_cm2": 3.50, "As2_cm2": 2.43, "As_total_cm2": 5.93, "AsLinha_cm2": 2.43, "sigma_sc": "fyd (eps_s' = 2,5 permil > eps_yd = 2,07 permil)" },
+      "tol": { "xd": 0.01, "As": 0.01, "AsLinha": 0.01 },
+      "tol_motivo": "valores do livro com 3 algarismos; recalculo exato das equacoes 3.48-3.52 reproduz 3,50 / 2,43 / 5,93 dentro de 0,1%"
+    },
+    "BR-6118-01d": {
+      "titulo": "Momento resistente dado As (capacidade), dominio 2 e dominio 3",
+      "fonte": "Cap. 3, Exemplo 4", "paginas": "137-138",
+      "dados": { "bw_cm": 12, "d_cm": 17.65, "fck_MPa": 20, "aco": "CA-50" },
+      "pontos": [
+        { "id": "a", "As_cm2": 0.5, "x_m": 0.0186, "dominio": 2, "MRd_kNm": 3.675 },
+        { "id": "b", "As_cm2": 2.0, "x_m": 0.0746, "dominio": 3, "MRd_kNm": 12.753 }
+      ],
+      "tol": { "MRd": 0.01 },
+      "tol_motivo": "livro mostra MRd com 4 algarismos a partir de x arredondado; diferenca de recalculo <0,1%, 1% e folga de arredondamento"
+    },
+    "BR-6118-02a": {
+      "titulo": "Cortante Modelo I, estribos verticais, fck 26, viga alta",
+      "fonte": "Cap. 6, Exemplo 2 (e Exemplo 3, mesmos dados em tensoes)", "paginas": "296-298",
+      "dados": { "bw_cm": 70, "d_cm": 200, "fck_MPa": 26, "aco": "CA-50", "V_kN": 1300, "Vsd_kN": 1820, "alpha_graus": 90, "estribo": "simples, 2 ramos, phi 12,5 mm (livro usa As=1,25 cm2/ramo)" },
+      "esperado": { "VRd2_kN": 6289.9, "Vc_kN": 1108.8, "Vsw_kN": 711.2, "s_cm": 27.5, "AswS_cm2_m": 9.09, "AswS_nota": "= 2*1,25/27,5 cm2/cm; Ex. 3 confirma s=27,50 cm" },
+      "tol": { "VRd2": 0.005, "Vc": 0.005, "Vsw": 0.01, "AswS": 0.01 },
+      "tol_motivo": "livro usa fctd = 0,15 fck^(2/3) = 1,32 MPa arredondado (Vc exato 1107,3, 0,14%)"
+    },
+    "BR-6118-02b": {
+      "titulo": "Cortante Modelo I, estribos verticais phi 6,3, fck 20 (V101)",
+      "fonte": "Cap. 6, Exemplo 4", "paginas": "299-300",
+      "dados": { "bw_cm": 25, "d_cm": 80, "fck_MPa": 20, "aco": "CA-50", "Vmax_kN": 255.5, "Vsd_kN": 357.7, "alpha_graus": 90, "estribo": "phi 6,3 mm, 2 ramos, As=0,32 cm2/ramo (tabela de bitolas do livro), s=8,90 cm" },
+      "esperado": { "tau_Rd2_MPa": 3.55, "VRd2_kN": 709.8, "VRd2_nota": "= tau_Rd2 * bw * d = 3549 kN/m2 * 0,25 * 0,80", "tau_c_MPa": 0.66, "Vc_kN": 132.0, "tau_wd_MPa": 1.13, "rho_sw90": 2.88e-3, "s_cm": 8.90, "AswS_cm2_m": 7.20, "AswS_nota": "= rho_sw90 * bw = 2,88e-3 * 25 cm; confere com 2*0,32/8,90", "VRd3_kN": 357.7, "VRd3_nota": "o livro dimensiona s para absorver exatamente Vsd; com s=8,90 cm VRd3 = Vsd" },
+      "tol": { "VRd2": 0.005, "Vc": 0.01, "AswS": 0.01, "VRd3": 0.03 },
+      "tol_motivo": "Vc: livro arredonda tau_c em 0,66 (exato 0,663). AswS: livro arredonda tau_wd em 1,13 (exato 1,125 -> 7,18 cm2/m, 0,3%). VRd3: livro usa 0,32 cm2/ramo, pi*6,3^2/4 = 0,312 (-2,6% em Asw => ~-1,6% em VRd3) e s arredondado; 3% so nesta grandeza"
+    },
+    "BR-6118-02c": {
+      "titulo": "Cortante Modelo II (theta 30, estribos verticais), mesma viga V101",
+      "fonte": "Cap. 6, 'Exemplo 5' (refaz Ex. 4 com modelo II)", "paginas": "302-304",
+      "dados": { "bw_cm": 25, "d_cm": 80, "fck_MPa": 20, "aco": "CA-50", "Vsd_kN": 357.7, "theta_graus": 30, "alpha_graus": 90, "estribo": "phi 6,3 mm, 0,32 cm2/ramo, s=12,1 cm" },
+      "esperado": { "tau_Rd2_MPa": 3.07, "VRd2_kN": 614.0, "VRd2_nota": "= 3,07 MPa * 0,25 * 0,80 * 1000", "tau_c_MPa": 0.351, "Vc_kN": 70.2, "Vc_nota": "interpolacao linear Vc1=0,66 MPa -> 0 entre tau_Sd=1,79 e tau_Rd2=3,07; = 0,351*0,25*0,80*1000", "tau_wd_MPa": 1.439, "rho_sw90": 2.12e-3, "s_cm": 12.1, "AswS_cm2_m": 5.30, "AswS_nota": "= rho_sw90 * bw = 2,12e-3 * 25 cm" },
+      "tol": { "VRd2": 0.005, "Vc": 0.02, "AswS": 0.015 },
+      "tol_motivo": "livro interpola com valores arredondados (0,66; 1,79; 3,07): tau_c exato 0,3535 (0,7%); Asw/s exato 5,29 cm2/m; 2% em Vc e 1,5% em Asw/s cobrem o arredondamento encadeado"
+    }
+  },
+  "descartados": {
+    "Cap.3 Ex.2": "fck 90 MPa (fora de fck<=40; 2026 muda coeficientes)",
+    "Cap.3 Ex.3": "item a) usa limite dominio 3/4 (criterio pre-2014); item b) esta exatamente em x/d=0,45 (borda: ruido numerico decide dupla vs simples)",
+    "Cap.3 Ex.5": "d_min = grandeza derivada, sem equivalente no contrato",
+    "Cap.3 Ex.8-9": "secao T, fora do escopo (shape rect)",
+    "Cap.6 Ex.1": "Vsd=1300 kN dimensionado com formula de trelica classica (1,10*Vsd, sem Vc), nao Modelo I da NBR 6118:2014"
+  }
+}
