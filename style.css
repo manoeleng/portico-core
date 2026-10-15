@@ -509,6 +509,20 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .ptab[data-tab="nodos"].active { color: #4ade80; border-bottom-color: #4ade80; }
 
 #panel-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+/* Cargas (separated from the model): header with the active case + sub-tabs */
+#vpanel-loads.active { display: flex; flex-direction: column; min-height: 0; }
+#loads-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#loads-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.loads-hdr { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.loads-hdr label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.loads-hdr select { flex: 1; min-width: 0; }
+.ltab.active { color: var(--warn); border-bottom-color: var(--warn); }
+/* collapsible groups of the node form (internal node: support group folded) */
+details.prop-fold { margin-top: 8px; border-top: 1px solid var(--border); }
+details.prop-fold > summary { cursor: pointer; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-muted); padding: 6px 0; list-style: revert; }
+details.prop-fold > summary .fold-sub { font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+details.prop-fold[open] > summary { color: var(--text); }
 .ptab-content { display: none; padding: 10px; }
 .ptab-content.active { display: block; }
 .cargas-sec-title { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }

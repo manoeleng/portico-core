@@ -1051,7 +1051,7 @@ class App {
                         `${i18n.t('Ke y Me se calculan con la luz FLEXIBLE Lf =')} ${+ro.Lf.toFixed(4)} m ${i18n.t('y se llevan a los nodos por brazo rígido')}`);
     if (elem.foundation) extras.push(i18n.t('fundación elástica (resorte distribuido)'));
     if (elem.endSprings) extras.push(i18n.t('resortes de extremo (empotramiento parcial)'));
-    if (elem.endFixity) extras.push(i18n.t('engaste parcial αR (NBR 9062)'));
+    if (elem.endFixity) extras.push(i18n.t('empotramiento parcial αR (NBR 9062)'));
     let html = `
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
         ${i18n.t('Elemento #')}${elem.id} (${i18n.t('nodos')} ${elem.n1}→${elem.n2}) · L = ${+L.toFixed(4)} m ·
@@ -6459,6 +6459,7 @@ class App {
   }
 
   _renderLcSelector() {
+    this.panel?.renderLoadsHeader?.();   // header of the Cargas panel mirrors the active case
     const sel = document.getElementById('lc-select');
     if (!sel) return;
     sel.innerHTML = '';
@@ -6557,8 +6558,9 @@ class App {
 
   // Opens the combinations tab (accessible from the Analysis menu / F8)
   openCombosTab() {
-    this.panel._switchVTab('model');
-    this.panel._switchTab('cargas');   // → renderLoadCases + renderCombinations
+    this.setPanelCollapsed?.(false);
+    this.panel._switchVTab('loads');
+    this.panel._switchLTab('combos');   // → renderCombinations
   }
 
   // Brazilian cases and combinations (NBR 8681:2025 with γ of NBR 6118:2026 / NBR 8800:2024,

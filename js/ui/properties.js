@@ -19,8 +19,18 @@ export class PropertiesPanel {
       design:    document.getElementById('vpanel-design'),
       assistant: document.getElementById('vpanel-assistant'),
       temp:      document.getElementById('vpanel-temp'),
+      loads:     document.getElementById('vpanel-loads'),
     };
     this._currentVTab = 'model';
+    // ── Cargas sub-tabs (selection loads / cases / combinations) ───────────
+    this._ltabBtns = [...panelEl.querySelectorAll('#loads-tabs .ltab')];
+    this._ltabContents = {
+      sel:    document.getElementById('ltab-sel'),
+      casos:  document.getElementById('ltab-casos'),
+      combos: document.getElementById('ltab-combos'),
+    };
+    this._currentLTab = 'sel';
+    this._lastShown = null;   // what the selection panel shows → re-shown when switching Modelo ↔ Cargas
 
     // ── Horizontal sub-tabs (inside Model) ─────────────────────────────────
     this._tabBtns    = [...panelEl.querySelectorAll('#panel-tabs .ptab')];
@@ -31,7 +41,6 @@ export class PropertiesPanel {
       mat:   document.getElementById('ptab-mat'),
       sec:   document.getElementById('ptab-sec'),
       dia:   document.getElementById('ptab-dia'),
-      cargas: document.getElementById('ptab-cargas'),
     };
     this._currentTab = 'sel';
 
@@ -70,6 +79,15 @@ export class PropertiesPanel {
     this._rtabBtns.forEach(btn =>
       btn.addEventListener('click', () => this._switchRTab(btn.dataset.rtab))
     );
+    this._ltabBtns.forEach(btn =>
+      btn.addEventListener('click', () => this._switchLTab(btn.dataset.ltab))
+    );
+    document.getElementById('loads-hdr-lc')?.addEventListener('change', e => {
+      this.app._activeLcId = +e.target.value;
+      this.app._renderLcSelector();
+      this.app.refreshLoads();
+      this._reshow();
+    });
 
     document.getElementById('btn-add-mat')?.addEventListener('click',    () => this._addMaterial());
     document.getElementById('btn-add-sec')?.addEventListener('click',    () => this._addSection());
@@ -97,7 +115,42 @@ export class PropertiesPanel {
     document.getElementById('btn-temp-clear')?.addEventListener('click', () => this.app.clearAllTemporales());
   }
 
+  // container of the selection panel: Modelo → properties; Cargas → loads of the selection in the active case
+  _selRoot() { return this._currentVTab === 'loads' ? this._ltabContents.sel : this._tabContents.sel; }
+  _loadsMode() { return this._currentVTab === 'loads'; }
+  // brings the selection panel of the CURRENT mode to the front (Cargas stays in Cargas, else Modelo)
+  _showTarget() {
+    if (this._loadsMode()) this._switchLTab('sel');
+    else { this._switchVTab('model'); this._switchTab('sel'); }
+  }
+  _reshow() {
+    const s = this._lastShown, m = this.app.model;
+    if (!s) return this.showNothing();
+    if (s.k === 'node') return m.nodes.get(s.id) ? this.showNode(m.nodes.get(s.id)) : this.showNothing();
+    if (s.k === 'elem') return m.elements.get(s.id) ? this.showElement(m.elements.get(s.id)) : this.showNothing();
+    if (s.k === 'area') return m.areas.get(s.id) ? this.showArea(m.areas.get(s.id)) : this.showNothing();
+    if (s.k === 'multi') return this.showSelection(s.items);
+    this.showNothing();
+  }
+
+  _switchLTab(tab) {
+    this._currentLTab = tab;
+    this._ltabBtns.forEach(b => b.classList.toggle('active', b.dataset.ltab === tab));
+    Object.entries(this._ltabContents).forEach(([k, el]) => el?.classList.toggle('active', k === tab));
+    if (tab === 'casos')  this.renderLoadCases();
+    if (tab === 'combos') this.renderCombinations();
+  }
+
+  // active-case selector of the Cargas panel (same list as the toolbar selector, analysis cases only)
+  renderLoadsHeader() {
+    const sel = document.getElementById('loads-hdr-lc');
+    if (!sel) return;
+    sel.innerHTML = [...this.app.model.loadCases.values()].map(lc =>
+      `<option value="${lc.id}" ${lc.id === this.app._activeLcId ? 'selected' : ''}>${lc.type === 'spectrum' ? '〜 ' : ''}${esc(lc.name)}${lc.selfWeight ? ' ⊕PP' : ''}</option>`).join('');
+  }
+
   _switchVTab(vtab) {
+    const prev = this._currentVTab;
     this._currentVTab = vtab;
     this._vtabBtns.forEach(b => b.classList.toggle('active', b.dataset.vtab === vtab));
     Object.entries(this._vpanels).forEach(([k, el]) =>
@@ -106,6 +159,9 @@ export class PropertiesPanel {
     if (vtab === 'results') this._switchRTab(this._currentRTab);
     if (vtab === 'design') this.renderDesign();
     if (vtab === 'temp') this.app.renderTemporales?.();
+    if (vtab === 'loads') { this.renderLoadsHeader(); this._switchLTab(this._currentLTab); }
+    // Modelo ↔ Cargas: the same selection, shown in the other mode
+    if (prev !== vtab && (vtab === 'loads' || (vtab === 'model' && prev === 'loads'))) this._reshow();
   }
 
   // Design check (bending/shear/axial) in the side panel.
@@ -221,7 +277,6 @@ export class PropertiesPanel {
     if (tab === 'dia')   this.renderDiaphragms();
     if (tab === 'nodos') this.renderNodesGrid();
     if (tab === 'elems') this.renderElemsGrid();
-    if (tab === 'cargas') { this.renderLoadCases(); this.renderCombinations(); }
   }
 
   _switchRTab(rtab) {
@@ -311,7 +366,7 @@ export class PropertiesPanel {
           this._switchTab('sel');
           const disp = res.getNodeDisp(masterId);
           const fv = v => `<span style="font-family:var(--font-mono);color:${Math.abs(v)<1e-10?'var(--text-muted)':v>0?'#ef5350':'#42a5f5'}">${Math.abs(v)<1e-10?'—':v.toExponential(4)}</span>`;
-          this._tabContents.sel.innerHTML = `
+          this._selRoot().innerHTML = `
             <div class="prop-id" style="color:#ff7043">⊕ ${i18n.t('CM Diafragma')} #${dId}</div>
             <div class="prop-section" style="border:1px solid #ff7043;border-radius:4px;padding:8px">
               <div class="prop-title" style="color:#ff7043">${i18n.t('Desplazamientos Nodo Master')} #${masterId}</div>
@@ -327,8 +382,17 @@ export class PropertiesPanel {
 
   showSelection(items) {
     this.app.setPanelCollapsed(false);   // seleccionar en la vista 3D despliega el panel
-    this._switchVTab('model');
-    this._switchTab('sel');
+    this._lastShown = { k: 'multi', items };
+    this._showTarget();
+    if (this._loadsMode()) {
+      const el = items.filter(i => i.type === 'elem'), nd = items.filter(i => i.type === 'node');
+      this._selRoot().innerHTML = `<div class="prop-id">${items.length} ${i18n.t('seleccionado(s)')}</div>`
+        + (el.length ? this._selLoadActionsHTML(el) : '') + (nd.length ? this._nodeLoadActionsHTML(nd) : '')
+        + (!el.length && !nd.length ? `<p class="panel-hint">${i18n.t('Las áreas no tienen cargas en este panel (temperatura por cara: pestaña Modelo).')}</p>` : '');
+      if (el.length) this._bindSelActions(el.map(e => e.id));
+      if (nd.length) this._bindNodeActions();
+      return;
+    }
     const res  = this.app._results;
     const elems = items.filter(i => i.type === 'elem');
     const nodes = items.filter(i => i.type === 'node');
@@ -423,7 +487,7 @@ export class PropertiesPanel {
     html += this._transformHTML(items.length);
     html += this._groupsHTML();
 
-    this._tabContents.sel.innerHTML = html;
+    this._selRoot().innerHTML = html;
     if (elems.length > 0) this._bindSelActions(elems.map(e => e.id));
     if (nodes.length > 0) this._bindNodeActions();
     if (areas.length > 0) this._bindAreaActions();
@@ -465,7 +529,7 @@ export class PropertiesPanel {
       </div>`;
   }
   _bindAreaActions() {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
     sel.querySelector('#ar-beh-apply')?.addEventListener('click', () => {
       const v = sel.querySelector('#ar-beh').value; if (v) this.app.setAreasProps({ behavior: v });
     });
@@ -491,7 +555,10 @@ export class PropertiesPanel {
           <button class="btn-secondary nod-sup" data-p="rodillo" style="flex:1;font-size:11px" title="Solo vertical (Uz)">Rodillo</button>
           <button class="btn-secondary nod-sup" data-p="libre" style="flex:1;font-size:11px" title="Sin apoyo">Libre</button>
         </div>
-      </div>
+      </div>`;
+  }
+  _nodeLoadActionsHTML(nodes) {
+    return `
       <div class="load-section prop-section" style="border:1px solid var(--node-col);border-radius:6px;padding:8px;margin-top:8px">
         <div class="prop-title load-title-row" style="color:var(--node-col);margin-top:0">${i18n.t('Carga Nodal')} · ${nodes.length} ${i18n.t('nodo(s)')} ${this._lcSelectHTML('loads-lc-multinode')}</div>
         <div class="prop-row cols3">
@@ -511,7 +578,7 @@ export class PropertiesPanel {
       </div>`;
   }
   _bindNodeActions() {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
     sel.querySelectorAll('.nod-sup').forEach(b => b.addEventListener('click', () => this.app.setSupportSelectedNodes(b.dataset.p)));
     const lcId = () => +(sel.querySelector('#loads-lc-multinode')?.value) || this.app._activeLcId;
     sel.querySelector('#btn-apply-load-multi')?.addEventListener('click', () => {
@@ -558,7 +625,7 @@ export class PropertiesPanel {
       </div>`;
   }
   _bindTransform() {
-    const $ = (i) => this._tabContents.sel.querySelector(i);
+    const $ = (i) => this._selRoot().querySelector(i);
     const num = (i) => parseFloat($(i).value) || 0;
     $('#tr-copy')?.addEventListener('click', () => this.app.copySelection(num('#tr-dx'), num('#tr-dy'), num('#tr-dz'), parseInt($('#tr-rep').value, 10), num('#tr-dx2'), num('#tr-dy2'), num('#tr-dz2'), parseInt($('#tr-rep2').value, 10)));
     $('#tr-move')?.addEventListener('click', () => this.app.moveSelection(num('#tr-dx'), num('#tr-dy'), num('#tr-dz')));
@@ -569,8 +636,6 @@ export class PropertiesPanel {
   _selActionsHTML(elems) {
     const mats = [...this.app.model.materials.values()].map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
     const secs = [...this.app.model.sections.values()].map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-    const lcs = [...this.app.model.loadCases.values()].filter(l => l.type !== 'spectrum')
-      .map(l => `<option value="${l.id}" ${l.id === this.app._activeLcId ? 'selected' : ''}>${esc(l.name)}${l.selfWeight ? ' ⊕PP' : ''}</option>`).join('');
     const n = elems.length;
     return `
       <div class="prop-section" style="border:1px solid var(--accent);border-radius:6px;padding:8px;margin-top:8px">
@@ -590,31 +655,6 @@ export class PropertiesPanel {
             <input type="number" id="sel-disc" value="4" min="2" step="1"></div>
           <button class="btn-secondary" id="sel-disc-go" style="font-size:11px">Dividir</button>
         </div>
-        <div style="border-top:1px dashed var(--border2);margin:4px 0 8px;padding-top:8px">
-          <div class="prop-row cols3" style="gap:6px;margin-bottom:6px">
-            <div class="prop-field"><label>Carga w (kN/m)</label><input type="number" id="sel-w" value="10" step="1"></div>
-            <div class="prop-field"><label>Dirección</label>
-              <select id="sel-wdir">
-                <option value="gravity">Gravedad ↓</option>
-                <option value="globalX">Global +X</option>
-                <option value="globalY">Global +Y</option>
-                <option value="localY">Local y</option>
-                <option value="localZ">Local z</option>
-              </select></div>
-            <div class="prop-field"><label>Caso</label><select id="sel-wlc">${lcs}</select></div>
-          </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn-secondary" id="sel-w-go" style="flex:1;font-size:11px" title="Asigna la misma carga distribuida a todos (reemplaza la previa en ese caso)">Aplicar carga</button>
-            <button class="btn-secondary" id="sel-w-clr" style="flex:1;font-size:11px" title="Quita las cargas distribuidas de estos elementos en el caso elegido">Quitar carga</button>
-          </div>
-          <div class="prop-row" style="margin-top:6px">
-            <div class="prop-field"><label>Temperatura ΔT (°C)</label><input type="number" id="sel-dt" value="20" step="5" title="Cambio uniforme de temperatura. Usa α del material → carga axial térmica."></div>
-          </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn-secondary" id="sel-dt-go" style="flex:1;font-size:11px" title="Asigna ΔT uniforme a los elementos (reemplaza la previa en ese caso)">Aplicar ΔT</button>
-            <button class="btn-secondary" id="sel-dt-clr" style="flex:1;font-size:11px" title="Quita las cargas de temperatura de estos elementos en el caso elegido">Quitar ΔT</button>
-          </div>
-        </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
           <button class="btn-secondary" id="sel-join" style="flex:1;font-size:11px" title="Une tramos colineales en una sola barra">Unir colineales</button>
           ${n === 2 ? `<button class="btn-secondary" id="sel-inter" style="flex:1;font-size:11px" title="Crea un nodo común en el cruce de los 2 elementos">Cortar en intersección</button>` : ''}
@@ -628,8 +668,44 @@ export class PropertiesPanel {
       </div>`;
   }
 
+  // distributed load / ΔT for the selected elements (Cargas panel)
+  // withDist = false: one element (its distributed load is edited by _elemLoadsHTML) → only ΔT here
+  _selLoadActionsHTML(elems, withDist = true) {
+    const lcs = [...this.app.model.loadCases.values()].filter(l => l.type !== 'spectrum')
+      .map(l => `<option value="${l.id}" ${l.id === this.app._activeLcId ? 'selected' : ''}>${esc(l.name)}${l.selfWeight ? ' ⊕PP' : ''}</option>`).join('');
+    return `
+      <div class="prop-section load-section" style="border:1px solid var(--accent);border-radius:6px;padding:8px;margin-top:8px">
+        <div class="prop-title" style="color:var(--accent);margin-top:0">${withDist ? i18n.t('Carga Distribuida') + ' / ΔT' : 'ΔT'} · ${elems.length} ${i18n.t('elemento(s)')}</div>
+        <div>
+          <div class="prop-row cols3" style="gap:6px;margin-bottom:6px;${withDist ? '' : 'display:none'}">
+            <div class="prop-field"><label>Carga w (kN/m)</label><input type="number" id="sel-w" value="10" step="1"></div>
+            <div class="prop-field"><label>Dirección</label>
+              <select id="sel-wdir">
+                <option value="gravity">Gravedad ↓</option>
+                <option value="globalX">Global +X</option>
+                <option value="globalY">Global +Y</option>
+                <option value="localY">Local y</option>
+                <option value="localZ">Local z</option>
+              </select></div>
+            <div class="prop-field"><label>Caso</label><select id="sel-wlc">${lcs}</select></div>
+          </div>
+          <div style="display:flex;gap:6px;${withDist ? '' : 'display:none'}">
+            <button class="btn-secondary" id="sel-w-go" style="flex:1;font-size:11px" title="Asigna la misma carga distribuida a todos (reemplaza la previa en ese caso)">Aplicar carga</button>
+            <button class="btn-secondary" id="sel-w-clr" style="flex:1;font-size:11px" title="Quita las cargas distribuidas de estos elementos en el caso elegido">Quitar carga</button>
+          </div>
+          <div class="prop-row" style="margin-top:6px">
+            <div class="prop-field"><label>Temperatura ΔT (°C)</label><input type="number" id="sel-dt" value="20" step="5" title="Cambio uniforme de temperatura. Usa α del material → carga axial térmica."></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn-secondary" id="sel-dt-go" style="flex:1;font-size:11px" title="Asigna ΔT uniforme a los elementos (reemplaza la previa en ese caso)">Aplicar ΔT</button>
+            <button class="btn-secondary" id="sel-dt-clr" style="flex:1;font-size:11px" title="Quita las cargas de temperatura de estos elementos en el caso elegido">Quitar ΔT</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
   _bindSelActions(ids) {
-    const $ = (i) => this._tabContents.sel.querySelector(i);
+    const $ = (i) => this._selRoot().querySelector(i);
     $('#sel-mat-go')?.addEventListener('click', () => { const v = $('#sel-mat').value; if (v) this.app.setMaterialSelected(v); });
     $('#sel-sec-go')?.addEventListener('click', () => { const v = $('#sel-sec').value; if (v) this.app.setSectionSelected(v); });
     $('#sel-disc-go')?.addEventListener('click', () => this.app.discretizeSelected(parseInt($('#sel-disc').value, 10)));
@@ -662,7 +738,7 @@ export class PropertiesPanel {
   }
 
   _bindGroups() {
-    const root = this._tabContents.sel;
+    const root = this._selRoot();
     root.querySelectorAll('.grp-sel').forEach(b => b.addEventListener('click', () => this.app.selectGroup(b.dataset.g)));
     root.querySelectorAll('.grp-hide').forEach(b => b.addEventListener('click', () => this.app.hideGroup(b.dataset.g)));
     root.querySelectorAll('.grp-show').forEach(b => b.addEventListener('click', () => this.app.showGroup(b.dataset.g)));
@@ -670,52 +746,65 @@ export class PropertiesPanel {
   }
 
   showNothing() {
-    const sel = this._tabContents.sel;
-    if (sel) {
-      const ocultos = this.app.viewport?.hiddenCount?.() || 0;
-      sel.innerHTML = '<p class="panel-hint">Haga clic en un nodo, elemento o área para editar sus propiedades. Ctrl+clic para seleccionar varios.</p>'
-        + (ocultos ? `<p class="panel-hint" style="color:var(--warn)">${ocultos} ${i18n.t('elemento(s) oculto(s) · Vista → Mostrar todo')}</p>` : '')
-        + this._groupsHTML();
-      this._bindGroups();
+    this._lastShown = null;
+    this._showTarget();
+    const sel = this._selRoot();
+    if (!sel) return;
+    if (this._loadsMode()) {
+      sel.innerHTML = `<p class="panel-hint">${i18n.t('Haga clic en un nodo o elemento para editar sus cargas en el caso activo. Ctrl+clic para seleccionar varios.')}</p>`;
+      return;
     }
-    this._switchVTab('model');
-    this._switchTab('sel');
+    const ocultos = this.app.viewport?.hiddenCount?.() || 0;
+    sel.innerHTML = '<p class="panel-hint">Haga clic en un nodo, elemento o área para editar sus propiedades. Ctrl+clic para seleccionar varios.</p>'
+      + (ocultos ? `<p class="panel-hint" style="color:var(--warn)">${ocultos} ${i18n.t('elemento(s) oculto(s) · Vista → Mostrar todo')}</p>` : '')
+      + this._groupsHTML();
+    this._bindGroups();
   }
 
   showNode(node, focusSupports = false) {
     if (!node) { this.showNothing(); return; }
-    this._switchVTab('model');
-    this._switchTab('sel');
+    this._lastShown = { k: 'node', id: node.id };
+    this._showTarget();
+    if (this._loadsMode()) {   // Cargas: only the loads of the node (active case + all cases)
+      this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Nodo')} #${node.id}</div>`
+        + this._nodeLoadsHTML(node) + this._allLoadsHTML('node', node.id);
+      this._bindNodeLoadsEvents(node);
+      return;
+    }
     const results = this.app._results;
     let diaphHTML = '';
     try { diaphHTML = this._nodeDiaphragmHTML(node); } catch (e) { console.warn('nodeDiaphragmHTML:', e); }
-    this._tabContents.sel.innerHTML = this._nodeHTML(node)
+    this._selRoot().innerHTML = this._nodeHTML(node)
       + diaphHTML
-      + (results ? this._nodeResultsHTML(node, results) : '')
-      + this._nodeLoadsHTML(node)
-      + this._allLoadsHTML('node', node.id);
+      + (results ? this._nodeResultsHTML(node, results) : '');
     this._bindNodeEvents(node);
-    this._bindNodeLoadsEvents(node);
     if (focusSupports) {
-      const el = this._tabContents.sel.querySelector('.restraints-section');
+      const fold = this._selRoot().querySelector('details.supp-fold');
+      if (fold) fold.open = true;
+      const el = this._selRoot().querySelector('.restraints-section');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
 
   showElement(elem) {
     if (!elem) { this.showNothing(); return; }
-    this._switchVTab('model');
-    this._switchTab('sel');
+    this._lastShown = { k: 'elem', id: elem.id };
+    this._showTarget();
+    if (this._loadsMode()) {   // Cargas: distributed load of the active case + ΔT + all cases
+      this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Elemento')} #${elem.id}</div>`
+        + this._elemLoadsHTML(elem) + this._allLoadsHTML('elem', elem.id)
+        + this._selLoadActionsHTML([{ type: 'elem', id: elem.id }], false);
+      this._bindElemLoadsEvents(elem);
+      this._bindSelActions([elem.id]);
+      return;
+    }
     const results = this.app._results;
     const one = [{ type: 'elem', id: elem.id }];
-    this._tabContents.sel.innerHTML = this._elemHTML(elem)
+    this._selRoot().innerHTML = this._elemHTML(elem)
       + (results ? this._elemResultsHTML(elem, results) : '')
-      + this._elemLoadsHTML(elem)
-      + this._allLoadsHTML('elem', elem.id)
-      + this._selActionsHTML(one)   // Actions (material/section/load/group…) also with 1 element
+      + this._selActionsHTML(one)   // Actions (material/section/group…) also with 1 element
       + this._transformHTML(1);       // Move / Copy also with 1 element
     this._bindElemEvents(elem);
-    this._bindElemLoadsEvents(elem);
     this._bindSelActions([elem.id]);
     this._bindTransform();
   }
@@ -723,9 +812,14 @@ export class PropertiesPanel {
   // ── AREA element (membrane / plate / shell) ────────────────────────────────
   showArea(area) {
     if (!area) { this.showNothing(); return; }
-    this._switchVTab('model');
-    this._switchTab('sel');
-    this._tabContents.sel.innerHTML = this._areaHTML(area) + this._areaResultsHTML(area);
+    this._lastShown = { k: 'area', id: area.id };
+    this._showTarget();
+    if (this._loadsMode()) {
+      this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Área')} #${area.id}</div>`
+        + `<p class="panel-hint">${i18n.t('La carga térmica por cara de las áreas se edita en la pestaña Modelo.')}</p>`;
+      return;
+    }
+    this._selRoot().innerHTML = this._areaHTML(area) + this._areaResultsHTML(area);
     this._bindAreaEvents(area);
   }
 
@@ -870,7 +964,7 @@ export class PropertiesPanel {
   }
 
   _bindAreaEvents(area) {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
     const save = () => {
       this.app.snapshot();
       this.app.model.updateArea(area.id, {
@@ -1296,6 +1390,12 @@ export class PropertiesPanel {
     }).join('');
 
     const hasNM = nm.mx > 0 || nm.my > 0 || nm.mz > 0 || nm.irx > 0 || nm.iry > 0 || nm.irz > 0;
+    // external node (support) = rigid restraint, spring or prescribed value; internal node → support group folded
+    const fixed = dof.filter(d => r[d]).map(d => d.toUpperCase());
+    const isExt = fixed.length > 0 || hasSp || hasSK || hasPD;
+    const suppSub = isExt
+      ? [fixed.join(' '), hasSp || hasSK ? i18n.t('resortes') : '', hasPD ? i18n.t('asentamiento') : ''].filter(Boolean).join(' · ')
+      : i18n.t('ninguno — nodo interno');
 
     return `
       <div class="prop-id">${i18n.t('Nodo')} #${node.id}</div>
@@ -1311,6 +1411,8 @@ export class PropertiesPanel {
 
       ${this._nodeFixityHTML(node)}
 
+      <details class="prop-fold supp-fold" ${isExt ? 'open' : ''}>
+      <summary>${i18n.t('Apoyo (vínculo exterior)')}<span class="fold-sub">${suppSub}</span></summary>
       <div class="prop-section restraints-section">
         <div class="prop-title">Restricciones (1 = fijo)</div>
         <div class="restraint-grid">${checks}</div>
@@ -1410,6 +1512,10 @@ export class PropertiesPanel {
         </div>
       </div>
 
+      </details>
+
+      <details class="prop-fold" ${hasNM ? 'open' : ''}>
+      <summary>${i18n.t('Masa Nodal Concentrada')}<span class="fold-sub">${hasNM ? '●' : '—'}</span></summary>
       <div class="prop-section">
         <div class="prop-title" style="${hasNM ? 'color:#ffd54f' : ''}">
           ${i18n.t('Masa Nodal Concentrada')}${hasNM ? ' ●' : ''}
@@ -1446,6 +1552,8 @@ export class PropertiesPanel {
         </div>
       </div>
 
+      </details>
+
       <div class="delete-btn-row">
         <button class="btn-danger" id="btn-del-node" style="width:100%;">${i18n.t('Eliminar Nodo')} #${node.id}</button>
       </div>
@@ -1462,29 +1570,29 @@ export class PropertiesPanel {
     // premises the engineer must see (review: 3D torsion coupling, partly held rotation, nodal moment, EI)
     const is3D = this.app.model.mode !== '2D';
     const hingeNote = fx.mode !== 'hinge' ? '' : (fx.kept
-      ? i18n.t('Barra') + ` #${fx.kept} ` + i18n.t('fica contínua (n−1 extremos liberados): sem momento aplicado no nó, o equilíbrio zera o momento dela.')
-        + (is3D ? ' ' + i18n.t('Em 3D a torção das demais barras segue contínua e pode transmitir momento a essa barra; com momento nodal aplicado ou giro parcialmente restringido no apoio, ela absorve esse momento.') : '')
-      : i18n.t('Todos os extremos liberados (o apoio segura os giros do nó).'));
-    const partialNote = fx.mode !== 'partial' ? '' : i18n.t('Mola linear: o mesmo αR para M+ e M−. Use no modelo o mesmo EI com que αR foi obtido (Anexo A: ajuste o modificador de inércia da seção).');
-    const zone = fx.mode !== 'partial' ? '' : a < 0.15 ? i18n.t('αR < 0,15: a norma trata a ligação como articulada (5.1.2.6/5.1.2.9-g)')
-      : a >= 0.85 ? i18n.t('αR ≥ 0,85: ligação rígida (5.1.2.8)') : i18n.t('semirrígida: 0,15 ≤ αR < 0,85 (5.1.2.7)');
+      ? i18n.t('Elemento') + ` #${fx.kept} ` + i18n.t('queda continuo (n−1 extremos liberados): sin momento aplicado en el nodo, el equilibrio anula su momento.')
+        + (is3D ? ' ' + i18n.t('En 3D la torsión de los demás elementos sigue continua y puede transmitir momento a ese elemento; con momento nodal aplicado o giro parcialmente restringido en el apoyo, este absorbe ese momento.') : '')
+      : i18n.t('Todos los extremos liberados (el apoyo restringe los giros del nodo).'));
+    const partialNote = fx.mode !== 'partial' ? '' : i18n.t('Resorte lineal: el mismo αR para M+ y M−. Use en el modelo el mismo EI con que se obtuvo αR (Anexo A: ajuste el modificador de inercia de la sección).');
+    const zone = fx.mode !== 'partial' ? '' : a < 0.15 ? i18n.t('αR < 0,15: la norma trata la unión como articulada (5.1.2.6/5.1.2.9-g)')
+      : a >= 0.85 ? i18n.t('αR ≥ 0,85: unión rígida (5.1.2.8)') : i18n.t('semirrígida: 0,15 ≤ αR < 0,85 (5.1.2.7)');
     return `
       <div class="prop-section node-fixity-section">
-        <div class="prop-title">${i18n.t('Vinculação interior')} (${fx.n} ${i18n.t('extremos de barra')})</div>
+        <div class="prop-title">${i18n.t('Vinculación interior')} (${fx.n} ${i18n.t('extremos de elemento')})</div>
         <div class="prop-row cols2">
           <div class="prop-field"><label>${i18n.t('Tipo')}</label>
             <select id="n-fix-mode">
-              ${opt('rigid', i18n.t('Engastado'))}${opt('hinge', i18n.t('Articulado'))}${opt('partial', i18n.t('Engaste parcial (αR)'))}
-              ${fx.mode === 'custom' ? `<option value="custom" selected disabled>${i18n.t('Personalizado (por barra)')}</option>` : ''}
+              ${opt('rigid', i18n.t('Empotrado'))}${opt('hinge', i18n.t('Articulado'))}${opt('partial', i18n.t('Empotramiento parcial (αR)'))}
+              ${fx.mode === 'custom' ? `<option value="custom" selected disabled>${i18n.t('Personalizado (por elemento)')}</option>` : ''}
             </select>
           </div>
           <div class="prop-field" id="n-fix-alpha-wrap" style="${fx.mode === 'partial' ? '' : 'display:none'}">
-            <label title="αR = θ1/θ2 = [1 + 3(EI)sec/(Rsec·Lef)]⁻¹ — ABNT NBR 9062:2017, 5.1.2.7">${i18n.t('Grau de engastamento αR')}</label>
+            <label title="αR = θ1/θ2 = [1 + 3(EI)sec/(Rsec·Lef)]⁻¹ — ABNT NBR 9062:2017, 5.1.2.7">${i18n.t('Grado de empotramiento αR')}</label>
             <input type="number" id="n-fix-alpha" value="${a}" min="0.01" max="0.99" step="0.05">
           </div>
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
-          ${i18n.t('Flexão dos extremos de barra no nó (torção contínua). αR = 0 articulado, 1 engastado; Rsec = 3·EI·αR/(Lef·(1−αR)) por barra, com a seção e o comprimento atuais (NBR 9062:2017 5.1.2.7).')}
+          ${i18n.t('Flexión de los extremos de elemento en el nodo (torsión continua). αR = 0 articulado, 1 empotrado; Rsec = 3·EI·αR/(Lef·(1−αR)) por elemento, con la sección y la longitud actuales (NBR 9062:2017 5.1.2.7).')}
           ${zone ? `<br><b>${zone}</b>` : ''}
           ${partialNote ? `<br>${partialNote}` : ''}
           ${hingeNote ? `<br>${hingeNote}` : ''}
@@ -1493,14 +1601,14 @@ export class PropertiesPanel {
   }
 
   _bindNodeEvents(node) {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
 
     // internal fixity → every bar end at the node, then redraw those bars and the panel
     const applyFixity = () => {
       const mode = sel.querySelector('#n-fix-mode')?.value;
       if (!mode || mode === 'custom') return;
       let a = parseFloat(String(sel.querySelector('#n-fix-alpha')?.value ?? '').replace(',', '.'));
-      if (mode === 'partial' && !(a > 0 && a < 1)) { this.app.toast?.(i18n.t('αR deve estar entre 0 e 1'), 'warn'); return; }
+      if (mode === 'partial' && !(a > 0 && a < 1)) { this.app.toast?.(i18n.t('αR debe estar entre 0 y 1'), 'warn'); return; }
       this.app.snapshot();
       this.app.model.setNodeFixity(node.id, mode, a);
       for (const { e } of this.app.model._nodeEnds(node.id)) this.app.viewport.refreshElem(e);
@@ -1799,7 +1907,7 @@ export class PropertiesPanel {
   }
 
   _bindElemEvents(elem) {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
 
     const save = () => {
       this.app.snapshot();
@@ -1904,6 +2012,7 @@ export class PropertiesPanel {
   // ── Load input for nodes ───────────────────────────────────────────────────
   // Embedded load-case selector — avoids going to the viewport overlay
   _lcSelectHTML(domId) {
+    if (this._loadsMode()) return '';   // the Cargas panel header already selects the active case
     const opts = [...this.app.model.loadCases.values()].map(l => {
       const label = l.type === 'spectrum'
         ? `〜 ${esc(l.name)} [esp]`
@@ -1947,7 +2056,7 @@ export class PropertiesPanel {
   }
 
   _bindNodeLoadsEvents(node) {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
     sel.querySelector('#loads-lc-node')?.addEventListener('change', e => {
       this.app._activeLcId = +e.target.value;
       this.app._renderLcSelector();
@@ -2011,7 +2120,7 @@ export class PropertiesPanel {
   }
 
   _bindElemLoadsEvents(elem) {
-    const sel = this._tabContents.sel;
+    const sel = this._selRoot();
     sel.querySelector('#loads-lc-elem')?.addEventListener('change', e => {
       this.app._activeLcId = +e.target.value;
       this.app._renderLcSelector();

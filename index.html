@@ -556,6 +556,7 @@
       <!-- Vertical super-tabs -->
       <div id="panel-vtabs">
         <button class="vtab active" data-vtab="model">Modelo</button>
+        <button class="vtab" data-vtab="loads" title="Cargas: casos, combinaciones y cargas del elemento seleccionado en el caso activo">Cargas</button>
         <button class="vtab" data-vtab="assistant">Asistente</button>
         <button class="vtab" data-vtab="results">Resultados</button>
         <button class="vtab" data-vtab="design">Diseño</button>
@@ -573,7 +574,6 @@
             <button class="ptab" data-tab="mat">Mat.</button>
             <button class="ptab" data-tab="sec">Sec.</button>
             <button class="ptab" data-tab="dia">Diaf.</button>
-            <button class="ptab" data-tab="cargas">Casos y combos</button>
           </div>
           <div id="panel-body">
 
@@ -611,16 +611,33 @@
               <button class="btn-add" id="btn-add-dia" style="margin-top:4px">＋ Agregar Diafragma</button>
             </div>
 
-            <div id="ptab-cargas" class="ptab-content">
-              <div class="cargas-sec-title">Casos de carga</div>
+          </div>
+        </div>
+
+        <!-- CARGAS (separadas del modelo, como el menú «Carga» del CYPE 3D) -->
+        <div id="vpanel-loads" class="vpanel-content">
+          <div id="loads-hdr" class="loads-hdr">
+            <label for="loads-hdr-lc">Caso activo</label>
+            <select id="loads-hdr-lc"></select>
+          </div>
+          <div id="loads-tabs">
+            <button class="ptab ltab active" data-ltab="sel">Sel.</button>
+            <button class="ptab ltab" data-ltab="casos">Casos</button>
+            <button class="ptab ltab" data-ltab="combos">Combinaciones</button>
+          </div>
+          <div id="loads-body">
+            <div id="ltab-sel" class="ptab-content active">
+              <p class="panel-hint">Haga clic en un nodo o elemento para editar sus cargas en el caso activo.</p>
+            </div>
+            <div id="ltab-casos" class="ptab-content">
               <div id="lc-list"></div>
               <button class="btn-add" id="btn-add-lc-panel">＋ Nuevo caso de carga</button>
-              <div class="cargas-sec-title" style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">Combinaciones</div>
+            </div>
+            <div id="ltab-combos" class="ptab-content">
               <button class="btn-add" id="btn-combos-norma" style="margin-bottom:8px;background:rgba(210,153,34,0.16);border-color:var(--warn);color:var(--warn)" title="Casos D/L y combinaciones LRFD + servicio de la NCh3171">⚙ Crear casos y combos de norma (NCh3171)</button>
               <div id="combo-list"></div>
               <button class="btn-add" id="btn-add-combo">＋ Agregar Combinación</button>
             </div>
-
           </div>
         </div>
 
