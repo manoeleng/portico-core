@@ -116,6 +116,8 @@ export class Viewport {
 
     // P4-13: extruded section objects
     this._showExtruded    = false;
+    // solid view display mode: 'solid' (opaque colours + edges) | 'translucent' (see-through + edges) | 'edges' (outline only)
+    this._extrudeMode     = (() => { try { return localStorage.getItem('portico.extrudeMode') || 'solid'; } catch { return 'solid'; } })();
     this._extrudedObjects = [];
     this._extrusionLight  = null;
 
@@ -3777,6 +3779,14 @@ export class Viewport {
   }
 
   // ── P4-13: Extruded section rendering ─────────────────────────────────────
+  // Display mode of the solid view; switching it turns the solid view on.
+  setExtrudeMode(mode) {
+    this._extrudeMode = ['solid', 'translucent', 'edges'].includes(mode) ? mode : 'solid';
+    try { localStorage.setItem('portico.extrudeMode', this._extrudeMode); } catch { /* storage blocked */ }
+    if (this._showExtruded) this.toggleExtruded();          // off (clears) …
+    this.toggleExtruded();                                  // … and on again with the new mode
+  }
+
   toggleExtruded() {
     this._showExtruded = !this._showExtruded;
     const btn = document.getElementById('btn-toggle-extrude');
@@ -3822,10 +3832,17 @@ export class Viewport {
       if (L < 1e-9) continue;
 
       const geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
-      const mat = new THREE.MeshPhongMaterial({
-        color: 0x90caf9, transparent: true, opacity: 0.75, side: THREE.DoubleSide
-      });
+      // colour: the layer colour when "colour by layer" is on, else steel grey-blue
+      const lyc = model.layerView?.colorByLayer ? layerById(model, elem.layer ?? 1).color : null;
+      const col = new THREE.Color(lyc || 0x8fb3d9), mode = this._extrudeMode || 'solid';
+      const mat = new THREE.MeshPhongMaterial({ color: col, side: THREE.DoubleSide,
+        ...(mode === 'translucent' ? { transparent: true, opacity: 0.35, depthWrite: false } : {}),
+        ...(mode === 'edges' ? { visible: false } : {}) });
       const mesh = new THREE.Mesh(geo, mat);
+      // edges of the profile (feature edges > 20°): dark on the solid, coloured on the translucent / outline modes
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20),
+        new THREE.LineBasicMaterial({ color: mode === 'solid' ? 0x1e293b : col.clone().multiplyScalar(0.75) }));
+      mesh.add(edges);
 
       // Orient the mesh with the SOLVER's local triad (localAxes, roll angle β included): profile height (shape y)
       // along local y — the depth that gives Iz —, shape x along −z (right-handed with the extrusion along x).

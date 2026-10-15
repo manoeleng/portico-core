@@ -202,6 +202,8 @@ class App {
     document.getElementById('btn-config-tool')?.addEventListener('click', () => this.configDialog());
     document.getElementById('btn-tree-toggle')?.addEventListener('click', () => this.toggleModelTree());
     document.getElementById('btn-toggle-extrude')?.addEventListener('click', () => this.viewport.toggleExtruded());
+    { const sm = document.getElementById('extrude-mode');           // solid / translucent / edges
+      if (sm) { sm.value = this.viewport._extrudeMode || 'solid'; sm.addEventListener('change', () => this.viewport.setExtrudeMode(sm.value)); } }
     document.getElementById('btn-export-img')?.addEventListener('click', () => this.exportViewportPNG());
 
     // Support reactions (toggle)

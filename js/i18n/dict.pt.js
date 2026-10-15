@@ -2568,6 +2568,10 @@ export const PT = {
   "Ángulo β (°)": "Ângulo β (°)",
   "Giro de los ejes locales y, z alrededor del eje x de la barra (regla de la mano derecha, de n1 a n2). 0 = orientación por defecto.": "Giro dos eixos locais y, z em torno do eixo x da barra (regra da mão direita, de n1 para n2). 0 = orientação padrão.",
   "Sección con ejes principales inclinados (Z, angular): el análisis usa Iy, Iz geométricos e ignora el producto de inercia — flechas y flexión oblicua aproximadas. Gire la barra (β) hasta los ejes principales con Iu, Iv si importa:": "Seção com eixos principais inclinados (Z, cantoneira): a análise usa Iy, Iz geométricos e ignora o produto de inércia — flechas e flexão oblíqua aproximadas. Gire a barra (β) até os eixos principais com Iu, Iv se for relevante:",
+  "Sólido": "Sólido",
+  "Translúcido": "Translúcido",
+  "Aristas": "Arestas",
+  "Modo de la vista sólida": "Modo da vista sólida",
 };
 
 export default PT;

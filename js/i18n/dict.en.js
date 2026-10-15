@@ -2823,6 +2823,10 @@ export const EN = {
   "Ángulo β (°)": "Angle β (°)",
   "Giro de los ejes locales y, z alrededor del eje x de la barra (regla de la mano derecha, de n1 a n2). 0 = orientación por defecto.": "Rotation of the local y, z axes about the member x axis (right-hand rule, from n1 to n2). 0 = default orientation.",
   "Sección con ejes principales inclinados (Z, angular): el análisis usa Iy, Iz geométricos e ignora el producto de inercia — flechas y flexión oblicua aproximadas. Gire la barra (β) hasta los ejes principales con Iu, Iv si importa:": "Section with inclined principal axes (Z, angle): the analysis uses the geometric Iy, Iz and ignores the product of inertia — deflections and oblique bending are approximate. Rotate the member (β) to the principal axes with Iu, Iv if it matters:",
+  "Sólido": "Solid",
+  "Translúcido": "Translucent",
+  "Aristas": "Edges",
+  "Modo de la vista sólida": "Solid view mode",
 };
 
 export default EN;
