@@ -83,7 +83,7 @@ export class PropertiesPanel {
     document.getElementById('btn-verificar-diseno')?.addEventListener('click', () => this.renderDesign());
     document.getElementById('btn-asis-side-gen')?.addEventListener('click', () => {
       const txt = document.getElementById('asis-nl-side')?.value.trim();
-      if (!txt) { this.app.toast('Escribe una descripción del modelo', 'warn'); return; }
+      if (!txt) { this.app.toast(i18n.t('Escribe una descripción del modelo'), 'warn'); return; }
       this.app.assistantFromText(txt);
     });
     // Keyboard-runnable example: Tab fills the example, Enter generates it immediately.
@@ -91,7 +91,7 @@ export class PropertiesPanel {
     document.getElementById('btn-asis-side-ficha')?.addEventListener('click', () => this.app.assistantDialog());
     document.getElementById('btn-asis-side-mod')?.addEventListener('click', () => {
       const txt = document.getElementById('asis-mod-nl')?.value.trim();
-      if (!txt) { this.app.toast('Escribe qué cambio hacer', 'warn'); return; }
+      if (!txt) { this.app.toast(i18n.t('Escribe qué cambio hacer'), 'warn'); return; }
       this.app.modifyModelFromText(txt);
     });
     document.getElementById('btn-temp-clear')?.addEventListener('click', () => this.app.clearAllTemporales());
@@ -142,7 +142,7 @@ export class PropertiesPanel {
       } catch { return null; }
     };
     const fmtmm = v => (v == null || !isFinite(v)) ? '—' : (v * 1000).toFixed(2);
-    const rows = f.map(x => `<tr class="dis-row" data-elem="${x.id}" title="${esc(x.combo||'')} — flexión ${fmt(x.bending.ratio)} · corte ${fmt(x.shear.ratio)} · axial ${fmt(x.axial.ratio)} · interacción ${fmt(x.interaction?.ratio)}">
+    const rows = f.map(x => `<tr class="dis-row" data-elem="${x.id}" title="${esc(x.combo||'')} — ${i18n.t('flexión')} ${fmt(x.bending.ratio)} · ${i18n.t('corte')} ${fmt(x.shear.ratio)} · ${i18n.t('axial')} ${fmt(x.axial.ratio)} · ${i18n.t('interacción')} ${fmt(x.interaction?.ratio)}">
       <td>#${x.id}</td><td>${esc(x.sec)}</td><td>${x.governs}</td>
       <td class="${cls(x.ratioMax)}"><b>${fmt(x.ratioMax)}</b></td>
       <td style="text-align:right;font-family:var(--font-mono);font-size:10px">${fmtmm(dispOf(x.id))}</td>
@@ -262,21 +262,21 @@ export class PropertiesPanel {
       `<td>${e.lambda.toFixed(3)}</td><td>${cap(e).toFixed(0)}</td><td>${e.dctrl.toExponential(1)}</td></tr>`).join('');
     // constitutive curve of the hinge model used (N / V / M)
     const mode = pr.hingeMode || 'perfecto', caida = mode !== 'perfecto';
-    const lab = mode === 'fragil' ? `frágil (caída inmediata a ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
-      : mode === 'ductil_caida' ? `dúctil con caída (meseta hasta θu=${pr.thetaU}/δu=${pr.deltaU}, luego ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
-      : 'dúctil — perfectamente plástica (meseta ∞)';
+    const lab = mode === 'fragil' ? `${i18n.t('frágil')} (${i18n.t('caída inmediata a')} ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
+      : mode === 'ductil_caida' ? `${i18n.t('dúctil con caída')} (${i18n.t('meseta hasta')} θu=${pr.thetaU}/δu=${pr.deltaU}, ${i18n.t('luego')} ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
+      : i18n.t('dúctil — perfectamente plástica (meseta ∞)');
     const caps = `Mp=${pr.Mp}` + (isFinite(pr.Np) && pr.Np ? ` · Np=${pr.Np}` : '') + (isFinite(pr.Vp) && pr.Vp ? ` · Vp=${pr.Vp}` : '');
     const curve = this.app._hingeBackboneSVG ? this.app._hingeBackboneSVG(mode, (pr.residual ?? 1) * 100, 220, 130) : '';
     const modeBox = `<div style="padding:6px 10px;border-radius:6px;background:var(--bg4);margin-top:8px">
-        <b>Rótula:</b> ${lab}<br><span style="${mut};font-size:10px">capacidades: ${caps}</span>
+        <b>Rótula:</b> ${lab}<br><span style="${mut};font-size:10px">${i18n.t('capacidades:')} ${caps}</span>
         <div style="text-align:center;margin-top:6px">${curve}</div>
-        <div style="${mut};font-size:10px;text-align:center">Curva constitutiva (N/V/M)${caida ? ' · ↯ = rótula en cascada por la caída' : ''}</div>
+        <div style="${mut};font-size:10px;text-align:center">${i18n.t('Curva constitutiva (N/V/M)')}${caida ? i18n.t(' · ↯ = rótula en cascada por la caída') : ''}</div>
       </div>`;
 
     const box = 'padding:8px 10px;border-radius:6px;background:var(--bg4);margin-bottom:4px';
     const estado = collapsed
-      ? `<div style="${box};border-left:3px solid var(--success,#34d399)"><b>Colapso · λc = ${lambda.toFixed(3)}</b><br>
-           <span style="${mut}">Carga de colapso = ${lambda.toFixed(3)} × carga de referencia.</span></div>`
+      ? `<div style="${box};border-left:3px solid var(--success,#34d399)"><b>${i18n.t('Colapso')} · λc = ${lambda.toFixed(3)}</b><br>
+           <span style="${mut}">${i18n.t('Carga de colapso')} = ${lambda.toFixed(3)} × ${i18n.t('carga de referencia.')}</span></div>`
       : `<div style="${box};border-left:3px solid var(--warn,#fbbf24)"><b>Sin mecanismo</b><br>
            <span style="${mut}">${events.length} ${i18n.t('rótulas; la carga no completa un mecanismo')} (λ = ${lambda.toFixed(3)}).</span></div>`;
 
@@ -312,9 +312,9 @@ export class PropertiesPanel {
           const disp = res.getNodeDisp(masterId);
           const fv = v => `<span style="font-family:var(--font-mono);color:${Math.abs(v)<1e-10?'var(--text-muted)':v>0?'#ef5350':'#42a5f5'}">${Math.abs(v)<1e-10?'—':v.toExponential(4)}</span>`;
           this._tabContents.sel.innerHTML = `
-            <div class="prop-id" style="color:#ff7043">⊕ CM Diafragma #${dId}</div>
+            <div class="prop-id" style="color:#ff7043">⊕ ${i18n.t('CM Diafragma')} #${dId}</div>
             <div class="prop-section" style="border:1px solid #ff7043;border-radius:4px;padding:8px">
-              <div class="prop-title" style="color:#ff7043">Desplazamientos Nodo Master #${masterId}</div>
+              <div class="prop-title" style="color:#ff7043">${i18n.t('Desplazamientos Nodo Master')} #${masterId}</div>
               <table class="results-table">
                 <tr><th>DOF</th><th>Valor</th></tr>
                 ${['Ux','Uy','Uz','Rx','Ry','Rz'].map((n,i)=>`<tr><td>${n}</td><td>${fv(disp[i])}</td></tr>`).join('')}
@@ -343,13 +343,13 @@ export class PropertiesPanel {
       return `<td style="font-family:var(--font-mono);text-align:right;font-size:10px;color:${col}">${zero && !amber ? '—' : v.toExponential(3)}</td>`;
     };
 
-    let html = `<div class="prop-id" style="color:var(--warn)">${items.length} objetos seleccionados</div>
-      <p class="panel-hint" style="margin-bottom:6px">Ctrl+clic: añadir/quitar &nbsp;|&nbsp; Clic vacío: deseleccionar</p>`;
+    let html = `<div class="prop-id" style="color:var(--warn)">${items.length} ${i18n.t('objetos seleccionados')}</div>
+      <p class="panel-hint" style="margin-bottom:6px">${i18n.t('Ctrl+clic: añadir/quitar')} &nbsp;|&nbsp; ${i18n.t('Clic vacío: deseleccionar')}</p>`;
 
     // ── Elements ────────────────────────────────────────────────────────────
     if (elems.length > 0) {
       if (!res) {
-        html += `<p class="panel-hint">${elems.length} elemento(s) — ejecute el análisis para ver fuerzas.</p>`;
+        html += `<p class="panel-hint">${elems.length} ${i18n.t('elemento(s) — ejecute el análisis para ver fuerzas.')}</p>`;
       } else {
         const sum = { N:0, Vy:0, Vz:0, T:0, My:0, Mz:0,
                       maxN:0, maxVy:0, maxVz:0, maxMy:0, maxMz:0 };
@@ -383,7 +383,7 @@ export class PropertiesPanel {
           ${fv(sum.maxN,true)}${fv(sum.maxVy,true)}${fv(sum.maxVz,true)}<td>—</td>${fv(sum.maxMy,true)}${fv(sum.maxMz,true)}
         </tr>`;
         html += `<div style="border:1px solid var(--warn);border-radius:4px;padding:8px;margin-bottom:8px;overflow-x:auto">
-          <div class="res-section-title" style="color:var(--warn);margin-top:0">${elems.length} Elementos — Fuerzas Internas (valor dominante en extremos)</div>
+          <div class="res-section-title" style="color:var(--warn);margin-top:0">${elems.length} ${i18n.t('Elementos — Fuerzas Internas (valor dominante en extremos)')}</div>
           <table class="res-table"><thead>
             <tr><th>El.</th><th>N</th><th>Vy</th><th>Vz</th><th>T</th><th>My</th><th>Mz</th></tr>
           </thead><tbody>${rowsHtml}</tbody></table>
@@ -394,7 +394,7 @@ export class PropertiesPanel {
     // ── Nodes ───────────────────────────────────────────────────────────────
     if (nodes.length > 0) {
       if (!res) {
-        html += `<p class="panel-hint">${nodes.length} nodo(s) — ejecute el análisis para ver desplazamientos.</p>`;
+        html += `<p class="panel-hint">${nodes.length} ${i18n.t('nodo(s) — ejecute el análisis para ver desplazamientos.')}</p>`;
       } else {
         let rowsHtml = '';
         for (const { id } of nodes) {
@@ -406,7 +406,7 @@ export class PropertiesPanel {
           </tr>`;
         }
         html += `<div style="border:1px solid var(--node-col);border-radius:4px;padding:8px;overflow-x:auto">
-          <div class="res-section-title" style="color:var(--node-col);margin-top:0">${nodes.length} Nodos — Desplazamientos</div>
+          <div class="res-section-title" style="color:var(--node-col);margin-top:0">${nodes.length} ${i18n.t('Nodos — Desplazamientos')}</div>
           <table class="res-table"><thead>
             <tr><th>Nd.</th><th>Ux</th><th>Uy</th><th>Uz</th><th>|δ|</th></tr>
           </thead><tbody>${rowsHtml}</tbody></table>
@@ -435,7 +435,7 @@ export class PropertiesPanel {
     const mats = [...this.app.model.materials.values()].map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
     return `
       <div class="prop-section" style="border:1px solid var(--area-col,#3b82f6);border-radius:6px;padding:8px;margin-top:8px">
-        <div class="prop-title" style="color:var(--area-col,#3b82f6);margin-top:0">Áreas · ${areas.length} seleccionada(s)</div>
+        <div class="prop-title" style="color:var(--area-col,#3b82f6);margin-top:0">${i18n.t('Áreas')} · ${areas.length} ${i18n.t('seleccionada(s)')}</div>
         <div class="prop-row" style="gap:6px;align-items:flex-end">
           <div class="prop-field"><label>Comportamiento</label>
             <select id="ar-beh">
@@ -484,7 +484,7 @@ export class PropertiesPanel {
   _nodeActionsHTML(nodes) {
     return `
       <div class="prop-section" style="border:1px solid var(--node-col);border-radius:6px;padding:8px;margin-top:8px">
-        <div class="prop-title" style="color:var(--node-col);margin-top:0">Apoyo · ${nodes.length} nodo(s)</div>
+        <div class="prop-title" style="color:var(--node-col);margin-top:0">${i18n.t('Apoyo')} · ${nodes.length} ${i18n.t('nodo(s)')}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-secondary nod-sup" data-p="empotrado" style="flex:1;font-size:11px" title="Fija las 6 GDL">Empotrado</button>
           <button class="btn-secondary nod-sup" data-p="rotulado" style="flex:1;font-size:11px" title="Fija traslaciones, libera giros">Rótula</button>
@@ -493,7 +493,7 @@ export class PropertiesPanel {
         </div>
       </div>
       <div class="load-section prop-section" style="border:1px solid var(--node-col);border-radius:6px;padding:8px;margin-top:8px">
-        <div class="prop-title load-title-row" style="color:var(--node-col);margin-top:0">Carga Nodal · ${nodes.length} nodo(s) ${this._lcSelectHTML('loads-lc-multinode')}</div>
+        <div class="prop-title load-title-row" style="color:var(--node-col);margin-top:0">${i18n.t('Carga Nodal')} · ${nodes.length} ${i18n.t('nodo(s)')} ${this._lcSelectHTML('loads-lc-multinode')}</div>
         <div class="prop-row cols3">
           <div class="prop-field"><label>Fx</label><input type="number" data-mlf="0" value="0" step="1"></div>
           <div class="prop-field"><label>Fy</label><input type="number" data-mlf="1" value="0" step="1"></div>
@@ -574,7 +574,7 @@ export class PropertiesPanel {
     const n = elems.length;
     return `
       <div class="prop-section" style="border:1px solid var(--accent);border-radius:6px;padding:8px;margin-top:8px">
-        <div class="prop-title" style="color:var(--accent);margin-top:0">Acciones · ${n} elemento(s)</div>
+        <div class="prop-title" style="color:var(--accent);margin-top:0">${i18n.t('Acciones')} · ${n} ${i18n.t('elemento(s)')}</div>
         <div class="prop-row" style="align-items:flex-end;gap:6px;margin-bottom:6px">
           <div class="prop-field" style="flex:1"><label>Material a todos</label>
             <select id="sel-mat"><option value="">—</option>${mats}</select></div>
@@ -674,7 +674,7 @@ export class PropertiesPanel {
     if (sel) {
       const ocultos = this.app.viewport?.hiddenCount?.() || 0;
       sel.innerHTML = '<p class="panel-hint">Haga clic en un nodo, elemento o área para editar sus propiedades. Ctrl+clic para seleccionar varios.</p>'
-        + (ocultos ? `<p class="panel-hint" style="color:var(--warn)">${ocultos} elemento(s) oculto(s) · Vista → Mostrar todo</p>` : '')
+        + (ocultos ? `<p class="panel-hint" style="color:var(--warn)">${ocultos} ${i18n.t('elemento(s) oculto(s) · Vista → Mostrar todo')}</p>` : '')
         + this._groupsHTML();
       this._bindGroups();
     }
@@ -738,7 +738,7 @@ export class PropertiesPanel {
     const kind = area.kind || (area.nodes.length === 3 ? 'CST' : 'QUAD');
     const elemTipo = area.nodes.length === 3 ? 'DKT' : 'MITC4';
     return `
-      <div class="prop-id">Área #${area.id} · ${kind} (${area.nodes.length} nodos)</div>
+      <div class="prop-id">${i18n.t('Área')} #${area.id} · ${kind} (${area.nodes.length} ${i18n.t('nodos')})</div>
 
       <div class="prop-section">
         <div class="prop-title">Nodos</div>
@@ -761,14 +761,14 @@ export class PropertiesPanel {
           <div class="prop-field"><label>Tipo</label>
             <select id="a-beh" title="Membrana = solo en-plano · Placa = solo flexión · Shell = membrana + placa (flexión)">
               ${behOpt('membrane', 'Membrana (en-plano)')}
-              ${behOpt('plate', 'Placa (flexión)')}
-              ${behOpt('shell', 'Shell (membrana + placa)')}
+              ${behOpt('plate', i18n.t('Placa (flexión)'))}
+              ${behOpt('shell', i18n.t('Shell (membrana + placa)'))}
             </select>
           </div>
         </div>
         <p class="rel-hint">Flexión con elemento <b>${elemTipo}</b>. La membrana resiste cargas en su plano; la placa/shell resiste flexión fuera del plano.</p>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:6px" title="Deformación plana (ε_z=0) en vez de tensión plana (σ_z=0). Solo afecta la parte de membrana.">
-          <input type="checkbox" id="a-pstrain" ${area.planeStrain ? 'checked' : ''}> Deformación plana (membrana)
+          <input type="checkbox" id="a-pstrain" ${area.planeStrain ? 'checked' : ''}> ${i18n.t('Deformación plana (membrana)')}
         </label>
         ${area.nodes.length === 3 ? `
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:6px" title="Triángulo Allman: añade un GDL de giro en el plano por nodo. Menos rígido que el CST en flexión en-plano (supera el bloqueo por corte).">
@@ -779,7 +779,7 @@ export class PropertiesPanel {
       ${this._areaThermalHTML(area)}
 
       <div class="delete-btn-row">
-        <button class="btn-danger" id="btn-del-area" style="width:100%;">Eliminar Área #${area.id}</button>
+        <button class="btn-danger" id="btn-del-area" style="width:100%;">${i18n.t('Eliminar Área')} #${area.id}</button>
       </div>
     `;
   }
@@ -921,7 +921,7 @@ export class PropertiesPanel {
     const cuerpo = rows.length ? rows.join('')
       : `<tr><td colspan="3" class="muted">${i18n.t(tipo === 'elem' ? 'Sin cargas asignadas a este elemento en ningún caso.' : 'Sin cargas asignadas a este nodo en ningún caso.')}</td></tr>`;
     return `<details class="loads-all"${rows.length ? ' open' : ''}>
-      <summary>Cargas en todos los casos${rows.length ? ` (${rows.length})` : ''}</summary>
+      <summary>${i18n.t('Cargas en todos los casos')}${rows.length ? ` (${rows.length})` : ''}</summary>
       <table class="loads-all-tbl"><thead><tr><th>Caso</th><th>Carga</th><th>En combinaciones</th></tr></thead><tbody>${cuerpo}</tbody></table>
     </details>`;
   }
@@ -980,13 +980,13 @@ export class PropertiesPanel {
       this.app.markDirty(); this.app._updateStats?.(); this.app.viewport.zoomExtents?.();
       this.renderNodesGrid();
     }
-    this.app.toast(`${added} nodo(s) creado(s)${bad ? ` · ${bad} fila(s) inválida(s)` : ''}`, bad ? 'warn' : 'ok');
+    this.app.toast(`${added} ${i18n.t('nodo(s) creado(s)')}${bad ? ` · ${bad} ${i18n.t('fila(s) inválida(s)')}` : ''}`, bad ? 'warn' : 'ok');
   }
 
   // Alta en bloque de elementos desde texto tabular. Material/sección por nombre o número.
   _bulkAddElements(text) {
     if (this.app.model.materials.size === 0 || this.app.model.sections.size === 0) {
-      this.app.toast('Cree al menos un material y una sección antes de pegar elementos', 'warn'); return;
+      this.app.toast(i18n.t('Cree al menos un material y una sección antes de pegar elementos'), 'warn'); return;
     }
     const rows = this._parseGrid(text);
     const mats = [...this.app.model.materials.values()];
@@ -1010,7 +1010,7 @@ export class PropertiesPanel {
       this.app.markDirty(); this.app._updateStats?.();
       this.renderElemsGrid();
     }
-    this.app.toast(`${added} elemento(s) creado(s)${bad ? ` · ${bad} fila(s) inválida(s)/omitida(s)` : ''}`, bad ? 'warn' : 'ok');
+    this.app.toast(`${added} ${i18n.t('elemento(s) creado(s)')}${bad ? ` · ${bad} ${i18n.t('fila(s) inválida(s)/omitida(s)')}` : ''}`, bad ? 'warn' : 'ok');
   }
 
   // Pegado TSV/CSV multi-fila directo en el grid (Ctrl+V), sin diálogo. Un valor
@@ -1061,7 +1061,7 @@ export class PropertiesPanel {
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>
-    <p class="panel-hint" style="margin:6px 2px 0">Escribe <b>X Y Z</b> en la última fila y <b>Enter</b> para crear un nodo; o <b>pega</b> una lista desde Excel (Ctrl+V). Apoyos con las casillas.</p>`;
+    <p class="panel-hint" style="margin:6px 2px 0">${i18n.t('Escribe')} <b>X Y Z</b>${i18n.t(' en la última fila y ')}<b>Enter</b>${i18n.t(' para crear un nodo; o ')}<b>${i18n.t('pega')}</b>${i18n.t(' una lista desde Excel (Ctrl+V). Apoyos con las casillas.')}</p>`;
 
     // Editar coordenadas de filas existentes
     wrap.querySelectorAll('input[data-f][data-nid]').forEach(inp => {
@@ -1134,7 +1134,7 @@ export class PropertiesPanel {
     const mats = [...model.materials.values()];
     const secs = [...model.sections.values()];
     if (mats.length === 0 || secs.length === 0) {
-      wrap.innerHTML = '<p class="panel-hint">Cree al menos un material y una sección (pestañas Mat. y Sec.) para agregar elementos.</p>';
+      wrap.innerHTML = '<p class="panel-hint">' + i18n.t('Cree al menos un material y una sección (pestañas Mat. y Sec.) para agregar elementos.') + '</p>';
       return;
     }
 
@@ -1179,7 +1179,7 @@ export class PropertiesPanel {
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>
-    <p class="panel-hint" style="margin:6px 2px 0">Escribe <b>N1 N2</b> en la última fila y <b>Enter</b> para crear una barra; o <b>pega</b> una lista (Ctrl+V). N1/N2 = números de la columna «#».</p>`;
+    <p class="panel-hint" style="margin:6px 2px 0">${i18n.t('Escribe')} <b>N1 N2</b>${i18n.t(' en la última fila y ')}<b>Enter</b>${i18n.t(' para crear una barra; o ')}<b>${i18n.t('pega')}</b>${i18n.t(' una lista (Ctrl+V). N1/N2 = números de la columna «#».')}</p>`;
 
     // Editar filas existentes (nodos)
     wrap.querySelectorAll('input[data-f][data-eid]').forEach(inp => {
@@ -1211,7 +1211,7 @@ export class PropertiesPanel {
       const secId = +newRow.querySelector('.eg-nsec').value || undefined;
       this.app.snapshot();
       const el = this.app.model.addElement(n1, n2, matId, secId);
-      if (!el) { this.app.toast(`No se pudo crear la barra ${n1}–${n2} (¿nodo inexistente o N1=N2?)`, 'warn'); return false; }
+      if (!el) { this.app.toast(`${i18n.t('No se pudo crear la barra')} ${n1}–${n2} ${i18n.t('(¿nodo inexistente o N1=N2?)')}`, 'warn'); return false; }
       this.app.viewport.renderModel(this.app.model); this.app.markDirty(); this.app._updateStats?.();
       this.renderElemsGrid();
       setTimeout(() => document.querySelector('#elems-grid-wrap tr.eg-new .eg-nn1')?.focus(), 0);
@@ -1243,7 +1243,7 @@ export class PropertiesPanel {
         massRow = `<div class="prop-row">
           <div class="prop-field"><label>Masa tributaria</label>
             <span class="prop-val">${mNode.toFixed(3)} ton
-              (${(w*100).toFixed(1)} % de ${d.mass.m} ton)</span>
+              (${(w*100).toFixed(1)} ${i18n.t('% de')} ${d.mass.m} ton)</span>
           </div>
         </div>`;
       }
@@ -1251,7 +1251,7 @@ export class PropertiesPanel {
       rows.push(`
         <div class="prop-section" style="border-top:1px solid #00bcd433;margin-top:6px;padding-top:6px">
           <div class="prop-title" style="color:#00bcd4">
-            Diafragma #${d.id} — ${esc(d.name)}${isMaster ? ' &nbsp;<span style="color:#00e5ff;font-weight:bold">[Nodo CR]</span>' : ''}
+            ${i18n.t('Diafragma')} #${d.id} — ${esc(d.name)}${isMaster ? ' &nbsp;<span style="color:#00e5ff;font-weight:bold">' + i18n.t('[Nodo CR]') + '</span>' : ''}
           </div>
           <div class="prop-row">
             <div class="prop-field"><label>Z piso</label>
@@ -1289,7 +1289,7 @@ export class PropertiesPanel {
     const labels = ['UX','UY','UZ','RX','RY','RZ'];
     const checks = dof.map((d, i) => {
       const dis = is2D && outOfPlane.has(d);
-      return `<div class="restraint-cell" ${dis ? 'style="opacity:0.4" title="Modelo 2D: este GDL fuera del plano se restringe automáticamente"' : ''}>
+      return `<div class="restraint-cell" ${dis ? 'style="opacity:0.4" title="' + i18n.t('Modelo 2D: este GDL fuera del plano se restringe automáticamente') + '"' : ''}>
         <input type="checkbox" data-dof="${d}" ${(r[d] || dis) ? 'checked' : ''} ${dis ? 'disabled' : ''}>
         <span>${labels[i]}</span>
       </div>`;
@@ -1298,13 +1298,13 @@ export class PropertiesPanel {
     const hasNM = nm.mx > 0 || nm.my > 0 || nm.mz > 0 || nm.irx > 0 || nm.iry > 0 || nm.irz > 0;
 
     return `
-      <div class="prop-id">Nodo #${node.id}</div>
+      <div class="prop-id">${i18n.t('Nodo')} #${node.id}</div>
 
       <div class="prop-section">
         <div class="prop-title">Coordenadas</div>
         <div class="prop-row cols3">
           <div class="prop-field"><label>X</label><input type="number" id="n-x" value="${+node.x.toFixed(6)}" step="0.01"></div>
-          <div class="prop-field"><label>Y</label><input type="number" id="n-y" value="${is2D ? 0 : +node.y.toFixed(6)}" step="0.01" ${is2D ? 'disabled title="Modelo 2D: todos los nodos están en el plano Y=0"' : ''}></div>
+          <div class="prop-field"><label>Y</label><input type="number" id="n-y" value="${is2D ? 0 : +node.y.toFixed(6)}" step="0.01" ${is2D ? 'disabled title="' + i18n.t('Modelo 2D: todos los nodos están en el plano Y=0') + '"' : ''}></div>
           <div class="prop-field"><label>Z</label><input type="number" id="n-z" value="${+node.z.toFixed(6)}" step="0.01"></div>
         </div>
       </div>
@@ -1323,7 +1323,7 @@ export class PropertiesPanel {
 
       <div class="prop-section">
         <div class="prop-title" style="${hasSp ? 'color:var(--teal)' : ''}">
-          Apoyo Elástico — Resortes${hasSp ? ' ●' : ''}
+          ${i18n.t('Apoyo Elástico — Resortes')}${hasSp ? ' ●' : ''}
         </div>
         <div class="prop-row cols3">
           <div class="prop-field"><label>kUX (kN/m)</label>
@@ -1348,7 +1348,7 @@ export class PropertiesPanel {
           </div>
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
-          Apoyo parcial: resorte en GDL global <b>libre</b> (no marque la
+          ${i18n.t('Apoyo parcial: resorte en GDL global')} <b>libre</b> (no marque la
           restricción rígida de ese GDL). k = 0 → sin resorte. La reacción
           del resorte aparece al mostrar Reacciones.
         </div>
@@ -1370,14 +1370,14 @@ export class PropertiesPanel {
           <div class="prop-field"><label>dz</label><input type="number" id="ns-incl-dz" value="0" step="0.1"></div>
         </div>
         <div style="display:flex;gap:6px;margin-top:4px">
-          <button class="btn-secondary" id="btn-incl-spring" style="flex:1;font-size:11px" title="Resorte de apoyo INCLINADO: rigidez k a lo largo de (dx,dy,dz). Genera una matriz de resorte ACOPLADA 6×6 (términos fuera de la diagonal) y se ensambla completa (#2).">↗ Aplicar resorte inclinado${hasSK ? ' ●' : ''}</button>
+          <button class="btn-secondary" id="btn-incl-spring" style="flex:1;font-size:11px" title="Resorte de apoyo INCLINADO: rigidez k a lo largo de (dx,dy,dz). Genera una matriz de resorte ACOPLADA 6×6 (términos fuera de la diagonal) y se ensambla completa (#2).">${i18n.t('↗ Aplicar resorte inclinado')}${hasSK ? ' ●' : ''}</button>
           <button class="btn-secondary" id="btn-clear-sk" style="font-size:11px" title="Quitar la matriz de resorte acoplada">✕</button>
         </div>
       </div>
 
       <div class="prop-section">
         <div class="prop-title" style="${hasPD ? 'color:var(--teal)' : ''}">
-          Desplazamiento prescrito${hasPD ? ' ●' : ''}
+          ${i18n.t('Desplazamiento prescrito')}${hasPD ? ' ●' : ''}
         </div>
         <div class="prop-row cols3">
           <div class="prop-field"><label>UX (m)</label>
@@ -1410,7 +1410,7 @@ export class PropertiesPanel {
 
       <div class="prop-section">
         <div class="prop-title" style="${hasNM ? 'color:#ffd54f' : ''}">
-          Masa Nodal Concentrada${hasNM ? ' ●' : ''}
+          ${i18n.t('Masa Nodal Concentrada')}${hasNM ? ' ●' : ''}
         </div>
         <div class="prop-row cols3">
           <div class="prop-field"><label>mx (ton)</label>
@@ -1445,7 +1445,7 @@ export class PropertiesPanel {
       </div>
 
       <div class="delete-btn-row">
-        <button class="btn-danger" id="btn-del-node" style="width:100%;">Eliminar Nodo #${node.id}</button>
+        <button class="btn-danger" id="btn-del-node" style="width:100%;">${i18n.t('Eliminar Nodo')} #${node.id}</button>
       </div>
     `;
   }
@@ -1525,7 +1525,7 @@ export class PropertiesPanel {
     sel.querySelector('#btn-incl-spring')?.addEventListener('click', () => {
       const k = numVal('#ns-incl-k');
       const dir = [numVal('#ns-incl-dx'), numVal('#ns-incl-dy'), numVal('#ns-incl-dz')];
-      if (k <= 0 || !dir.some(v => v)) { this.app.toast('Indique k > 0 y una dirección (dx,dy,dz)', 'warn'); return; }
+      if (k <= 0 || !dir.some(v => v)) { this.app.toast(i18n.t('Indique k > 0 y una dirección (dx,dy,dz)'), 'warn'); return; }
       this.app.snapshot();
       this.app.model.updateNode(node.id, { springK: this.app.model.constructor.inclinedSpringK(k, dir) });
       this.app.markDirty();
@@ -1537,7 +1537,7 @@ export class PropertiesPanel {
       this.app.snapshot();
       this.app.model.updateNode(node.id, { springK: null });
       this.app.markDirty();
-      this.app.toast('Resorte acoplado quitado', 'ok');
+      this.app.toast(i18n.t('Resorte acoplado quitado'), 'ok');
       this.app.viewport.refreshNode(this.app.model.nodes.get(node.id)); this.showNode(this.app.model.nodes.get(node.id), true);
     });
 
@@ -1561,12 +1561,12 @@ export class PropertiesPanel {
     // SAP2000-style named components (axis 1 = longitudinal; 2, 3 transverse local axes).
     // Index into releases[12] / endSprings, per end.
     const relDefs = [
-      { i: 0, lbl: 'N',  tip: 'axial — eje local 1 (ux)',                    rot: false },
-      { i: 1, lbl: 'V2', tip: 'corte en la dirección local 2 (uy)',          rot: false },
-      { i: 2, lbl: 'V3', tip: 'corte en la dirección local 3 (uz)',          rot: false },
-      { i: 3, lbl: 'T',  tip: 'torsión — momento sobre el eje local 1 (rx)', rot: true  },
-      { i: 4, lbl: 'M2', tip: 'flexión — momento sobre el eje local 2 (ry)', rot: true  },
-      { i: 5, lbl: 'M3', tip: 'flexión — momento sobre el eje local 3 (rz)', rot: true  },
+      { i: 0, lbl: 'N',  tip: i18n.t('axial — eje local 1 (ux)'),                  rot: false },
+      { i: 1, lbl: 'V2', tip: i18n.t('corte en la dirección local 2 (uy)'),        rot: false },
+      { i: 2, lbl: 'V3', tip: i18n.t('corte en la dirección local 3 (uz)'),        rot: false },
+      { i: 3, lbl: 'T',  tip: i18n.t('torsión — momento sobre el eje local 1 (rx)'), rot: true  },
+      { i: 4, lbl: 'M2', tip: i18n.t('flexión — momento sobre el eje local 2 (ry)'), rot: true  },
+      { i: 5, lbl: 'M3', tip: i18n.t('flexión — momento sobre el eje local 3 (rz)'), rot: true  },
     ];
 
     // Orientation hint: which GLOBAL direction each bending corresponds to
@@ -1581,9 +1581,9 @@ export class PropertiesPanel {
           const gname = v => {
             const ax = ['X', 'Y', 'Z']; let b = 0;
             for (let k = 1; k < 3; k++) if (Math.abs(v[k]) > Math.abs(v[b])) b = k;
-            return ax[b] + (b === 2 ? ' (gravedad)' : '');
+            return ax[b] + (b === 2 ? i18n.t(' (gravedad)') : '');
           };
-          orientHint = `<b>Mz</b> = flexión por cargas según <b>${gname(ey)}</b> global &nbsp;·&nbsp; <b>My</b> = por cargas según <b>${gname(ez)}</b> global`;
+          orientHint = `<b>Mz</b> = flexión por cargas según <b>${gname(ey)}</b> ${i18n.t('global')} &nbsp;·&nbsp; <b>My</b> = por cargas según <b>${gname(ez)}</b> global`;
         } catch { /* degenerate element */ }
       }
     }
@@ -1600,19 +1600,19 @@ export class PropertiesPanel {
         return `<div class="rel-comp" style="display:flex;align-items:center;gap:6px" title="${d.lbl}: ${d.tip}">
           <span class="rel-comp-lbl" style="width:26px;font-weight:600">${d.lbl}</span>
           <select class="rel-mode" data-rel="${idx}" style="flex:0 0 auto">
-            <option value="fijo"    ${mode === 'fijo'    ? 'selected' : ''}>Fijo</option>
+            <option value="fijo"    ${mode === 'fijo'    ? 'selected' : ''}>${i18n.t('Fijo')}</option>
             <option value="libre"   ${mode === 'libre'   ? 'selected' : ''}>Libre</option>
-            <option value="resorte" ${mode === 'resorte' ? 'selected' : ''}>Resorte</option>
+            <option value="resorte" ${mode === 'resorte' ? 'selected' : ''}>${i18n.t('Resorte')}</option>
           </select>
           <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? k : ''}" min="0" step="100"
-            placeholder="${unit}" title="Rigidez del resorte (${unit})" style="width:96px;${mode === 'resorte' ? '' : 'display:none'}">
+            placeholder="${unit}" title="${i18n.t('Rigidez del resorte')} (${unit})" style="width:96px;${mode === 'resorte' ? '' : 'display:none'}">
         </div>`;
       }).join('');
       return `<div class="releases-half">
         <div class="releases-half-title">${label}
           <span class="rel-presets">
-            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="Rótula clásica: libera M2 y M3 en este extremo">Rótula</button>
-            <button type="button" class="rel-btn" data-rel-clear="${offset}" title="Fija todas las componentes de este extremo">Limpiar</button>
+            <button type="button" class="rel-btn" data-rel-pin="${offset}" title="${i18n.t('Rótula clásica: libera M2 y M3 en este extremo')}">Rótula</button>
+            <button type="button" class="rel-btn" data-rel-clear="${offset}" title="${i18n.t('Fija todas las componentes de este extremo')}">Limpiar</button>
           </span>
         </div>
         <div class="releases-grid" style="display:flex;flex-direction:column;gap:3px">${rows}</div>
@@ -1620,7 +1620,7 @@ export class PropertiesPanel {
     };
 
     return `
-      <div class="prop-id">Elemento #${elem.id}</div>
+      <div class="prop-id">${i18n.t('Elemento')} #${elem.id}</div>
 
       <div class="prop-section">
         <div class="prop-title">Nodos</div>
@@ -1649,20 +1649,20 @@ export class PropertiesPanel {
       </div>
 
       <div class="prop-section">
-        <div class="prop-title" title="Por componente (N, V2, V3, T, M2, M3) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.">Liberaciones / fijación parcial (rótulas y resortes)</div>
+        <div class="prop-title" title="${i18n.t('Por componente (N, V2, V3, T, M2, M3) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.')}">${i18n.t('Liberaciones / fijación parcial (rótulas y resortes)')}</div>
         ${orientHint ? `<p class="rel-hint">${orientHint}</p>` : ''}
-        ${relHalf(`Extremo 1 — nodo ${elem.n1}`, 0)}
-        ${relHalf(`Extremo 2 — nodo ${elem.n2}`, 6)}
-        <p class="rel-warn" style="color:var(--text-muted)"><b>Fijo</b> = rígido · <b>Libre</b> = rótula (esfuerzo 0) · <b>Resorte</b> = fijación parcial (rigidez k; rot. kN·m/rad, transl. kN/m). Se condensa en K (lineal F5). ⚠ Liberar en exceso crea mecanismos: el análisis lo avisará.</p>
+        ${relHalf(`${i18n.t('Extremo 1 — nodo')} ${elem.n1}`, 0)}
+        ${relHalf(`${i18n.t('Extremo 2 — nodo')} ${elem.n2}`, 6)}
+        <p class="rel-warn" style="color:var(--text-muted)"><b>${i18n.t('Fijo')}</b>${i18n.t(' = rígido · ')}<b>${i18n.t('Libre')}</b>${i18n.t(' = rótula (esfuerzo 0) · ')}<b>${i18n.t('Resorte')}</b>${i18n.t(' = fijación parcial (rigidez k; rot. kN·m/rad, transl. kN/m). Se condensa en K (lineal F5). ⚠ Liberar en exceso crea mecanismos: el análisis lo avisará.')}</p>
       </div>
 
       <div class="prop-section">
         <div class="prop-title">Cable / No lineal (NL-lite)</div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer" title="El elemento se comporta como cable: solo resiste tracción (queda flojo en compresión, N=0). Para el análisis no lineal.">
-          <input type="checkbox" id="e-cable" ${elem.cable ? 'checked' : ''}> Cable (solo tracción)
+          <input type="checkbox" id="e-cable" ${elem.cable ? 'checked' : ''}> ${i18n.t('Cable (solo tracción)')}
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer" title="El elemento solo resiste compresión (puntal/contacto): queda suelto en tracción (N=0). Excluyente con «Cable». Para el análisis no lineal.">
-          <input type="checkbox" id="e-componly" ${elem.compressionOnly ? 'checked' : ''}> Puntal (solo compresión)
+          <input type="checkbox" id="e-componly" ${elem.compressionOnly ? 'checked' : ''}> ${i18n.t('Puntal (solo compresión)')}
         </label>
         <div class="prop-row cols1">
           <div class="prop-field"><label title="Longitud natural (sin tensión) ÷ longitud geométrica. 1 = sin pretensar. Menor que 1 = pretensado (tracción en reposo).">L₀ / L (pretensado si &lt;1)</label>
@@ -1675,9 +1675,9 @@ export class PropertiesPanel {
       <div class="prop-section">
         <div class="prop-title" title="Cacho rígido / zona rígida de extremo (end length offset, como SAP2000/ETABS): tramo rígido en cada extremo de la barra. Acorta la luz flexible → más rigidez. En metros; 0 = sin cacho.">Cacho rígido (zona rígida de extremo)</div>
         <div class="prop-row">
-          <div class="prop-field"><label title="Longitud del tramo rígido en el extremo del nodo 1 (m).">Cacho i — nodo ${elem.n1} (m)</label>
+          <div class="prop-field"><label title="Longitud del tramo rígido en el extremo del nodo 1 (m).">${i18n.t('Cacho i — nodo')} ${elem.n1} (m)</label>
             <input type="number" id="e-rig-i" value="${(elem.rigidEnd?.i ?? 0)}" min="0" step="0.05"></div>
-          <div class="prop-field"><label title="Longitud del tramo rígido en el extremo del nodo 2 (m).">Cacho j — nodo ${elem.n2} (m)</label>
+          <div class="prop-field"><label title="Longitud del tramo rígido en el extremo del nodo 2 (m).">${i18n.t('Cacho j — nodo')} ${elem.n2} (m)</label>
             <input type="number" id="e-rig-j" value="${(elem.rigidEnd?.j ?? 0)}" min="0" step="0.05"></div>
         </div>
         <p class="rel-warn" style="color:var(--text-muted)">Condensa un brazo rígido en cada extremo dentro de K/M (la luz flexible = L − cacho_i − cacho_j). Afecta el análisis lineal (F5). Útil para el ancho del nudo viga-columna.</p>
@@ -1703,7 +1703,7 @@ export class PropertiesPanel {
         </button>
         <button class="btn-add" id="btn-elem-dcl" style="width:100%;margin-top:4px"
           title="Diagrama de cuerpo libre: fuerzas de extremo que actúan sobre el elemento + verificación ΣF=0 ΣM=0 (requiere análisis F5)">
-          ⊟ Ver DCL del elemento
+          ${i18n.t('⊟ Ver DCL del elemento')}
         </button>
       </div>
 
@@ -1729,7 +1729,7 @@ export class PropertiesPanel {
       </div>
 
       <div class="delete-btn-row">
-        <button class="btn-danger" id="btn-del-elem" style="width:100%;">Eliminar Elemento #${elem.id}</button>
+        <button class="btn-danger" id="btn-del-elem" style="width:100%;">${i18n.t('Eliminar Elemento')} #${elem.id}</button>
       </div>
     `;
   }
@@ -1795,12 +1795,12 @@ export class PropertiesPanel {
     sel.querySelector('#btn-disc-n')?.addEventListener('click', () => {
       const n = parseInt(sel.querySelector('#disc-n')?.value) || 0;
       if (n >= 2) this.app.discretizeElement(elem.id, { parts: n });
-      else this.app.toast('Ingrese 2 o más partes', 'warn');
+      else this.app.toast(i18n.t('Ingrese 2 o más partes'), 'warn');
     });
     sel.querySelector('#btn-disc-len')?.addEventListener('click', () => {
       const l = parseFloat(sel.querySelector('#disc-len')?.value) || 0;
       if (l > 0) this.app.discretizeElement(elem.id, { length: l });
-      else this.app.toast('Ingrese una longitud válida', 'warn');
+      else this.app.toast(i18n.t('Ingrese una longitud válida'), 'warn');
     });
 
     // Release presets per end. Set the component selects (and hide any spring field).
@@ -1843,10 +1843,8 @@ export class PropertiesPanel {
   // Note shown when the active case is spectral (does not accept loads)
   _spectralLoadNote(domId) {
     return `<div class="load-section">
-      <div class="prop-title load-title-row">Cargas ${this._lcSelectHTML(domId)}</div>
-      <p class="rel-hint" style="margin-top:6px">〜 Caso <b>espectral</b>: no admite cargas
-        asignadas. Su resultado (envolvente sísmica) se calcula con Análisis Modal (F6)
-        + Espectro de Respuesta (F7). Cambie a un caso estático para asignar cargas.</p>
+      <div class="prop-title load-title-row">${i18n.t('Cargas')} ${this._lcSelectHTML(domId)}</div>
+      <p class="rel-hint" style="margin-top:6px">〜 Caso <b>espectral</b>${i18n.t(': no admite cargas asignadas. Su resultado (envolvente sísmica) se calcula con Análisis Modal (F6) + Espectro de Respuesta (F7). Cambie a un caso estático para asignar cargas.')}</p>
     </div>`;
   }
 
@@ -1857,7 +1855,7 @@ export class PropertiesPanel {
     const ex   = lc ? lc.loads.find(l => l.type === 'nodal' && l.nodeId === node.id) : null;
     const F    = ex ? ex.F : [0,0,0,0,0,0];
     return `<div class="load-section">
-      <div class="prop-title load-title-row">Cargas Nodales ${this._lcSelectHTML('loads-lc-node')}</div>
+      <div class="prop-title load-title-row">${i18n.t('Cargas Nodales')} ${this._lcSelectHTML('loads-lc-node')}</div>
       <div class="prop-row cols3">
         <div class="prop-field"><label>Fx</label><input type="number" data-lf="0" value="${F[0]}" step="1"></div>
         <div class="prop-field"><label>Fy</label><input type="number" data-lf="1" value="${F[1]}" step="1"></div>
@@ -1893,7 +1891,7 @@ export class PropertiesPanel {
       if (idx >= 0) lc.loads[idx] = load; else lc.loads.push(load);
       this.app.markDirty();
       this.app.refreshLoads();
-      this.app.toast('Carga aplicada', 'ok');
+      this.app.toast(i18n.t('Carga aplicada'), 'ok');
     });
     sel.querySelector('#btn-clear-load')?.addEventListener('click', () => {
       this.app.snapshot();
@@ -1903,7 +1901,7 @@ export class PropertiesPanel {
       [0,1,2,3,4,5].forEach(i => { const inp = sel.querySelector(`[data-lf="${i}"]`); if (inp) inp.value = 0; });
       this.app.markDirty();
       this.app.refreshLoads();
-      this.app.toast('Carga eliminada', '');
+      this.app.toast(i18n.t('Carga eliminada'), '');
     });
   }
 
@@ -1913,7 +1911,7 @@ export class PropertiesPanel {
     if (lc?.type === 'spectrum') return this._spectralLoadNote('loads-lc-elem');
     const ex   = lc ? lc.loads.find(l => l.type === 'dist' && l.elemId === elem.id) : null;
     return `<div class="load-section">
-      <div class="prop-title load-title-row">Carga Distribuida ${this._lcSelectHTML('loads-lc-elem')}</div>
+      <div class="prop-title load-title-row">${i18n.t('Carga Distribuida')} ${this._lcSelectHTML('loads-lc-elem')}</div>
       <div class="prop-row">
         <div class="prop-field"><label>Dirección</label>
           <select id="dist-dir">
@@ -1961,7 +1959,7 @@ export class PropertiesPanel {
       if (idx >= 0) lc.loads[idx] = load; else lc.loads.push(load);
       this.app.markDirty();
       this.app.refreshLoads();
-      this.app.toast(load.w2 != null ? 'Carga trapecial aplicada' : 'Carga distribuida aplicada', 'ok');
+      this.app.toast(load.w2 != null ? i18n.t('Carga trapecial aplicada') : i18n.t('Carga distribuida aplicada'), 'ok');
     });
     sel.querySelector('#btn-clear-dist')?.addEventListener('click', () => {
       this.app.snapshot();
@@ -2034,7 +2032,7 @@ export class PropertiesPanel {
         this.app.model.addMaterial(def);
         this.app.markDirty();
         this.renderMaterials();
-        this.app.toast(`Material «${name}» agregado del catálogo`, 'ok');
+        this.app.toast(`${i18n.t('Material')} «${name}» ${i18n.t('agregado del catálogo')}`, 'ok');
       });
     }).catch(() => {});
     for (const mat of this.app.model.materials.values()) {
@@ -2101,12 +2099,12 @@ export class PropertiesPanel {
   _matStrengthHTML(family, d = {}) {
     const f = (k, lbl, def) => `<div class="prop-field"><label>${lbl} (MPa)</label><input type="number" data-d="${k}" value="${d[k] ?? def}" step="1"></div>`;
     if (family === 'steel' || family === 'aluminum')
-      return `<div class="prop-row">${f('Fy', 'Fy fluencia', 250)}${f('Fu', 'Fu rotura', 400)}</div>`;
+      return `<div class="prop-row">${f('Fy', i18n.t('Fy fluencia'), 250)}${f('Fu', i18n.t('Fu rotura'), 400)}</div>`;
     if (family === 'concrete')
-      return `<div class="prop-row">${f('fc', "f'c", 25)}${f('fyRebar', 'fy refuerzo', 420)}</div>`;
+      return `<div class="prop-row">${f('fc', "f'c", 25)}${f('fyRebar', i18n.t('fy refuerzo'), 420)}</div>`;
     if (family === 'timber')
-      return `<div class="prop-row">${f('Fb', 'Fb flexión', 10)}${f('Fv', 'Fv corte', 1.2)}</div>
-              <div class="prop-row">${f('Fc', 'Fc compr.', 8)}${f('Ft', 'Ft tracción', 7)}</div>`;
+      return `<div class="prop-row">${f('Fb', i18n.t('Fb flexión'), 10)}${f('Fv', i18n.t('Fv corte'), 1.2)}</div>
+              <div class="prop-row">${f('Fc', i18n.t('Fc compr.'), 8)}${f('Ft', i18n.t('Ft tracción'), 7)}</div>`;
     return `<p class="panel-hint">Familia «auto»: se clasifica por el nombre y se usan las resistencias del respaldo (design_params.json).</p>`;
   }
 
@@ -2119,7 +2117,7 @@ export class PropertiesPanel {
         <div class="prop-row cols1">
           <div class="prop-field"><label>Familia</label>
             <select class="md-family">
-              ${opt('', 'auto (por nombre)')}${opt('steel', 'Acero')}${opt('concrete', 'Hormigón')}${opt('timber', 'Madera')}${opt('aluminum', 'Aluminio')}
+              ${opt('', 'auto (por nombre)')}${opt('steel', 'Acero')}${opt('concrete', i18n.t('Hormigón'))}${opt('timber', 'Madera')}${opt('aluminum', i18n.t('Aluminio'))}
             </select></div>
         </div>
         <div class="md-strengths">${this._matStrengthHTML(fam, mat.design || {})}</div>
@@ -2164,7 +2162,7 @@ export class PropertiesPanel {
       const isSpec = lc.type === 'spectrum';
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:12px;color:var(--text)';
-      const tag = isSpec ? ` <span style="color:var(--teal)">[esp ${lc.specDir}]</span>`
+      const tag = isSpec ? ` <span style="color:var(--teal)">[${i18n.t('esp')} ${lc.specDir}]</span>`
                          : (lc.selfWeight ? ' <span style="color:var(--text-muted)">⊕PP</span>' : '');
       const ltLabel = this.app._loadTypeLabel(lc.loadType || (isSpec ? 'seismic' : (lc.selfWeight ? 'dead' : 'other')));
       const ltBadge = ` <span style="color:var(--text-muted);font-size:10px">· ${ltLabel}</span>`;
@@ -2251,7 +2249,7 @@ export class PropertiesPanel {
           // case (editable with ✎ next to the case selector).
           row.innerHTML = `
             <select class="fac-lc">${staticOpts}${specOpts}</select>
-            <input type="number" class="fac-val" value="${fac.factor}" step="0.1" placeholder="factor">
+            <input type="number" class="fac-val" value="${fac.factor}" step="0.1" placeholder="${i18n.t('factor')}">
             <button class="combo-del-factor" title="Eliminar">×</button>`;
           row.querySelector('.fac-lc').addEventListener('change', e => {
             const v = e.target.value;
@@ -2408,7 +2406,7 @@ export class PropertiesPanel {
         card.querySelectorAll('[data-m]').forEach(i => { mod[i.dataset.m] = +i.value || 1; });
         this.app.model.updateSection(sec.id, { mod });
         this.app.markDirty();
-        this.app.toast('Modificador de sección aplicado — recalcule el análisis (F5)', 'ok');
+        this.app.toast(i18n.t('Modificador de sección aplicado — recalcule el análisis (F5)'), 'ok');
       });
     });
     card.querySelector('.btn-del-sec').addEventListener('click', () => {
@@ -2427,18 +2425,18 @@ export class PropertiesPanel {
     // in meters. m→mm here on display; mm→m on save (see _bindSecDesign.saveDesign).
     const mm = v => (v === undefined || v === null || v === '') ? '' : +(v * 1000).toFixed(4);
     const f = (k, lbl) => `<div class="prop-field"><label>${lbl} (mm)</label><input type="number" data-sd="${k}" value="${mm(d[k])}" step="1"></div>`;
-    if (shape === 'I')      return `<div class="prop-row">${f('d', 'd canto')}${f('bf', 'bf ala')}</div><div class="prop-row">${f('tf', 'tf ala')}${f('tw', 'tw alma')}</div>`;
-    if (shape === 'rect')   return `<div class="prop-row">${f('b', 'b ancho')}${f('h', 'h canto')}</div>`;
-    if (shape === 'circle') return `<div class="prop-row">${f('D', 'D diámetro')}</div>`;
-    if (shape === 'pipe')   return `<div class="prop-row">${f('D', 'D exterior')}${f('t', 't espesor')}</div>`;
-    if (shape === 'box')    return `<div class="prop-row">${f('b', 'b ancho')}${f('h', 'h canto')}</div><div class="prop-row">${f('t', 't espesor')}</div>`;
-    if (shape === 'channel') return `<div class="prop-row">${f('d', 'd canto')}${f('bf', 'bf ala')}</div><div class="prop-row">${f('tf', 'tf ala')}${f('tw', 'tw alma')}</div>`;
-    if (shape === 'angle')  return `<div class="prop-row">${f('d', 'd ala vert.')}${f('b', 'b ala horiz.')}</div><div class="prop-row">${f('t', 't espesor')}</div>`;
-    if (shape === 'tee')    return `<div class="prop-row">${f('d', 'd canto')}${f('bf', 'bf ala')}</div><div class="prop-row">${f('tf', 'tf ala')}${f('tw', 'tw alma')}</div>`;
+    if (shape === 'I')      return `<div class="prop-row">${f('d', i18n.t('d canto'))}${f('bf', i18n.t('bf ala'))}</div><div class="prop-row">${f('tf', i18n.t('tf ala'))}${f('tw', i18n.t('tw alma'))}</div>`;
+    if (shape === 'rect')   return `<div class="prop-row">${f('b', i18n.t('b ancho'))}${f('h', i18n.t('h canto'))}</div>`;
+    if (shape === 'circle') return `<div class="prop-row">${f('D', i18n.t('D diámetro'))}</div>`;
+    if (shape === 'pipe')   return `<div class="prop-row">${f('D', i18n.t('D exterior'))}${f('t', i18n.t('t espesor'))}</div>`;
+    if (shape === 'box')    return `<div class="prop-row">${f('b', i18n.t('b ancho'))}${f('h', i18n.t('h canto'))}</div><div class="prop-row">${f('t', i18n.t('t espesor'))}</div>`;
+    if (shape === 'channel') return `<div class="prop-row">${f('d', i18n.t('d canto'))}${f('bf', i18n.t('bf ala'))}</div><div class="prop-row">${f('tf', i18n.t('tf ala'))}${f('tw', i18n.t('tw alma'))}</div>`;
+    if (shape === 'angle')  return `<div class="prop-row">${f('d', i18n.t('d ala vert.'))}${f('b', i18n.t('b ala horiz.'))}</div><div class="prop-row">${f('t', i18n.t('t espesor'))}</div>`;
+    if (shape === 'tee')    return `<div class="prop-row">${f('d', i18n.t('d canto'))}${f('bf', i18n.t('bf ala'))}</div><div class="prop-row">${f('tf', i18n.t('tf ala'))}${f('tw', i18n.t('tw alma'))}</div>`;
     if (shape === 'polygon') {
       const pts = a => (a || []).map(p => `${mm(p[0])}, ${mm(p[1])}`).join('\n');
       const holes = (d.holes || []).map(h => pts(h)).join('\n\n');
-      return `<div class="prop-row cols1"><div class="prop-field"><label>Vértices del contorno «x, y» por línea (mm)</label>
+      return `<div class="prop-row cols1"><div class="prop-field"><label>${i18n.t('Vértices del contorno «x, y» por línea (mm)')}</label>
           <textarea data-sd-poly="outline" rows="5" style="width:100%;font-family:var(--font-mono);font-size:11px" placeholder="0, 0\n300, 0\n300, 500\n0, 500">${pts(d.outline)}</textarea></div></div>
         <div class="prop-row cols1"><div class="prop-field">
           <label style="display:flex;justify-content:space-between;align-items:center">Editor gráfico del contorno
@@ -2478,7 +2476,7 @@ export class PropertiesPanel {
           <div class="prop-field"><label>n inf.</label><input type="number" data-rb="nBot" value="${reb.nBot ?? ''}" step="1" min="0"></div>
           <div class="prop-field"><label>φ barra (mm)</label><input type="number" data-rb="dia_mm" value="${reb.dia_mm ?? ''}" step="2"></div>
         </div>
-        <div class="prop-row" title="Estribos para el shear: φVn = φ(Vc+Vs), Vs=Av·fy·d/s (#70).">
+        <div class="prop-row" title="${i18n.t('Estribos para el shear: φVn = φ(Vc+Vs), Vs=Av·fy·d/s (#70).')}">
           <div class="prop-field"><label>estribo φ (mm)</label><input type="number" data-rb="estribo_dia_mm" value="${reb.estribo_dia_mm ?? ''}" step="2"></div>
           <div class="prop-field"><label>sep. s (mm)</label><input type="number" data-rb="estribo_s_mm" value="${reb.estribo_s_mm ?? ''}" step="10"></div>
         </div>
@@ -2498,12 +2496,12 @@ export class PropertiesPanel {
       catSel.innerHTML = html;
       catSel.addEventListener('change', () => {
         const name = catSel.value; if (!name) return;
-        const props = profileToSection(name); if (!props) { this.app.toast('Perfil no encontrado', 'warn'); return; }
+        const props = profileToSection(name); if (!props) { this.app.toast(i18n.t('Perfil no encontrado'), 'warn'); return; }
         this.app.snapshot();
         this.app.model.updateSection(sec.id, props);
         this.app.markDirty();
         this.renderSections();
-        this.app.toast(`Perfil ${name} aplicado (A, I, J y forma). Recalcule el análisis (F5).`, 'ok');
+        this.app.toast(`${i18n.t('Perfil')} ${name} ${i18n.t('aplicado (A, I, J y forma). Recalcule el análisis (F5).')}`, 'ok');
       });
     }).catch(() => {});
     const saveDesign = () => {
@@ -2542,17 +2540,17 @@ export class PropertiesPanel {
     card.querySelector('.sd-calc')?.addEventListener('click', async () => {
       saveDesign();
       const s = this.app.model.sections.get(sec.id);
-      if (!s.design?.shape || s.design.shape === 'generic') { this.app.toast('Elija una forma con dimensiones primero', 'warn'); return; }
+      if (!s.design?.shape || s.design.shape === 'generic') { this.app.toast(i18n.t('Elija una forma con dimensiones primero'), 'warn'); return; }
       try {
         const { fromShape } = await import('../design/section_props.js?v=7');
         const g = fromShape(s.design.shape, s.design);
-        if (!g) { this.app.toast('Faltan dimensiones de la forma', 'warn'); return; }
+        if (!g) { this.app.toast(i18n.t('Faltan dimensiones de la forma'), 'warn'); return; }
         this.app.snapshot();
         this.app.model.updateSection(sec.id, { A: g.A, Iz: g.Iz, Iy: g.Iy, J: g.J, Avy: g.Avz_web, Avz: g.Avy_flange });
         this.app.markDirty();
         this.renderSections();
-        this.app.toast(`A, I, J calculados desde la forma ${s.design.shape}. Recalcule el análisis (F5).`, 'ok');
-      } catch (e) { this.app.toast('No se pudo calcular: ' + e.message, 'warn'); }
+        this.app.toast(`${i18n.t('A, I, J calculados desde la forma')} ${s.design.shape}${i18n.t('. Recalcule el análisis (F5).')}`, 'ok');
+      } catch (e) { this.app.toast(i18n.t('No se pudo calcular: ') + e.message, 'warn'); }
     });
   }
 
@@ -2631,7 +2629,7 @@ export class PropertiesPanel {
     });
     host.addEventListener('dblclick', (e) => {
       if (e.target.tagName !== 'circle') return;
-      if (pts.length <= 3) { this.app.toast('El polígono necesita al menos 3 vértices', 'warn'); return; }
+      if (pts.length <= 3) { this.app.toast(i18n.t('El polígono necesita al menos 3 vértices'), 'warn'); return; }
       pts.splice(+e.target.dataset.i, 1); writeBack(); render();
     });
     // Keep the editor in sync if the user edits the textarea by hand.
@@ -2693,7 +2691,7 @@ export class PropertiesPanel {
         <div class="prop-field">
           <label>Forma de sección</label>
           <select id="sc-shape">
-            <option value="rect">Rectangular (b × h)</option>
+            <option value="rect">${i18n.t('Rectangular (b × h)')}</option>
             <option value="circ">Circular sólida (D)</option>
             <option value="hrect">Rectangular hueca</option>
             <option value="hcirc">Tubular circular</option>
@@ -2705,7 +2703,7 @@ export class PropertiesPanel {
       <div id="sc-inputs" style="margin-bottom:8px"></div>
       <div id="sc-results" style="background:rgba(255,255,255,0.03);padding:8px;
           border-radius:4px;font-size:11px;font-family:monospace;color:var(--text)">
-        — Selecciona una forma —
+        ${i18n.t('— Selecciona una forma —')}
       </div>`;
 
     overlay.classList.remove('hidden');
@@ -2734,14 +2732,14 @@ export class PropertiesPanel {
             <input type="number" id="sc-b" value="400" step="10" min="10"></div>
           <div class="prop-field"><label>h (mm)</label>
             <input type="number" id="sc-h" value="600" step="10" min="10"></div>
-          <div class="prop-field"><label>t espesor (mm)</label>
+          <div class="prop-field"><label>${i18n.t('t espesor (mm)')}</label>
             <input type="number" id="sc-t" value="60" step="5" min="1"></div>
         </div>`,
       hcirc: `
         <div class="prop-row">
-          <div class="prop-field"><label>D ext (mm)</label>
+          <div class="prop-field"><label>${i18n.t('D ext (mm)')}</label>
             <input type="number" id="sc-D" value="400" step="10" min="10"></div>
-          <div class="prop-field"><label>t espesor (mm)</label>
+          <div class="prop-field"><label>${i18n.t('t espesor (mm)')}</label>
             <input type="number" id="sc-t" value="20" step="5" min="1"></div>
         </div>`,
       ipe:  `<div class="prop-field"><label>Perfil IPE</label>
@@ -2832,7 +2830,7 @@ export class PropertiesPanel {
       this.app.markDirty();
       this.renderSections();
       this._switchTab('sec');
-      this.app.toast(`Sección "${lastData.name}" creada`, 'ok');
+      this.app.toast(`${i18n.t('Sección')} "${lastData.name}" ${i18n.t('creada')}`, 'ok');
     };
     overlay._reject = () => {};
   }
@@ -2908,7 +2906,7 @@ export class PropertiesPanel {
     if (meta) {
       body.insertAdjacentHTML('beforeend',
         `<div class="res-section-title" style="color:var(--accent);margin-bottom:6px">
-          Espectro Dir-${meta.direction} | ${meta.method} | ζ=${(meta.zeta * 100).toFixed(0)}% | ${meta.nModes} modos
+          ${i18n.t('Espectro Dir-')}${meta.direction} | ${meta.method} | ζ=${(meta.zeta * 100).toFixed(0)}% | ${meta.nModes} ${i18n.t('modos')}
         </div>`);
     }
 
@@ -2975,7 +2973,7 @@ export class PropertiesPanel {
       <div class="mat-card-head">
         <span class="mat-card-id" style="background:rgba(0,188,212,0.2);color:#00bcd4">${d.id}</span>
         <span class="mat-card-name" style="color:#00bcd4">${esc(d.name)}</span>
-        <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${nodeCount} nodos | Z=${d.z}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto">${nodeCount} ${i18n.t('nodos')} | Z=${d.z}</span>
         <span class="mat-card-chevron">▶</span>
       </div>
       <div class="mat-card-body">
@@ -3108,7 +3106,7 @@ export class PropertiesPanel {
       const nodesStr = get('nodes') || '';
       const nodeIds  = nodesStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
       const { cm, cr } = recalcCMCR(nodeIds, getNum('z'));
-      if (!cm) { this.app.toast('Necesitas ≥ 2 nodos válidos', 'warn'); return; }
+      if (!cm) { this.app.toast(i18n.t('Necesitas ≥ 2 nodos válidos'), 'warn'); return; }
       saveCard();
       this.app.toast('CM y CR recalculados', 'ok');
     });

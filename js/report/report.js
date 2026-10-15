@@ -30,8 +30,8 @@ export function reportDocxCover(app, d, opts = {}) {
       d.paragraph([{ text: cm.institucion || '', bold: true, color: '0A3A57', size: 13 }], { align: 'center' })
        .paragraph([{ text: cm.subInstitucion || '', color: '5C6A7D', size: 10 }], { align: 'center' });
     d.spacer();
-    d.paragraph([{ text: cm.kicker || i18n.t('ANÁLISIS Y DISEÑO ESTRUCTURAL'), color: '0D9488', bold: true, size: 11 }], { align: 'center' });
-    d.paragraph([{ text: cm.titulo || i18n.t('Memoria de Cálculo'), bold: true, color: '0A3A57', size: 26 }], { align: 'center' });
+    d.paragraph([{ text: i18n.t(cm.kicker || 'ANÁLISIS Y DISEÑO ESTRUCTURAL'), color: '0D9488', bold: true, size: 11 }], { align: 'center' });
+    d.paragraph([{ text: i18n.t(cm.titulo || 'Memoria de Cálculo'), bold: true, color: '0A3A57', size: 26 }], { align: 'center' });
     d.paragraph([{ text: proyecto, size: 13 }], { align: 'center' });
     if (opts.nModelos > 1) d.paragraph([{ text: `${i18n.t('Proyecto de')} ${opts.nModelos} ${i18n.t('modelos')}`, color: '0D9488', size: 10 }], { align: 'center' });
     d.spacer();
@@ -124,7 +124,7 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
           `#${x.id}`, x.sec, x.mat, fmt(x.forces.N, 1),
           fmt(Math.max(x.forces.My, x.forces.Mz), 1), fmt(Math.max(x.forces.Vy, x.forces.Vz), 1),
           { text: fmt(x.ratioMax, 2), bold: true, color: colorR(x.ratioMax) },
-          String(x.governs ?? '—'),
+          i18n.t(String(x.governs ?? '—')),
           { text: estado(x.ratioMax), color: colorR(x.ratioMax) },
         ]));
       const nNo = f.filter(x => x.ratioMax > 1).length, nAj = f.filter(x => x.ratioMax > 0.9 && x.ratioMax <= 1).length;
@@ -292,15 +292,15 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       const p = dp[t] || {};
       let det = '';
       if (t === 'steel')    det = `Fy = ${fmt(p.Fy_MPa,0)} MPa · Fu = ${fmt(p.Fu_MPa,0)} MPa · E = ${fmt(p.E_MPa,0)} MPa · φ_b=${p.phi?.bending} φ_v=${p.phi?.shear} φ_c=${p.phi?.axial_compresion}`;
-      if (t === 'concrete') det = `f′c = ${fmt(p.fc_MPa,0)} MPa · fy = ${fmt(p.fy_rebar_MPa,0)} MPa · cuantía ρ = ${fmt(p.long_reinf_ratio,3)} · rec. = ${fmt(p.cover_mm,0)} mm · φ_b=${p.phi?.bending} φ_v=${p.phi?.shear}`;
+      if (t === 'concrete') det = `f′c = ${fmt(p.fc_MPa,0)} MPa · fy = ${fmt(p.fy_rebar_MPa,0)} ${i18n.t('MPa · cuantía ρ =')} ${fmt(p.long_reinf_ratio,3)} · rec. = ${fmt(p.cover_mm,0)} mm · φ_b=${p.phi?.bending} φ_v=${p.phi?.shear}`;
       if (t === 'timber')   det = `Fb = ${fmt(p.Fb_MPa,1)} · Fv = ${fmt(p.Fv_MPa,1)} · Fc = ${fmt(p.Fc_MPa,1)} · Ft = ${fmt(p.Ft_MPa,1)} MPa · ∏Ki = ${fmt(Object.values(p.modification_factors||{}).reduce((a,b)=>a*b,1),2)}`;
       return `<tr><th>${nombreTipo[t]}</th><td>${esc(p.method||'—')}<br><span class="muted">${det}</span></td></tr>`;
     }).join('') : `<tr><td colspan="2" class="muted">${i18n.t('Parámetros de diseño no disponibles.')}</td></tr>`;
 
     // ── Standards and codes ─────────────────────────────────────────────────
     const normas = [
-      [i18n.t('Acción sísmica'), 'NCh433.Of96 Mod.2009 · DS61 (espectro de diseño)'],
-      [i18n.t('Cargas y sobrecargas'), 'NCh1537.Of2009 (permanentes y sobrecargas de uso)'],
+      [i18n.t('Acción sísmica'), i18n.t('NCh433.Of96 Mod.2009 · DS61 (espectro de diseño)')],
+      [i18n.t('Cargas y sobrecargas'), i18n.t('NCh1537.Of2009 (permanentes y sobrecargas de uso)')],
       [i18n.t('Combinaciones de carga'), 'NCh3171.Of2010 (disposiciones generales)'],
       [i18n.t('Viento'), 'NCh432.Of2010'],
       [i18n.t('Nieve'), 'NCh431.Of2010'],
@@ -344,7 +344,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         <td class="${rClass(x.shear.ratio)}">${fmt(x.shear.ratio,2)}</td>
         <td class="${rClass(x.axial.ratio)}">${fmt(x.axial.ratio,2)}</td>
         <td class="${rClass(x.interaction?.ratio)}">${fmt(x.interaction?.ratio,2)}</td>
-        <td>${x.governs}</td>
+        <td>${i18n.t(String(x.governs))}</td>
         <td class="${rClass(x.ratioMax)}"><b>${fmt(x.ratioMax,2)}</b></td>
         <td class="${malo(x)?'r-bad':aj(x)?'r-warn':'r-ok'}">${malo(x)?i18n.t('NO CUMPLE'):aj(x)?i18n.t('ajustado'):i18n.t('cumple')}</td></tr>`).join('');
       const alcance = diseno.envolvente ? i18n.t('envolvente de las combinaciones de carga') : `${i18n.t('el estado')} «${esc(diseno.caso||i18n.t('activo'))}»`;
@@ -429,8 +429,8 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         <path d="M44 188 H76 M284 188 H316" stroke="#0a3a57" stroke-width="2"/>
         <circle cx="60" cy="55" r="5" fill="#0e7fc0"/><circle cx="300" cy="55" r="5" fill="#0e7fc0"/>
       </svg>
-      <div class="cover-kicker">${esc(cm.kicker || i18n.t('ANÁLISIS Y DISEÑO ESTRUCTURAL'))}</div>
-      <h1 class="cover-title">${esc(cm.titulo || i18n.t('Memoria de Cálculo'))}</h1>
+      <div class="cover-kicker">${esc(i18n.t(cm.kicker || 'ANÁLISIS Y DISEÑO ESTRUCTURAL'))}</div>
+      <h1 class="cover-title">${esc(i18n.t(cm.titulo || 'Memoria de Cálculo'))}</h1>
       <div class="cover-proj">${esc(proyecto)}</div>
       ${tieneLogoPro ? '' : `<div class="cover-badge">${i18n.t('Generado con PORTICO — análisis estructural 3D')}</div>`}
       <table class="cover-meta"><tbody>
@@ -452,7 +452,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
 
     return `<!DOCTYPE html><html lang="${i18n.getLocale()}"><head><meta charset="utf-8">
 <base href="${esc(location.origin)}/">
-<title>${esc(cm.titulo || i18n.t('Memoria de Cálculo'))} — ${esc(proyecto)}</title>
+<title>${esc(i18n.t(cm.titulo || 'Memoria de Cálculo'))} — ${esc(proyecto)}</title>
 <style>
   :root{--ink:#1b2533;--mut:#5c6a7d;--bd:#cdd6e3;--ac:#0e7fc0;--head:#0a3a57;--teal:#0d9488;}
   *{box-sizing:border-box;}
@@ -496,7 +496,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
   @media print{.print-btn{display:none;} h2{break-after:avoid;} table,figure{break-inside:avoid;} body{padding:0 40px 64px;}}
 </style></head><body>
 <button class="print-btn" onclick="window.print()">${i18n.t('🖨 Imprimir / Guardar PDF')}</button>
-<div class="page-footer"><span><b>PORTICO</b> · ${esc(cm.titulo || i18n.t('Memoria de Cálculo'))} — ${esc(proyecto)}</span>
+<div class="page-footer"><span><b>PORTICO</b> · ${esc(i18n.t(cm.titulo || 'Memoria de Cálculo'))} — ${esc(proyecto)}</span>
   <span>${esc(footerTxt)}</span>
   <span>${esc(fecha)}</span></div>
 

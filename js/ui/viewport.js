@@ -1152,8 +1152,8 @@ export class Viewport {
     if (badge) {
       badge.textContent = is2D ? '2D' : '3D';
       badge.title = is2D
-        ? 'Modelo 2D: pórtico plano X–Z (cámara ortográfica fija; uy/rx/rz restringidos automáticamente). El modo se elige en Archivo → Nuevo.'
-        : 'Modelo 3D: estructura tridimensional. El modo se elige en Archivo → Nuevo.';
+        ? i18n.t('Modelo 2D: pórtico plano X–Z (cámara ortográfica fija; uy/rx/rz restringidos automáticamente). El modo se elige en Archivo → Nuevo.')
+        : i18n.t('Modelo 3D: estructura tridimensional. El modo se elige en Archivo → Nuevo.');
       badge.classList.toggle('badge-2d', is2D);
     }
     if (is2D) {
@@ -1183,7 +1183,7 @@ export class Viewport {
       this._controls.enableRotate = false;
       this._controls.mouseButtons = this._MB_2D;   // pan with left in planar view
       this.app.toast(
-        `Elevación ${this._elevation.name}: solo se muestra ese plano; los nodos nuevos caen en él. Seleccione "Vista 3D" para volver.`, 'ok');
+        `${i18n.t('Elevación')} ${this._elevation.name}${i18n.t(': solo se muestra ese plano; los nodos nuevos caen en él. Seleccione "Vista 3D" para volver.')}`, 'ok');
     } else {
       this._setProjection('persp');
       this._controls.enableRotate = true;
@@ -1229,11 +1229,11 @@ export class Viewport {
     const g = this.app.model.grids || { x: [], y: [] };
     const cur = this._elevation;
     const letter = i => String.fromCharCode(65 + (i % 26));
-    let html = `<option value="">Vista 3D</option>`;
+    let html = `<option value="">${i18n.t('Vista 3D')}</option>`;
     (g.y || []).forEach((c, i) =>
-      html += `<option value="y:${c}" ${cur && cur.axis==='y' && cur.coord===c ? 'selected':''}>Eje ${i + 1} (Y=${c})</option>`);
+      html += `<option value="y:${c}" ${cur && cur.axis==='y' && cur.coord===c ? 'selected':''}>${i18n.t('Eje')} ${i + 1} (Y=${c})</option>`);
     (g.x || []).forEach((c, i) =>
-      html += `<option value="x:${c}" ${cur && cur.axis==='x' && cur.coord===c ? 'selected':''}>Eje ${letter(i)} (X=${c})</option>`);
+      html += `<option value="x:${c}" ${cur && cur.axis==='x' && cur.coord===c ? 'selected':''}>${i18n.t('Eje')} ${letter(i)} (X=${c})</option>`);
     sel.innerHTML = html;
   }
 
@@ -1374,7 +1374,7 @@ export class Viewport {
             }
           }
           document.getElementById('sb-coords').textContent =
-            `X: ${node.x.toFixed(3)}  Y: ${node.y.toFixed(3)}  Z: ${node.z.toFixed(3)}  [plano ${this._dragPlane.toUpperCase()}]`;
+            `X: ${node.x.toFixed(3)}  Y: ${node.y.toFixed(3)}  Z: ${node.z.toFixed(3)}  [${i18n.t('plano')} ${this._dragPlane.toUpperCase()}]`;
         }
       }
       return; // skip normal hover/preview while dragging
@@ -1597,14 +1597,14 @@ export class Viewport {
           for (const e of (d.extremes || [])) { if (e.val < mn) mn = e.val; if (e.val > mx) mx = e.val; }
         }
         if (isFinite(mn) && isFinite(mx))
-          return `<b>Elem #${id}</b> · ${t}<br>mín <b>${_fmt(mn)}</b> · máx <b>${_fmt(mx)}</b> ${unitFor(t)}`;
+          return `<b>${i18n.t('Elem')} #${id}</b> · ${t}<br>${i18n.t('mín')} <b>${_fmt(mn)}</b> · ${i18n.t('máx')} <b>${_fmt(mx)}</b> ${unitFor(t)}`;
       }
       // Deformada / tensiones: rango de δ entre los extremos del elemento.
       const elem = model.elements.get(id);
       if (elem && typeof this._results.getNodeDisp === 'function') {
         const mag = nid => { const u = this._results.getNodeDisp(nid) || [0, 0, 0]; return Math.hypot(u[0], u[1], u[2]); };
         const a = mag(elem.n1), b = mag(elem.n2);
-        return `<b>Elem #${id}</b> · δ<br>mín <b>${_fmt(Math.min(a, b))}</b> · máx <b>${_fmt(Math.max(a, b))}</b> ${lU}`;
+        return `<b>${i18n.t('Elem')} #${id}</b> · δ<br>${i18n.t('mín')} <b>${_fmt(Math.min(a, b))}</b> · ${i18n.t('máx')} <b>${_fmt(Math.max(a, b))}</b> ${lU}`;
       }
       return '';
     }
@@ -1613,7 +1613,7 @@ export class Viewport {
       if (typeof this._results.getNodeDisp !== 'function') return '';
       const u = this._results.getNodeDisp(id) || [0, 0, 0];
       const mag = Math.hypot(u[0], u[1], u[2]);
-      let html = `<b>Nodo #${id}</b> · δ = <b>${_fmt(mag)}</b> ${lU}<br>`
+      let html = `<b>${i18n.t('Nodo')} #${id}</b> · δ = <b>${_fmt(mag)}</b> ${lU}<br>`
                + `δx ${_fmt(u[0])} · δy ${_fmt(u[1])} · δz ${_fmt(u[2])}`;
       const node = model.nodes.get(id);
       const isSup = node && node.restraints && Object.values(node.restraints).some(Boolean);
@@ -1629,7 +1629,7 @@ export class Viewport {
       if (!area) return '';
       let mn = Infinity, mx = -Infinity;
       for (const nid of area.nodes) { const v = this._areaVMnodal.get(nid); if (v == null) continue; if (v < mn) mn = v; if (v > mx) mx = v; }
-      if (isFinite(mn)) return `<b>Área #${id}</b> · σVM<br>mín <b>${_fmt(mn)}</b> · máx <b>${_fmt(mx)}</b> ${fU}/${lU}²`;
+      if (isFinite(mn)) return `<b>${i18n.t('Área')} #${id}</b> · σVM<br>${i18n.t('mín')} <b>${_fmt(mn)}</b> · ${i18n.t('máx')} <b>${_fmt(mx)}</b> ${fU}/${lU}²`;
     }
     return '';
   }
@@ -1698,14 +1698,14 @@ export class Viewport {
       this.clearSelection();
       this._selected.add(`diaphragm:${dId}`);
       this._setDiaHighlight(dId, true);
-      document.getElementById('sb-sel').textContent = `CM Diafragma #${dId}`;
+      document.getElementById('sb-sel').textContent = `${i18n.t('CM Diafragma')} #${dId}`;
       this.app.panel.showDiaphragm(dId, true);
     } else if (diaHits.length) {
       const dId = diaHits[0].object.userData.id;
       this.clearSelection();
       this._selected.add(`diaphragm:${dId}`);
       this._setDiaHighlight(dId, true);
-      document.getElementById('sb-sel').textContent = `Diafragma #${dId} seleccionado`;
+      document.getElementById('sb-sel').textContent = `${i18n.t('Diafragma')} #${dId} ${i18n.t('seleccionado')}`;
       this.app.panel.showDiaphragm(dId);
     } else {
       this.clearSelection();
@@ -1724,7 +1724,7 @@ export class Viewport {
     }
     const count = this._selected.size;
     document.getElementById('sb-sel').textContent =
-      count === 0 ? 'Sin selección' : `${count} objeto(s) seleccionado(s)  [Ctrl+clic para añadir]`;
+      count === 0 ? i18n.t('Sin selección') : `${count} ${i18n.t('objeto(s) seleccionado(s)')}  [${i18n.t('Ctrl+clic para añadir')}]`;
   }
 
   _notifyMultiSelection() {
@@ -1751,8 +1751,8 @@ export class Viewport {
     this.clearSelection();
     this._selected.add(`${type}:${id}`);
     this._setColor(type, id, COL.NODE_SEL, type === 'area' ? COL.AREA_SEL : COL.ELEM_SEL);
-    const lbl = type === 'node' ? `Nodo #${id}` : type === 'area' ? `Área #${id}` : `Elemento #${id}`;
-    document.getElementById('sb-sel').textContent = `${lbl} seleccionado`;
+    const lbl = type === 'node' ? `${i18n.t('Nodo')} #${id}` : type === 'area' ? `${i18n.t('Área')} #${id}` : `${i18n.t('Elemento')} #${id}`;
+    document.getElementById('sb-sel').textContent = `${lbl} ${i18n.t('seleccionado')}`;
     if (type === 'node')      this.app.panel.showNode(this.app.model.nodes.get(id));
     else if (type === 'area') this.app.panel.showArea(this.app.model.areas.get(id));
     else                      this.app.panel.showElement(this.app.model.elements.get(id));
@@ -1770,7 +1770,7 @@ export class Viewport {
       this._flaggedNodes = null;
     }
     this._selected.clear();
-    document.getElementById('sb-sel').textContent = 'Sin selección';
+    document.getElementById('sb-sel').textContent = i18n.t('Sin selección');
   }
 
   getSelected() {
@@ -1885,7 +1885,7 @@ export class Viewport {
       this._elemLines.get(id).material.color.set(COL.ELEM_SEL);
     }
     const n = this._selected.size;
-    document.getElementById('sb-sel').textContent = n ? `${n} seleccionado(s)` : 'Sin selección';
+    document.getElementById('sb-sel').textContent = n ? `${n} ${i18n.t('seleccionado(s)')}` : i18n.t('Sin selección');
   }
 
   selectNodes(ids) {
@@ -1896,7 +1896,7 @@ export class Viewport {
       this._setColor('node', id, COL.NODE_SEL, null);
     }
     const n = this._selected.size;
-    document.getElementById('sb-sel').textContent = n ? `${n} seleccionado(s)` : 'Sin selección';
+    document.getElementById('sb-sel').textContent = n ? `${n} ${i18n.t('seleccionado(s)')}` : i18n.t('Sin selección');
   }
 
   // ── Add Node mode ──────────────────────────────────────────────────────────
@@ -2015,7 +2015,7 @@ export class Viewport {
 
   _clickAddElem() {
     const id = this._resolveElemEndpoint();
-    if (id == null) { this.app.toast('Haga clic dentro del área de trabajo', 'warn'); return; }
+    if (id == null) { this.app.toast(i18n.t('Haga clic dentro del área de trabajo'), 'warn'); return; }
     if (this._addElemFirst === null) {
       // First click: creates the node (if needed) and is ready as the initial endpoint,
       // without requiring a second click on the just-created node.
@@ -2024,7 +2024,7 @@ export class Viewport {
       document.getElementById('sb-sel').textContent = `${i18n.t('Nodo')} #${id} ${i18n.t('→ clic para el destino (o grilla) · Esc para terminar')}`;
     } else {
       const n1 = this._addElemFirst, n2 = id;
-      if (n1 === n2) { this.app.toast('Los nodos deben ser distintos', 'warn'); return; }
+      if (n1 === n2) { this.app.toast(i18n.t('Los nodos deben ser distintos'), 'warn'); return; }
       this.app.addElement(n1, n2);
       // Continuous chain: the just-created endpoint starts the next element, so a
       // polyline is drawn with one click per span. Esc to finish.
@@ -2041,23 +2041,23 @@ export class Viewport {
   // node creates the QUAD automatically. Re-clicking a node removes it from the selection.
   _clickAddArea() {
     const snap = this._nearestNodeSnap();
-    if (!snap) { this.app.toast('Clic sobre un nodo (las áreas se forman con nodos)', 'warn'); return; }
+    if (!snap) { this.app.toast(i18n.t('Clic sobre un nodo (las áreas se forman con nodos)'), 'warn'); return; }
     if (!this._areaPick) this._areaPick = [];
     const i = this._areaPick.indexOf(snap.id);
     if (i >= 0) { this._areaPick.splice(i, 1); this._refreshColor('node', snap.id); }
     else {
-      if (this._areaPick.length >= 4) { this.app.toast('Máximo 4 nodos. Enter para crear o Esc para reiniciar.', 'warn'); return; }
+      if (this._areaPick.length >= 4) { this.app.toast(i18n.t('Máximo 4 nodos. Enter para crear o Esc para reiniciar.'), 'warn'); return; }
       this._areaPick.push(snap.id); this._setColor('node', snap.id, COL.NODE_SEL, null);
     }
     const n = this._areaPick.length;
     document.getElementById('sb-sel').textContent =
-      n >= 3 ? `Área: ${n} nodo(s) · Enter para crear (${n === 3 ? 'CST' : 'QUAD'})` : `Área: ${n} nodo(s) · faltan ${3 - n}`;
+      n >= 3 ? `${i18n.t('Área:')} ${n} ${i18n.t('nodo(s) · Enter para crear')} (${n === 3 ? 'CST' : 'QUAD'})` : `${i18n.t('Área:')} ${n} ${i18n.t('nodo(s) · faltan')} ${3 - n}`;
     if (n === 4) this._finishArea();
   }
 
   _finishArea() {
     const ids = (this._areaPick || []);
-    if (ids.length < 3) { this.app.toast('Seleccione 3 (CST) o 4 (QUAD) nodos', 'warn'); return; }
+    if (ids.length < 3) { this.app.toast(i18n.t('Seleccione 3 (CST) o 4 (QUAD) nodos'), 'warn'); return; }
     const copy = ids.slice();
     this._cancelAreaPick();
     this.app.createAreaFromNodes(copy);
@@ -2083,36 +2083,36 @@ export class Viewport {
     if (this._meshPick.length) {
       const n = this._meshPick.length;
       document.getElementById('sb-sel').textContent = (this._meshKind === 'panel')
-        ? `Mallar panel: ${n}/4 esquinas` : `Mallar región: ${n} nodos · Enter para mallar`;
+        ? `${i18n.t('Mallar panel:')} ${n}/4 ${i18n.t('esquinas')}` : `${i18n.t('Mallar región:')} ${n} ${i18n.t('nodos · Enter para mallar')}`;
     }
   }
 
   _clickMeshPick() {
     const snap = this._nearestNodeSnap();
-    if (!snap) { this.app.toast('Clic sobre un nodo del contorno a mallar', 'warn'); return; }
+    if (!snap) { this.app.toast(i18n.t('Clic sobre un nodo del contorno a mallar'), 'warn'); return; }
     if (!this._meshPick) this._meshPick = [];
     const i = this._meshPick.indexOf(snap.id);
     if (i >= 0) { this._meshPick.splice(i, 1); this._refreshColor('node', snap.id); }
     else {
       if (this._meshKind === 'panel' && this._meshPick.length >= 4) {
-        this.app.toast('El panel transfinito usa 4 esquinas. Enter para mallar o Esc para reiniciar.', 'warn'); return;
+        this.app.toast(i18n.t('El panel transfinito usa 4 esquinas. Enter para mallar o Esc para reiniciar.'), 'warn'); return;
       }
       this._meshPick.push(snap.id); this._setColor('node', snap.id, COL.NODE_SEL, null);
     }
     const n = this._meshPick.length;
     const sb = document.getElementById('sb-sel');
     if (this._meshKind === 'panel')
-      sb.textContent = `Mallar panel: ${n}/4 esquinas` + (n === 4 ? ' · Enter para mallar' : '');
+      sb.textContent = `${i18n.t('Mallar panel:')} ${n}/4 ${i18n.t('esquinas')}` + (n === 4 ? i18n.t(' · Enter para mallar') : '');
     else
-      sb.textContent = n >= 3 ? `Mallar región: ${n} nodos · Enter para mallar` : `Mallar región: ${n} nodos · faltan ${3 - n}`;
+      sb.textContent = n >= 3 ? `${i18n.t('Mallar región:')} ${n} ${i18n.t('nodos · Enter para mallar')}` : `${i18n.t('Mallar región:')} ${n} ${i18n.t('nodos · faltan')} ${3 - n}`;
     if (this._meshKind === 'panel' && n === 4) this._finishMeshPick();
   }
 
   _finishMeshPick() {
     const ids = (this._meshPick || []).slice();
     const kind = this._meshKind;
-    if (kind === 'panel' && ids.length !== 4) { this.app.toast('El panel transfinito necesita 4 nodos esquina', 'warn'); return; }
-    if (kind !== 'panel' && ids.length < 3)   { this.app.toast('La región libre necesita ≥3 nodos de contorno', 'warn'); return; }
+    if (kind === 'panel' && ids.length !== 4) { this.app.toast(i18n.t('El panel transfinito necesita 4 nodos esquina'), 'warn'); return; }
+    if (kind !== 'panel' && ids.length < 3)   { this.app.toast(i18n.t('La región libre necesita ≥3 nodos de contorno'), 'warn'); return; }
     this._cancelMeshPick();
     if (kind === 'panel') this.app.meshPanelSelection(ids);
     else                  this.app.mallarRegionLibre(ids);
@@ -2184,7 +2184,7 @@ export class Viewport {
       }
     }
     const n = this._selected.size;
-    document.getElementById('sb-sel').textContent = n ? `${n} objeto(s) seleccionado(s)  [Alt+arrastrar = cuadro]` : 'Sin selección';
+    document.getElementById('sb-sel').textContent = n ? `${n} ${i18n.t('objeto(s) seleccionado(s)')}  [${i18n.t('Alt+arrastrar = cuadro')}]` : i18n.t('Sin selección');
     this._notifyMultiSelection();
   }
 
@@ -2357,7 +2357,7 @@ export class Viewport {
     // (e.g. Support) "does nothing".
     if (this._inResultsMode && (mode === 'addnode' || mode === 'addelem' || mode === 'addarea' || mode === 'meshpick' || mode === 'addsupport')) {
       this.clearResults();
-      this.app?.toast?.('Resultados ocultos para editar el modelo', 'info');
+      this.app?.toast?.(i18n.t('Resultados ocultos para editar el modelo'), 'info');
     }
     this.mode = mode;
     if (mode !== 'addelem' && this._addElemFirst !== null) {
@@ -2485,17 +2485,17 @@ export class Viewport {
     const lbl = document.getElementById('floor-z-label');
     const inp = document.getElementById('floor-z');
     if (p === 'xz') {
-      if (lbl) lbl.textContent = 'Y plano';
+      if (lbl) lbl.textContent = i18n.t('Y plano');
       if (inp) { inp.value = this._planeYOff || 0;
-        inp.title = 'Plano de trabajo vertical XZ (Frente): los nodos nuevos caen en la coordenada Y = este valor.'; }
+        inp.title = i18n.t('Plano de trabajo vertical XZ (Frente): los nodos nuevos caen en la coordenada Y = este valor.'); }
     } else if (p === 'yz') {
-      if (lbl) lbl.textContent = 'X plano';
+      if (lbl) lbl.textContent = i18n.t('X plano');
       if (inp) { inp.value = this._planeXOff || 0;
-        inp.title = 'Plano de trabajo vertical YZ (Lateral): los nodos nuevos caen en la coordenada X = este valor.'; }
+        inp.title = i18n.t('Plano de trabajo vertical YZ (Lateral): los nodos nuevos caen en la coordenada X = este valor.'); }
     } else {
-      if (lbl) lbl.textContent = 'Z piso';
+      if (lbl) lbl.textContent = i18n.t('Z piso');
       if (inp) { inp.value = this._floorZ || 0;
-        inp.title = 'Plano de trabajo horizontal XY (Planta): los nodos nuevos caen en la coordenada Z = este valor.'; }
+        inp.title = i18n.t('Plano de trabajo horizontal XY (Planta): los nodos nuevos caen en la coordenada Z = este valor.'); }
     }
   }
 
@@ -2864,7 +2864,7 @@ export class Viewport {
       this._resultObjects.push(mesh);
       this._resultNodeMarkers.set(node.id, mesh);
     }
-    this._showResultsUI(`Deformada ×${_fmt(scale)} (factor ×${+f.toPrecision(3)}) | δmax=${_fmt(maxD)}`);
+    this._showResultsUI(`${i18n.t('Deformada')} ×${_fmt(scale)} (${i18n.t('factor')} ×${+f.toPrecision(3)}) | δmax=${_fmt(maxD)}`);
     this._drawColorbar(0, maxD);
     // The faces deform with the nodes and are colored by von Mises (if there are areas).
     this.colorAreasByVM(results, scale);
@@ -2892,8 +2892,8 @@ export class Viewport {
     this.colorAreasByVM(results, 0);   // von Mises contour over real geometry
     const [mn, mx] = this._areaVMrange || [0, 0];
     this._showResultsUI(hasAreas
-      ? `von Mises (áreas) | máx = ${_fmt(mx)}`
-      : 'Tensiones: el modelo no tiene elementos de área');
+      ? `${i18n.t('von Mises (áreas)')} | ${i18n.t('máx')} = ${_fmt(mx)}`
+      : i18n.t('Tensiones: el modelo no tiene elementos de área'));
   }
 
   // ── NONLINEAR deformed shape (NL-lite): nodal displacements only ───────────
@@ -2976,7 +2976,7 @@ export class Viewport {
       }
       void drawn;
     }
-    this._showResultsUI(infoText || `Deformada no lineal ×${_fmt(scale)} | δmax=${_fmt(maxD)}`);
+    this._showResultsUI(infoText || `${i18n.t('Deformada no lineal')} ×${_fmt(scale)} | δmax=${_fmt(maxD)}`);
   }
 
   // factor = RELATIVE multiplier over the auto-normalized scale (1 = automatic fit).
@@ -3086,7 +3086,7 @@ export class Viewport {
         this._resultObjects.push(sp);
       }
     }
-    this._showResultsUI(`${type} | máx = ${_fmt(maxVal)} (factor ×${+f.toPrecision(3)})`);
+    this._showResultsUI(`${type} | ${i18n.t('máx')} = ${_fmt(maxVal)} (${i18n.t('factor')} ×${+f.toPrecision(3)})`);
     this._drawColorbar(0, maxVal);
   }
 
@@ -3438,7 +3438,7 @@ export class Viewport {
     document.getElementById('btn-clear-results').style.display = '';
     document.getElementById('results-banner').classList.add('visible');
     document.getElementById('results-banner').textContent =
-      'MODO DINÁMICO — haga clic sobre nodos y elementos para ver valores';
+      i18n.t('MODO DINÁMICO — haga clic sobre nodos y elementos para ver valores');
     document.getElementById('modal-analysis-overlay')?.classList.remove('hidden');
   }
 
