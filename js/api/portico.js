@@ -36,7 +36,8 @@ import { checkDeflection, checkDrift, driftLimit } from '../design/serviceabilit
 import { interstoryDrifts, buildStoryLevels } from '../solver/drift.js?v=7';
 import { polygonProps, compositeProps } from '../design/polygon_props.js?v=7';
 import { jointSCWB, strongColumnWeakBeam } from '../design/seismic.js?v=7';
-import { buildSpectrum } from '../design/nch433_spectrum.js?v=7';
+import { getSpectrum } from '../design/spectra/index.js?v=7';
+const buildSpectrum = (o) => getSpectrum('NCh433').build(o);   // spectra registry (PLANO_BRASIL 5.5)
 import { resolveMaterial } from '../design/material_props.js?v=7';
 import { resolveSectionProps } from '../design/section_props.js?v=7';
 import { registerFormat, listFormats, exportModel, importModel } from '../io/index.js?v=7';

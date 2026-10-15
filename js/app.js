@@ -33,7 +33,8 @@ import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
 import { driftLimit } from './design/serviceability.js?v=7';
-import { buildSpectrum } from './design/nch433_spectrum.js?v=7';
+import { getSpectrum } from './design/spectra/index.js?v=7';
+const buildSpectrum = (o) => getSpectrum('NCh433').build(o);   // spectra registry (PLANO_BRASIL 5.5)
 import { selectProfile, steelCandidates, predimensionar, candidatesForFamily } from './design/autodesign.js?v=7';
 import { jointSCWB } from './design/seismic.js?v=7';
 import { resolveMaterial } from './design/material_props.js?v=7';
