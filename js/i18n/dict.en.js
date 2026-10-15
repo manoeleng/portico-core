@@ -2891,6 +2891,13 @@ export const EN = {
   "En uso": "In use",
   "Sin uso en el modelo.": "Not used in the model.",
   "Sección en uso: cambie la sección de esas barras antes de eliminarla": "Section in use: change those members' section before deleting it",
+  "Biblioteca de materiales": "Material library",
+  "Todos los tipos": "All types",
+  "Todas las normas": "All standards",
+  "Material del usuario": "User material",
+  "Insertar en el modelo": "Insert into the model",
+  "Usuario": "User",
+  "Material definido por el usuario: confirme los valores": "User-defined material: check the values",
 };
 
 export default EN;

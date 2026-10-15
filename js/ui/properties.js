@@ -2551,26 +2551,38 @@ export class PropertiesPanel {
   renderMaterials() {
     const container = document.getElementById('mat-list');
     container.innerHTML = '';
-    // Preloaded library (#69): insert a standard material from the catalog.
+    // Library (RFEM/CSI-like): filter by type and standard → list with the key properties → ＋ inserts it.
     const pick = document.createElement('div');
-    pick.className = 'prop-row'; pick.style.cssText = 'gap:6px;margin-bottom:6px;align-items:flex-end';
-    pick.innerHTML = `<div class="prop-field" style="flex:1"><label style="font-size:11px">Insertar material estándar</label>
-      <select id="mat-catalog"><option value="">— catálogo —</option></select></div>
-      <button id="mat-catalog-add" class="btn-secondary" style="white-space:nowrap;font-size:11px">＋ Insertar</button>`;
+    pick.style.cssText = 'margin-bottom:8px';
+    pick.innerHTML = `<div class="prop-title" style="margin-top:0">${i18n.t('Biblioteca de materiales')}</div>
+      <div class="prop-row" style="gap:4px">
+        <select id="mat-f-tipo"><option value="">${i18n.t('Todos los tipos')}</option><option value="aço">${i18n.t('Acero')}</option><option value="concreto">${i18n.t('Hormigón')}</option><option value="madeira">${i18n.t('Madera')}</option><option value="alumínio">${i18n.t('Aluminio')}</option></select>
+        <select id="mat-f-norma"><option value="">${i18n.t('Todas las normas')}</option></select>
+      </div>
+      <div id="mat-lib" style="max-height:170px;overflow:auto;border:1px solid var(--border2);border-radius:4px;margin-top:4px;font-size:11px"></div>
+      <button id="mat-user-add" class="btn-secondary" style="width:100%;font-size:11px;margin-top:4px">＋ ${i18n.t('Material del usuario')}</button>`;
     container.appendChild(pick);
-    import('../design/materials_catalog.js?v=7').then(({ MATERIAL_FAMILIES: MF0, MATERIAL_FAMILIES_BR, getMaterialDef }) => {
-      const MATERIAL_FAMILIES = i18n.getLocale() === 'pt' ? { ...MATERIAL_FAMILIES_BR, ...MF0 } : { ...MF0, ...MATERIAL_FAMILIES_BR };
-      const sel = pick.querySelector('#mat-catalog');
-      sel.innerHTML = '<option value="">— catálogo —</option>' +
-        Object.entries(MATERIAL_FAMILIES).map(([fam, names]) => `<optgroup label="${fam}">` + names.map(n => `<option value="${n}">${n}</option>`).join('') + '</optgroup>').join('');
-      pick.querySelector('#mat-catalog-add').addEventListener('click', () => {
-        const name = sel.value; if (!name) return;
-        const def = getMaterialDef(name); if (!def) return;
+    import('../design/materials_catalog.js?v=7').then(({ catalogMaterials, catalogNormas, getMaterialDef }) => {
+      const fT = pick.querySelector('#mat-f-tipo'), fN = pick.querySelector('#mat-f-norma'), lib = pick.querySelector('#mat-lib');
+      fN.innerHTML += catalogNormas().map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      if (i18n.getLocale() === 'pt' && !this._matFiltered) { fN.value = ''; }
+      const list = () => {
+        let rows = catalogMaterials({ tipo: fT.value, norma: fN.value });
+        if (!fN.value && i18n.getLocale() === 'pt') rows = [...rows.filter(r => /^NBR/.test(r.norma)), ...rows.filter(r => !/^NBR/.test(r.norma))];
+        lib.innerHTML = rows.map(r => `<div class="mat-hit" data-n="${esc(r.name)}" style="display:flex;gap:6px;align-items:center;padding:2px 6px;border-bottom:1px solid var(--border2)">
+          <div style="flex:1;min-width:0"><b>${esc(r.name)}</b> <span class="muted" style="font-size:10px">${esc(r.norma)}</span><br><span class="muted" style="font-size:10px">${esc(r.resumo)}</span></div>
+          <button class="btn-secondary mat-ins" style="font-size:11px;padding:1px 8px" title="${esc(i18n.t('Insertar en el modelo'))}">＋</button></div>`).join('');
+        lib.querySelectorAll('.mat-ins').forEach(b => b.addEventListener('click', () => {
+          const name = b.closest('.mat-hit').dataset.n, def = getMaterialDef(name); if (!def) return;
+          this.app.snapshot(); this.app.model.addMaterial(def); this.app.markDirty(); this.renderMaterials();
+          this.app.toast(`${i18n.t('Material')} «${name}» ${i18n.t('agregado del catálogo')}`, 'ok');
+        }));
+      };
+      fT.addEventListener('change', list); fN.addEventListener('change', list); list();
+      pick.querySelector('#mat-user-add').addEventListener('click', () => {
         this.app.snapshot();
-        this.app.model.addMaterial(def);
-        this.app.markDirty();
-        this.renderMaterials();
-        this.app.toast(`${i18n.t('Material')} «${name}» ${i18n.t('agregado del catálogo')}`, 'ok');
+        this.app.model.addMaterial({ name: i18n.t('Material del usuario'), E: 2e8, G: 7.7e7, nu: 0.3, rho: 7.85 });
+        this.app.markDirty(); this.renderMaterials();
       });
     }).catch(() => {});
     for (const mat of this.app.model.materials.values()) {
@@ -2586,6 +2598,8 @@ export class PropertiesPanel {
       <div class="mat-card-head">
         <span class="mat-card-id">${mat.id}</span>
         <span class="mat-card-name">${esc(mat.name)}</span>
+        ${mat.catalog ? `<span class="muted" style="font-size:10px;margin-left:auto;padding-right:6px">${esc(i18n.t('catálogo'))} · ${esc(mat.catalog.norma || '')}</span>`
+          : `<span style="font-size:10px;margin-left:auto;margin-right:6px;padding:0 5px;border-radius:3px;background:#f59e0b33;color:#b45309" title="${esc(i18n.t('Material definido por el usuario: confirme los valores'))}">${esc(i18n.t('Usuario'))}</span>`}
         <span class="mat-card-chevron">▶</span>
       </div>
       <div class="mat-card-body">

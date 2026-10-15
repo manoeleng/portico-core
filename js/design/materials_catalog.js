@@ -44,9 +44,23 @@ export const MATERIALS_BR = {
   'Concreto C45':      CONC_BR(45),
   'Concreto C50':      CONC_BR(50),
 };
+// Brazilian timber — NBR 7190-1:2022 Tab. 3 (strength classes from structural-size tests, 12 % moisture; read from
+// the standard in the acervo, 15/10/2026): E0,m and Gm (GPa) for the analysis, ρm (mean density, kg/m³) for the self
+// weight; the class goes to design.classe7190 (the NBR 7190 module takes fb,k, ft0,k, fc0,k, fv,k, E0,05 from it).
+// α is not given by NBR 7190-1 → not set (no thermal load on timber); ν is not used by members (G is explicit).
+const T7190 = {   // class: [E0m GPa, Gm GPa, ρm kg/m³]
+  C14: [7, 0.4, 350], C16: [8, 0.5, 370], C18: [9, 0.6, 380], C20: [9.5, 0.6, 390], C22: [10, 0.6, 410], C24: [11, 0.7, 420],
+  C27: [12, 0.7, 450], C30: [12, 0.8, 460], C35: [13, 0.8, 480], C40: [14, 0.9, 500], C45: [15, 0.9, 520], C50: [16, 1.0, 550],
+  D18: [9.5, 0.6, 570], D24: [10, 0.6, 580], D30: [11, 0.7, 640], D35: [12, 0.8, 650], D40: [13, 0.8, 660], D50: [14, 0.9, 750],
+  D60: [17, 1.1, 840], D70: [20, 1.25, 1080],
+};
+for (const [cls, [E, G, rho]] of Object.entries(T7190)) MATERIALS_BR[`Madeira ${cls}`] = { E: E * 1e6, G: G * 1e6, nu: 0.3, rho: rho / 1000,
+  design: { family: 'timber', classe7190: cls } };
+
 export const MATERIAL_FAMILIES_BR = {
   'Aço (NBR)':      ['Aço MR250', 'Aço AR350', 'Aço AR350 COR', 'Aço AR415'],
   'Concreto (NBR)': ['Concreto C20', 'Concreto C25', 'Concreto C30', 'Concreto C35', 'Concreto C40', 'Concreto C45', 'Concreto C50'],
+  'Madeira (NBR)':  Object.keys(T7190).map((c) => `Madeira ${c}`),
 };
 
 export const MATERIALS = {
@@ -79,8 +93,30 @@ export const MATERIAL_FAMILIES = {
 
 export function materialNames() { return Object.keys(MATERIALS); }
 
+// Catalogue entries with type and standard (RFEM/CSI-like filtered library): [{ name, tipo, norma, resumo }]
+const NORMA = (name, fam) => /^Aço /.test(name) ? 'NBR 8800:2024 / NBR 7007' : /^Concreto /.test(name) ? 'NBR 6118:2026'
+  : /^Madeira /.test(name) ? 'NBR 7190-1:2022' : /A36|A572/.test(name) ? 'ASTM' : /S275|S355/.test(name) ? 'EN 10025'
+  : /^Hormigón/.test(name) ? 'NCh 170' : /^Madera/.test(name) ? 'EN 338' : /Aluminio/.test(name) ? 'EN 1999' : fam;
+const TIPO = { steel: 'aço', concrete: 'concreto', timber: 'madeira', aluminum: 'alumínio' };
+export function catalogMaterials({ tipo = '', norma = '' } = {}) {
+  const out = [];
+  for (const [name, m] of [...Object.entries(MATERIALS_BR), ...Object.entries(MATERIALS)]) {
+    const t = TIPO[m.design?.family] || 'outro', n = NORMA(name);
+    if (tipo && t !== tipo) continue;
+    if (norma && n !== norma) continue;
+    const d = m.design || {};
+    const resumo = t === 'aço' || t === 'alumínio' ? `fy ${d.Fy} MPa · fu ${d.Fu} MPa · E ${(m.E / 1e6).toFixed(0)} GPa`
+      : t === 'concreto' ? `fck ${d.fc} MPa · Ecs ${(m.E / 1e6).toFixed(1)} GPa`
+      : d.classe7190 ? `classe ${d.classe7190} · E0,m ${(m.E / 1e6)} GPa · ρm ${Math.round(m.rho * 1000)} kg/m³`
+      : `E ${(m.E / 1e6).toFixed(1)} GPa`;
+    out.push({ name, tipo: t, norma: n, resumo });
+  }
+  return out;
+}
+export function catalogNormas() { return [...new Set(catalogMaterials().map((x) => x.norma))]; }
+
 // Definition ready for `model.addMaterial(...)` (deep copy + name).
 export function getMaterialDef(name) {
   const m = MATERIALS[name] || MATERIALS_BR[name];
-  return m ? { name, ...JSON.parse(JSON.stringify(m)) } : null;
+  return m ? { name, ...JSON.parse(JSON.stringify(m)), catalog: { name, norma: NORMA(name) } } : null;
 }

@@ -57,7 +57,8 @@ limitação da cantoneira que foi corrigida na NBR 8800.
 12. Biblioteca de seções (pesquisa RFEM/ETABS/CYPE/Robot 15/10/2026): busca no catálogo, painel de propriedades com
     desenho, composta 2L/2U/2Ue com afastamento livre FEITOS (`9f7872a`); U simples NBR 6355 Tab. A.2 (126) e compostas
     (`c722831`); uso da seção (barras, L, massa, bloqueio de exclusão, excluir não usadas) FEITO 15/10/2026.
-    Fila do /loop: (5) materiais por norma; (6) cor por seção e favoritos; (7) rotação padrão na seção; (8) NBR 14762
+    Materiais por norma (filtro tipo/norma, madeira NBR 7190-1 Tab. 3 no catálogo, selo Usuário) FEITO 15/10/2026.
+    Fila do /loop: (6) cor por seção e favoritos; (7) rotação padrão na seção; (8) NBR 14762
     sentido de My do U/Ue pelo diagrama; (9) compostas: esbeltez entre presilhas e verificação.
 
 ---

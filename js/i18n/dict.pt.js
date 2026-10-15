@@ -2634,6 +2634,13 @@ export const PT = {
   "En uso": "Em uso",
   "Sin uso en el modelo.": "Sem uso no modelo.",
   "Sección en uso: cambie la sección de esas barras antes de eliminarla": "Seção em uso: troque a seção dessas barras antes de excluí-la",
+  "Biblioteca de materiales": "Biblioteca de materiais",
+  "Todos los tipos": "Todos os tipos",
+  "Todas las normas": "Todas as normas",
+  "Material del usuario": "Material do usuário",
+  "Insertar en el modelo": "Inserir no modelo",
+  "Usuario": "Usuário",
+  "Material definido por el usuario: confirme los valores": "Material definido pelo usuário: confirme os valores",
 };
 
 export default PT;
