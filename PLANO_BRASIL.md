@@ -28,8 +28,12 @@ limitação da cantoneira que foi corrigida na NBR 8800.
 
 **Fila de interface e modelagem** (pedidos do Manoel, 15/10/2026 — fora das fases normativas):
 1. Deslocamento (excentricidade) do perfil em relação ao eixo da barra — terça apoiada no banzo, viga alinhada pela
-   face do pilar; entra no cálculo (revisão de especialista). EM ANDAMENTO.
-2. 3D realista: materiais por tipo (aço/concreto/madeira) e telhas/fechamento sobre os panos.
+   face do pilar; entra no cálculo (revisão de especialista). FEITO 15/10/2026 (revisão FECHADA; `tests/test_offset.mjs`).
+   Pendências: espelhar não copia `rigidEnd` (anterior); deformada/deslocamento interior desenhados na linha dos nós
+   (sem θ×e — não afeta esforços); tendão em barra excêntrica não vê o offset; corotacional 2D recusa offset.
+2. 3D realista: materiais por tipo (aço/concreto/madeira) e telhas/fechamento sobre os panos. Modos da vista sólida (sólido, translúcido, arestas) FEITOS em 15/10/2026 (`4282e56`).
+   **Deformada no sólido 3D com mapa de cores** (deslocamento ou tensão ao longo da barra) — hoje a deformada é só em
+   linha (Hermite) e o mapa de cores só existe em placas/cascas.
 3. Camadas: o nome de referência da camada **padrão** não pode ser modificado; o das camadas criadas só fica
    editável com **duplo clique** (evita renomear sem querer).
 4. Cartola (NBR 6355 Tab. A.6): decisão do Manoel pendente — (a) recalcular x0/r0/Cw pelo E.2.1.2c da NBR 14762 com

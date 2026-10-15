@@ -3852,7 +3852,9 @@ export class Viewport {
       const side = T3(la.ez).negate(), up = T3(la.ey), axis = T3(la.ex);
       const rm   = new THREE.Matrix4().makeBasis(side, up, axis);
       mesh.applyMatrix4(rm);
-      mesh.position.copy(this.m2t(n1.x, n1.y, n1.z));
+      // eccentricity: the profile sits on the member axis, e = ey·ey + ez·ez away from the node line
+      const oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0;
+      mesh.position.copy(this.m2t(n1.x + oy * la.ey[0] + oz * la.ez[0], n1.y + oy * la.ey[1] + oz * la.ez[1], n1.z + oy * la.ey[2] + oz * la.ez[2]));
 
       this._scene.add(mesh);
       this._extrudedObjects.push(mesh);

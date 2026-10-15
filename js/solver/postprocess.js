@@ -7,7 +7,7 @@
 // For UDL this reduces to the exact parabolic formula.
 // Displacements at arbitrary xi use cubic Hermite shape functions.
 // ──────────────────────────────────────────────────────────────────────────────
-import { localAxes, stiffnessMatrix, transformMatrix, fixedEndForcesRE, applyReleases, condenseFEF, recoverReleasedDisp, elemLocalK, springFEF, springMemberDisp } from './timoshenko.js?v=7';
+import { localAxes, stiffnessMatrix, transformMatrix, fixedEndForcesRE, applyReleases, condenseFEF, recoverReleasedDisp, elemLocalK, springFEF, springMemberDisp, eccentricForces, armFEF } from './timoshenko.js?v=7';
 import { getNodeDOFs, selfWeightPerLength } from './assembler.js?v=7';
 import { areaStress, areaBendingStress, areaStrain, areaCurvature, vonMises } from './membrane.js?v=7';
 
@@ -435,6 +435,8 @@ export class Results {
         if (elem.releases[i]) fe[i] = 0;
       }
     }
+    // Eccentric member (elem.offset): moments about the member axis, not about the node line
+    eccentricForces(elem, fe);
 
     // Actual distributed load intensities (local y, z) — needed for correct M(x), V(x)
     const { qy, qz, qy1, qy2, qz1, qz2 } = this._computeActualLoads(elem, ex, ey, ez);
@@ -481,7 +483,9 @@ export class Results {
           const sec = this.model.sections.get(elem.secId);
           if (mat && sec) {
             const Nt = mat.E * sec.A * (sec.mod?.A ?? 1) * (mat.alpha ?? 0) * (load.dT || 0);
-            fef[0] += Nt; fef[6] -= Nt;
+            const ft = Array(12).fill(0); ft[0] = Nt; ft[6] = -Nt;
+            const fn = armFEF(elem, L, ft);             // eccentric axis: N·e moment at the nodes
+            for (let i = 0; i < 12; i++) fef[i] += fn[i];
           }
         }
       }

@@ -133,6 +133,10 @@ export function buildNLTrussProblem(model, { contribs = null } = {}) {
  *             nodeIds:number[], idxOf:Map, elemIds:number[], Fref:Float64Array, nCasos:number}}
  */
 export function buildCorotProblem(model) {
+  // the 2D corotational element has no transverse rigid arm: an eccentric member (elem.offset) would be solved on the
+  // node line — refused rather than silently ignored
+  for (const el of model.elements.values()) if (el.offset && ((+el.offset.y || 0) || (+el.offset.z || 0)))
+    return { ok: false, reason: `barra ${el.id} com excentricidade (offset): não suportada na análise corotacional — use a análise linear/P-Delta` };
   const nodeIds = [...model.nodes.keys()];
   const idxOf = new Map(nodeIds.map((id, i) => [id, i]));
   const nNode = nodeIds.length;

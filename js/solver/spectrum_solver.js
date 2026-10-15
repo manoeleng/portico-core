@@ -10,7 +10,7 @@
 //      CQC:  combine = √ΣΣ ρ_ij × val_i × val_j
 //            ρ_ij = 8ζ²(1+r)r^1.5 / ((1-r²)² + 4ζ²r(1+r)²)  r = ω_min/ω_max
 // ──────────────────────────────────────────────────────────────────────────────
-import { localAxes, transformMatrix, elemLocalK } from './timoshenko.js?v=7';
+import { localAxes, transformMatrix, elemLocalK, eccentricForces } from './timoshenko.js?v=7';
 import { getNodeDOFs } from './assembler.js?v=7';
 import { SpectrumResults } from './spectrum_results.js?v=7';
 
@@ -65,7 +65,8 @@ export function buildSpectrumElemData(model, nodeIndex) {
     const Ke = new Float64Array(144), T = new Float64Array(144);
     for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) { Ke[i * 12 + j] = KeM[i][j]; T[i * 12 + j] = TM[i][j]; }
     const d1 = getNodeDOFs(nodeIndex, elem.n1), d2 = getNodeDOFs(nodeIndex, elem.n2);
-    elemData.push({ id: elem.id, ed: Int32Array.from([...d1, ...d2]), Ke, T, ex, ey, ez, L });
+    elemData.push({ id: elem.id, ed: Int32Array.from([...d1, ...d2]), Ke, T, ex, ey, ez, L,
+      off: elem.offset ? { y: +elem.offset.y || 0, z: +elem.offset.z || 0 } : null });   // plain data (workers)
   }
   return elemData;
 }
@@ -111,6 +112,7 @@ function _elemForcesFromData(elemData, u) {
     for (let i = 0; i < 12; i++) uG[i] = u[ed[i]];
     for (let i = 0; i < 12; i++) { let s = 0; for (let j = 0; j < 12; j++) s += T[i * 12 + j] * uG[j]; uL[i] = s; }
     for (let i = 0; i < 12; i++) { let s = 0; for (let j = 0; j < 12; j++) s += Ke[i * 12 + j] * uL[j]; f[i] = s; }
+    if (e.off) eccentricForces({ offset: e.off }, f);    // per mode (linear) → before the modal combination
     forces.set(e.id, {
       N: -f[0], Vy1: f[1], Vz1: f[2], T_: f[3], My1: f[4], Mz1: f[5],
       Vy2: -f[7], Vz2: -f[8], My2: -f[10], Mz2: -f[11], ex: e.ex, ey: e.ey, ez: e.ez, L: e.L,

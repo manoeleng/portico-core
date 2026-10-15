@@ -1,12 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Assembler — builds global stiffness K and force vector F
 // ──────────────────────────────────────────────────────────────────────────────
-import {
-  localAxes, stiffnessMatrix, massMatrix,
-  transformMatrix, globalStiffness,
-  applyReleases, fixedEndForcesRE, condenseFEF, springFEF,
-  elemLocalK, elemLocalM
-} from './timoshenko.js?v=7';
+import { localAxes, stiffnessMatrix, massMatrix, transformMatrix, globalStiffness, applyReleases, fixedEndForcesRE, condenseFEF, springFEF, elemLocalK, elemLocalM, armFEF } from './timoshenko.js?v=7';
 import { applyDiaphragmConstraints, applyDiaphragmMass } from './diaphragm.js?v=7';
 import { applyLinkConstraints } from './links.js?v=7';
 import { assembleAreasInto, assembleAreasMassInto, areaThermalContribs, areaSelfWeightContribs } from './membrane.js?v=7';
@@ -268,6 +263,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
         const Nt = EA * (mat.alpha ?? 0) * (load.dT || 0);
         let f_local = Array(12).fill(0);
         f_local[0] = +Nt; f_local[6] = -Nt;
+        f_local = armFEF(elem, L, f_local);               // eccentric axis: N·e moment at the nodes
         f_local = springFEF(elem, mat, sec, L, f_local);
         const hasRelease = elem.releases?.some(r => r !== 0);
         if (hasRelease) f_local = condenseFEF(elemLocalK(elem, mat, sec, L), elem.releases.map(r => r !== 0), f_local);

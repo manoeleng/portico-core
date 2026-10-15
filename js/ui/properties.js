@@ -217,6 +217,7 @@ export class PropertiesPanel {
     };
     const extras = [elem.cable && t('cable (solo tracción)'), elem.compressionOnly && t('solo compresión'),
       elem.rigidEnd && `${t('trecho rígido')} ${this._fmt(elem.rigidEnd.i || 0, 2)} / ${this._fmt(elem.rigidEnd.j || 0, 2)} m`,
+      elem.offset && `${t('excentricidade')} y ${this._fmt(elem.offset.y || 0, 3)} · z ${this._fmt(elem.offset.z || 0, 3)} m`,
       elem.foundation && t('fundación elástica')].filter(Boolean);
     const nLoads = [...m.loadCases.values()].filter(lc => (lc.loads || []).some(l => (l.type === 'dist' || l.type === 'temp') && l.elemId === elem.id)).length;
     return `<div class="prop-id">${t('Elemento')} #${elem.id}</div>` + this._descTable([
@@ -2099,6 +2100,12 @@ export class PropertiesPanel {
             <input type="number" id="e-beta" value="${+elem.beta || 0}" step="1">
           </div>
         </div>
+        <div class="prop-row cols2" title="${i18n.t('Excentricidad: el eje de la sección (centroide) queda desplazado de la línea de los nodos, en los ejes locales y, z, igual en los dos extremos (brazo rígido). Ej.: correa apoyada sobre el cordón, viga a ras de la cara del pilar.')}">
+          <div class="prop-field"><label>${i18n.t('Excentricidad y (m)')}</label>
+            <input type="number" id="e-off-y" value="${+elem.offset?.y || 0}" step="0.01"></div>
+          <div class="prop-field"><label>${i18n.t('Excentricidad z (m)')}</label>
+            <input type="number" id="e-off-z" value="${+elem.offset?.z || 0}" step="0.01"></div>
+        </div>
       </div>
 
       <div class="prop-section">
@@ -2222,7 +2229,9 @@ export class PropertiesPanel {
       const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
       const layer = +sel.querySelector('#e-layer')?.value || elem.layer || 1;
       const beta = parseFloat(String(sel.querySelector('#e-beta')?.value ?? '0').replace(',', '.')) || 0;
-      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, beta });
+      const num = (id) => parseFloat(String(sel.querySelector(id)?.value ?? '0').replace(',', '.')) || 0;
+      const offset = { y: num('#e-off-y'), z: num('#e-off-z') };
+      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, beta, offset });
       this.app.renderLayers?.();
       this.app.viewport.refreshElem(this.app.model.elements.get(elem.id));
       this.app.markDirty();

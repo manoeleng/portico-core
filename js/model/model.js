@@ -269,6 +269,11 @@ export class Model {
       if (el.compressionOnly) el.cable = false;    // mutually exclusive
     }
     if (props.L0factor !== undefined) el.L0factor = +props.L0factor || 1;
+    // Eccentricity / insertion point (m, local y, z; the same at both ends — rigidEndOffsets in solver/timoshenko.js).
+    if (props.offset !== undefined) {
+      const y = +(props.offset?.y) || 0, z = +(props.offset?.z) || 0;
+      if (y || z) el.offset = { y, z }; else delete el.offset;
+    }
     // Roll angle β (degrees): rotation of the local y, z axes about x (localAxes in solver/timoshenko.js).  0 → removed.
     if (props.beta !== undefined) { const b = +props.beta || 0; if (b) el.beta = b; else delete el.beta; }
     // Rigid end zone / end offset (#87): lengths (m) per end.

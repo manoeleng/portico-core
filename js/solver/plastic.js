@@ -53,8 +53,8 @@ function plasticAssemble(model, nodeIndex, releasesByElem, freeMap, nF) {
     // rate needs the flexible-end displacements and Lf — not the nodal ones and L.
     const ro = rigidEndOffsets(el, L);
     elems.push({ id: el.id, ed, T, KeCond: Ke, L,
-                 Tre: ro ? rigidEndTransform(ro.oi, ro.oj) : null,
-                 Tinv: ro ? rigidEndTransform(-ro.oi, -ro.oj) : null, Lf: ro ? ro.Lf : L });
+                 Tre: ro ? rigidEndTransform(ro.oi, ro.oj, ro.ey, ro.ez) : null,
+                 Tinv: ro ? rigidEndTransform(-ro.oi, -ro.oj, -ro.ey, -ro.ez) : null, Lf: ro ? ro.Lf : L });
   }
   // Rigid-diaphragm constraints (penalty), like assembleK: without this the master
   // nodes (without elements) have zero stiffness → singular K → false «mechanism

@@ -2827,6 +2827,10 @@ export const EN = {
   "Translúcido": "Translucent",
   "Aristas": "Edges",
   "Modo de la vista sólida": "Solid view mode",
+  "Excentricidad: el eje de la sección (centroide) queda desplazado de la línea de los nodos, en los ejes locales y, z, igual en los dos extremos (brazo rígido). Ej.: correa apoyada sobre el cordón, viga a ras de la cara del pilar.": "Eccentricity: the section axis (centroid) is offset from the node line, in local y, z, equal at both ends (rigid arm). E.g. purlin resting on the chord, beam flush with the column face.",
+  "Excentricidad y (m)": "Eccentricity y (m)",
+  "Excentricidad z (m)": "Eccentricity z (m)",
+  "excentricidade": "eccentricity",
 };
 
 export default EN;

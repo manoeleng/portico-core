@@ -52,7 +52,7 @@ export function geometricMatrixLocal(N, L) {
 export function elemLocalKg(elem, N, L) {
   const ro = rigidEndOffsets(elem, L);
   if (!ro) return geometricMatrixLocal(N, L);
-  return globalStiffness(geometricMatrixLocal(N, ro.Lf), rigidEndTransform(ro.oi, ro.oj));
+  return globalStiffness(geometricMatrixLocal(N, ro.Lf), rigidEndTransform(ro.oi, ro.oj, ro.ey, ro.ez));
 }
 
 // Global DOFs (0-based) of a node
@@ -90,6 +90,11 @@ export function assembleKgInto(writer, model, nodeIndex, uGlobal) {
     // The elongation is taken up by the FLEXIBLE span alone (a rigid segment does
     // not strain), so N = EA·Δ/Lf — the same axial stiffness elemLocalK assembles.
     const ro = rigidEndOffsets(elem, L);
+    if (ro && (ro.ey || ro.ez)) {   // eccentric axis: its elongation includes the arms (ux' = ux + θy·ez − θz·ey)
+      const ul = Array(12).fill(0);
+      for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) ul[i] += T[i][j] * ug[j];
+      ul0 = ul[0] + ul[4] * ro.ez - ul[5] * ro.ey; ul6 = ul[6] + ul[10] * ro.ez - ul[11] * ro.ey;
+    }
     const N = EA * (ul6 - ul0) / (ro ? ro.Lf : L);   // tension positive
     Nby.set(elem.id, N);
     if (Math.abs(N) > Nmax) Nmax = Math.abs(N);

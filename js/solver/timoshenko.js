@@ -67,6 +67,14 @@ export function mirroredBeta(n1, n2, betaDeg, m1, m2, axis) {
   return Math.abs(r) < 1e-9 || Math.abs(Math.abs(r) - 360) < 1e-9 ? 0 : r;
 }
 
+// Eccentricity of the MIRRORED member (with mirroredBeta: y' = R·y, z' = ex' × y' = −R·z): the image of the axis point
+// node + ey·y + ez·z is node' + ey·y' − ez·z' → offset' = { y: ey, z: −ez }.
+export function mirroredOffset(offset) {
+  if (!offset) return null;
+  const y = +offset.y || 0, z = -(+offset.z || 0);
+  return (y || z) ? { y, z } : null;
+}
+
 // ── 12×12 local stiffness matrix (Timoshenko) ─────────────────────────────
 /**
  * @param {number} L   element length
@@ -226,30 +234,67 @@ export function globalStiffness(Ke_local, T) {
 // to the flexible end (along the local x axis).
 // It is the SAP2000/ETABS beam-column "rigid offset" — it shortens the flexible span.
 
-// Returns { oi, oj, Lf } bounded (the flexible span never collapses), or null if none.
+//
+// ECCENTRICITY (insertion point, elem.offset = { y, z } in m, local axes, the same at both ends): the member axis (the
+// centroid of the section) runs parallel to the node line, shifted by e = (0, ey, ez) — a purlin resting on the top
+// chord, a beam flush with the face of a column (SAP2000 "insertion point" / CYPE "excentricidade"). It is the same
+// rigid arm with a transverse component: r_i = (oi, ey, ez), r_j = (−oj, ey, ez). The member forces are recovered on
+// the member axis (eccentricForces).
+
+// Returns { oi, oj, Lf, ey, ez } bounded (the flexible span never collapses), or null if none.
 export function rigidEndOffsets(elem, L) {
-  const re = elem && elem.rigidEnd; if (!re) return null;
-  let oi = Math.max(0, +re.i || 0), oj = Math.max(0, +re.j || 0);
-  if (oi < 1e-9 && oj < 1e-9) return null;
+  const re = elem && elem.rigidEnd, of = elem && elem.offset;
+  let oi = re ? Math.max(0, +re.i || 0) : 0, oj = re ? Math.max(0, +re.j || 0) : 0;
+  const ey = of ? +of.y || 0 : 0, ez = of ? +of.z || 0 : 0;
+  if (oi < 1e-9 && oj < 1e-9 && Math.abs(ey) < 1e-12 && Math.abs(ez) < 1e-12) return null;
   const cap = 0.95 * L;                       // keep at least 5% of flexible span
   if (oi + oj > cap) { const s = cap / (oi + oj); oi *= s; oj *= s; }
-  return { oi, oj, Lf: L - oi - oj };
+  return { oi, oj, Lf: L - oi - oj, ey, ez };
 }
 
-// Rigid-arm transform (12×12): flexible-end DOFs = T · node DOFs.
-// r_i = (+oi,0,0) → uy'+=oi·rz, uz'+=−oi·ry ; r_j = (−oj,0,0) → uy'+=−oj·rz, uz'+=oj·ry.
-export function rigidEndTransform(oi, oj) {
+// Rigid-arm transform (12×12): flexible-end DOFs = T · node DOFs, u' = u + θ × r (rigid-body kinematics).
+// r_i = (+oi, ey, ez), r_j = (−oj, ey, ez):  ux' += θy·rz − θz·ry,  uy' += θz·rx − θx·rz,  uz' += θx·ry − θy·rx.
+// The inverse is the same transform with −r.
+export function rigidEndTransform(oi, oj, ey = 0, ez = 0) {
   const T = Array.from({ length: 12 }, (_, i) => { const r = Array(12).fill(0); r[i] = 1; return r; });
-  T[1][5] = oi;  T[2][4] = -oi;     // end i
-  T[7][11] = -oj; T[8][10] = oj;    // end j
+  for (const [b, rx] of [[0, oi], [6, -oj]]) {
+    T[b + 0][b + 4] = ez;  T[b + 0][b + 5] = -ey;
+    T[b + 1][b + 5] = rx;  T[b + 1][b + 3] = -ez;
+    T[b + 2][b + 3] = ey;  T[b + 2][b + 4] = -rx;
+  }
   return T;
+}
+
+// Member-end forces at the node DOFs (fe, local) → forces on the member AXIS of an eccentric member: the moments
+// about the axis point p = node + e are M_p = M_node − e × F at both ends (the rigid-end zones along x keep the
+// moment at the node, as before). In place; returns fe.
+export function eccentricForces(elem, fe) {
+  const of = elem && elem.offset; if (!of) return fe;
+  const ey = +of.y || 0, ez = +of.z || 0;
+  if (!ey && !ez) return fe;
+  for (const b of [0, 6]) {
+    const Fx = fe[b], Fy = fe[b + 1], Fz = fe[b + 2];
+    fe[b + 3] -= ey * Fz - ez * Fy;            // (e × F)x
+    fe[b + 4] -= ez * Fx;                      // (e × F)y
+    fe[b + 5] += ey * Fx;                      // (e × F)z = −ey·Fx
+  }
+  return fe;
+}
+
+// Element FEF vector at the member axis (flexible ends) → node DOFs through the rigid arm (Q_node = Tᵀ·Q). Used by
+// the loads that build their FEF directly (uniform temperature). Without an arm it returns f unchanged.
+export function armFEF(elem, L, f) {
+  const ro = rigidEndOffsets(elem, L); if (!ro) return f;
+  const T = rigidEndTransform(ro.oi, ro.oj, ro.ey, ro.ez), out = Array(12).fill(0);
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) out[i] += T[j][i] * f[j];
+  return out;
 }
 
 // LOCAL element stiffness including the rigid end zone (before releases).
 // Without a rigid end it returns the normal stiffness of length L.
 export function elemLocalK(elem, mat, sec, L) {
   const ro = rigidEndOffsets(elem, L);
-  let Ke = ro ? globalStiffness(stiffnessMatrix(ro.Lf, mat, sec), rigidEndTransform(ro.oi, ro.oj))
+  let Ke = ro ? globalStiffness(stiffnessMatrix(ro.Lf, mat, sec), rigidEndTransform(ro.oi, ro.oj, ro.ey, ro.ez))
               : stiffnessMatrix(L, mat, sec);
   // Beam on elastic foundation / line spring (1-013): adds the subgrade stiffness
   // distributed over the span (kN/m per m). (With a rigid end it is applied on the
@@ -343,7 +388,7 @@ export function fixitySprings(elem, mat, sec, L) {
 export function elemLocalM(elem, mat, sec, L) {
   const ro = rigidEndOffsets(elem, L);
   if (!ro) return massMatrix(L, mat, sec);
-  return globalStiffness(massMatrix(ro.Lf, mat, sec), rigidEndTransform(ro.oi, ro.oj));
+  return globalStiffness(massMatrix(ro.Lf, mat, sec), rigidEndTransform(ro.oi, ro.oj, ro.ey, ro.ez));
 }
 
 // ── Static condensation for end releases ──────────────────────────────────
@@ -593,14 +638,14 @@ export function fixedEndForces(L, load) {
 export function fixedEndForcesRE(elem, L, load) {
   const ro = rigidEndOffsets(elem, L);
   if (!ro) return fixedEndForces(L, load);
-  const { oi, oj, Lf } = ro;
+  const { oi, oj, Lf, ey, ez } = ro;
   const { dir } = load;
   const w1 = load.w, w2 = (load.w2 == null) ? w1 : load.w2;
   const wAt = x => w1 + (w2 - w1) * (x / L);     // trapezoidal intensity at x
 
   // Flexible span, referred to the node DOFs through the rigid arm.
   const fFlex = fixedEndForces(Lf, { dir, w: wAt(oi), w2: wAt(L - oj) });
-  const T = rigidEndTransform(oi, oj);
+  const T = rigidEndTransform(oi, oj, ey, ez);
   const f = Array(12).fill(0);
   for (let i = 0; i < 12; i++)
     for (let j = 0; j < 12; j++)
@@ -617,14 +662,18 @@ export function fixedEndForcesRE(elem, L, load) {
   const Pj = sj.P, Mj = oj * sj.P - sj.M1;      // arm measured from node j (−x)
 
   // f = −(equivalent nodal load). r_i = (+a,0,0), r_j = (−b,0,0) → M = r×F.
-  if (dir === 'x') {                            // axial: no lever arm
+  // Eccentricity: the load on a rigid segment also acts at the transverse arm (0, ey, ez) → M += (0, ey, ez) × F.
+  if (dir === 'x') {                            // axial: lever arm only from the eccentricity
     f[0] -= si.P;   f[6]  -= Pj;
+    f[4] -= ez * si.P;  f[5] += ey * si.P;  f[10] -= ez * Pj;  f[11] += ey * Pj;
   } else if (dir === 'y') {
     f[1] -= si.P;   f[5]  -= si.M1;
     f[7] -= Pj;     f[11] += Mj;
+    f[3] += ez * si.P;  f[9] += ez * Pj;
   } else if (dir === 'z') {
     f[2] -= si.P;   f[4]  += si.M1;
     f[8] -= Pj;     f[10] -= Mj;
+    f[3] -= ey * si.P;  f[9] -= ey * Pj;
   }
   return f;
 }

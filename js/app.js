@@ -51,7 +51,7 @@ import { resolveSectionProps } from './design/section_props.js?v=7';
 import { autoDetectDiaphragms, computeFloorCR } from './solver/diaphragm.js?v=7';
 import { interstoryDrifts, buildStoryLevels } from './solver/drift.js?v=7';
 import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements } from './model/discretize.js?v=7';
-import { localAxes, mirroredBeta, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
+import { localAxes, mirroredBeta, mirroredOffset, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
 import { blockCells, cornerGridIndices } from './model/mesher.js?v=7';
 import { coonsGridFromCorners } from './model/mesh_map.js?v=7';
 import { meshPolygonIntoModel } from './model/mesh_free.js?v=7';
@@ -842,6 +842,7 @@ class App {
         if (e.cable) upd.cable = true;
         if (e.compressionOnly) upd.compressionOnly = true;
         if (+e.beta) upd.beta = e.beta;                      // roll angle β
+        if (e.offset) upd.offset = { ...e.offset };          // eccentricity (local axes: unchanged by a translation)
         if (e.L0factor != null && e.L0factor !== 1) upd.L0factor = e.L0factor;
         if (Object.keys(upd).length) this.model.updateElement(ne.id, upd);
         // Element loads (all dist/temp from all cases) → copy.
@@ -899,6 +900,8 @@ class App {
         const bm = mirroredBeta(this.model.nodes.get(e.n1), this.model.nodes.get(e.n2), e.beta || 0,
           this.model.nodes.get(a), this.model.nodes.get(b), eje === 'X' ? 0 : eje === 'Y' ? 1 : 2);
         if (bm) this.model.updateElement(ne.id, { beta: bm });
+        const om = mirroredOffset(e.offset);                 // eccentricity of the image (z flips with the triad)
+        if (om) this.model.updateElement(ne.id, { offset: om });
       }
       if (ne) nEl++;
     }

@@ -2572,6 +2572,10 @@ export const PT = {
   "Translúcido": "Translúcido",
   "Aristas": "Arestas",
   "Modo de la vista sólida": "Modo da vista sólida",
+  "Excentricidad: el eje de la sección (centroide) queda desplazado de la línea de los nodos, en los ejes locales y, z, igual en los dos extremos (brazo rígido). Ej.: correa apoyada sobre el cordón, viga a ras de la cara del pilar.": "Excentricidade: o eixo da seção (centroide) fica deslocado da linha dos nós, nos eixos locais y, z, igual nas duas extremidades (braço rígido). Ex.: terça apoiada no banzo, viga faceando o pilar.",
+  "Excentricidad y (m)": "Excentricidade y (m)",
+  "Excentricidad z (m)": "Excentricidade z (m)",
+  "excentricidade": "excentricidade",
 };
 
 export default PT;
