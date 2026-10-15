@@ -266,7 +266,8 @@ export class PropertiesPanel {
     const t = (k) => i18n.t(k), app = this.app, m = app.model, lc = m.loadCases.get(app._activeLcId);
     const sel = [...(app.viewport?._selected || [])].filter(k => k.startsWith('node:')).map(k => +k.slice(5));
     const ed = this._panelEdit ? (lc?.panels || []).find(p => p.id === this._panelEdit) : null;
-    const dirL = { gravity: t('Gravedad ↓'), normal: t('Normal al paño'), globalX: 'Global +X', globalY: 'Global +Y' };
+    const dirL = { gravity: t('Gravedad ↓'), normal: t('Normal al paño (q > 0 en el sentido de la normal, regla de la mano derecha)'),
+      against: t('Contra el paño (presión: opuesta a la normal)'), globalX: 'Global +X', globalY: 'Global +Y' };
     const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
     const rows = (lc?.panels || []).map(p => `<tr><td>#${p.id}</td><td>${p.nodes.length} ${t('nodos')}</td><td>${(+p.q).toString().replace('.', ',')} kN/m²</td><td>${esc(dirL[p.dir] || p.dir)}</td><td>${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</td>
       <td style="white-space:nowrap"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
@@ -287,7 +288,7 @@ export class PropertiesPanel {
         <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pn-axis">${opt(axL, v.axis)}</select></div>
       </div>
       <div class="prop-row cols1">
-        <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pn-area">${opt({ real: t('Superficie del paño'), projected: t('Proyección horizontal') }, v.area || 'real')}</select></div>
+        <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pn-area">${opt({ real: t('Superficie del paño (peso de tejas, permanentes)'), projected: t('Proyección horizontal (sobrecargas — NBR 6120 6.4)') }, v.area || 'real')}</select></div>
       </div>
       <p class="panel-hint" style="margin:4px 0">${t('Unidireccional: cada barra transversal al vano recibe la faja entre las medias distancias a sus vecinas (o hasta el borde): w = q·b. Las barras paralelas al vano no reciben carga.')}</p>
       <div style="display:flex;gap:6px">

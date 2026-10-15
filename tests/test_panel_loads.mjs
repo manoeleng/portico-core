@@ -40,6 +40,7 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   assert('P1e. vigas paralelas ao vão não recebem carga', edge.every((id) => w(id) === 0));
   ok('P1f. Σ w·L = q·A = 60 kN', total(m, r.loads), 60);
   assert('P1g. cargas marcadas com o pano (panelId)', r.loads.every((l) => l.panelId === 1 && l.dir === 'gravity'));
+  assert('P1i. retângulo: sem aviso de faixa variável', !r.warnings.some((w) => /largura variável/.test(w)), r.warnings.join(' | '));
   // equilibrium in the solver: ΣRz = 60
   const lc = m.addLoadCase('Telha', false); lc.loads.push(...r.loads);
   const res = new StaticSolver().solve(m, lc.id, false);
@@ -66,6 +67,25 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   assert('P3. parede: só componente X', r.loads.every((l) => l.dir === 'globalX'));
   ok('P3b. Σ |Fx| = 0,5·5·4 = 10 kN (vigas de 5 m, faixa de 2 m cada)', Math.abs(total(m, r.loads)), 10);
   ok('P3c. sentido pela regra da mão direita (a→b→c→d: normal +X)', Math.sign(r.loads[0].w), 1);
+}
+// (5) triangle (review case): base 10 m at y = 0, apex (0, 6); purlins along X at y = 0, 2, 4 cut by the slanted edge.
+//     Strip areas by hand (width 10·(1 − y/6)): y 0→1: 9,1667; 1→3: 13,3333; 3→6: 7,5 → Σ = 30 = q·A
+{
+  const m = new Model(); m.materials.clear(); m.sections.clear();
+  const mat = m.addMaterial({ name: 'S', E: 2e8, G: 8e7, nu: 0.3, rho: 0 }), sec = m.addSection({ name: 'P', A: 0.002, Iy: 2e-6, Iz: 4e-6, J: 1e-8, Avy: 1e-3, Avz: 1e-3 });
+  const A = m.addNode(0, 0, 0).id, B = m.addNode(10, 0, 0).id, C = m.addNode(0, 6, 0).id;
+  const e0 = m.addElement(A, B, mat.id, sec.id).id;
+  const p2 = [m.addNode(0, 2, 0).id, m.addNode(10 * (1 - 2 / 6), 2, 0).id], p4 = [m.addNode(0, 4, 0).id, m.addNode(10 * (1 - 4 / 6), 4, 0).id];
+  const e2 = m.addElement(p2[0], p2[1], mat.id, sec.id).id, e4 = m.addElement(p4[0], p4[1], mat.id, sec.id).id;
+  const r = panelToDistLoads(m, { id: 5, nodes: [A, B, C], q: 1, dir: 'gravity', axis: 'Y' });
+  const res = (id) => { const e = m.elements.get(id), a = m.nodes.get(e.n1), b = m.nodes.get(e.n2); return r.loads.filter((l) => l.elemId === id).reduce((s, l) => s + l.w, 0) * Math.hypot(b.x - a.x, b.y - a.y); };
+  ok('P5. triângulo, barra y = 0: faixa 0→1 = 9,1667 kN', res(e0), 10 * (1 - 1 / 12), 1e-6);
+  ok('P5b. barra y = 2: faixa 1→3 = 13,3333 kN', res(e2), 10 * (2 - 8 / 12), 1e-6);
+  ok('P5c. barra y = 4 (ápice): faixa 3→6 = 7,5 kN', res(e4), 7.5, 1e-6);
+  ok('P5d. Σ = q·A = 30 kN', total(m, r.loads), 30, 1e-6);
+  assert('P5e. aviso de faixa de largura variável', r.warnings.some((w) => /largura variável/.test(w)));
+  const rp = panelToDistLoads(m, { id: 6, nodes: [A, B, C], q: 1, dir: 'against', axis: 'Y' });
+  assert('P5f. "contra o pano" = oposto da normal (pano anti-horário visto de cima, normal +Z → carga para baixo)', rp.loads.every((l) => l.dir === 'gravity' && l.w > 0));
 }
 // (4) two-way refused (no uniform approximation); regeneration replaces only panel loads
 {

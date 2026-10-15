@@ -6,14 +6,18 @@
 //
 // ONE-WAY distribution (the only one implemented): the load spans along the in-plane direction u and is carried by
 // the members across it (|ex·u| < 0,1). Each one takes the strip between the mid-lines to its neighbours along u —
-// or up to the panel edge when there is no neighbour on that side — measured at its mid-point: w = q·b. Exact for
-// sheeting on purlins and one-way slabs (tributary width). TWO-WAY (45° envelope) needs partial loads along a member,
+// or up to the panel edge when there is no neighbour on that side — clipped by the panel polygon; the effective
+// width is b = A_strip / L and w = q·b, so Σ w·L = q·A for any panel shape (review: measuring b at the mid-point of
+// the member over-loaded an apex strip 2× on a triangle). Exact for sheeting on purlins and one-way slabs; where the
+// strip width varies along the member (slanted panel edge) the uniform w keeps the resultant exact but the real
+// distribution is not uniform — a warning says the span moment is approximate. TWO-WAY (45° envelope) needs partial loads along a member,
 // which the solver does not have yet: refused, not approximated by a uniform equivalent (that would under-estimate
 // the span moment of a triangular load by up to a third).
 //
-// q is per m² of the panel surface; area: 'projected' takes it per m² of the horizontal projection (factor |n_z|).
+// q is per m² of the panel surface; area: 'projected' takes it per m² of the horizontal projection (factor |n_z|) —
+// the live loads of NBR 6120:2019 6.4 act on the horizontal projection; roofing weight is per surface.
 // dir: 'gravity' (down) | 'normal' (along the panel normal of the node order, right-hand rule; > 0 toward it) |
-//      'globalX' | 'globalY'.
+//      'against' (opposite to that normal: a pressure "against the panel") | 'globalX' | 'globalY'.
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -36,6 +40,28 @@ function inPoly(pt, poly, tol) {
   }
   return c;
 }
+// polygon clipped by sLo ≤ s ≤ sHi, tLo ≤ t ≤ tHi (Sutherland–Hodgman; ±Infinity = no limit) → its area
+function clipArea(poly, sLo, sHi, tLo, tHi) {
+  let pts = poly;
+  const clip = (inside, cut) => {
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length], ia = inside(a), ib = inside(b);
+      if (ia) out.push(a);
+      if (ia !== ib) out.push(cut(a, b));
+    }
+    pts = out;
+  };
+  const lerp = (a, b, k, v) => { const f = (v - a[k]) / (b[k] - a[k]); return [a[0] + f * (b[0] - a[0]), a[1] + f * (b[1] - a[1])]; };
+  if (isFinite(sLo)) clip((p) => p[0] >= sLo, (a, b) => lerp(a, b, 0, sLo));
+  if (isFinite(sHi)) clip((p) => p[0] <= sHi, (a, b) => lerp(a, b, 0, sHi));
+  if (isFinite(tLo)) clip((p) => p[1] >= tLo, (a, b) => lerp(a, b, 1, tLo));
+  if (isFinite(tHi)) clip((p) => p[1] <= tHi, (a, b) => lerp(a, b, 1, tHi));
+  let A = 0;
+  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; A += a[0] * b[1] - b[0] * a[1]; }
+  return Math.abs(A) / 2;
+}
+
 // the panel interval along s (first coordinate) on the line t = t0 that contains s0
 function spanAt(poly, s0, t0) {
   const xs = [];
@@ -94,25 +120,35 @@ export function panelToDistLoads(model, panel) {
   const projected = panel.area === 'projected';
   const fArea = projected ? Math.abs(n[2]) : 1;
   const q = +panel.q || 0;
+  let varying = 0;
   for (const r of recv) {
-    const [sl, sr] = spanAt(poly, r.s, r.tm);
-    const nb = recv.filter((o) => o !== r && o.t1 > r.t0 + tol && o.t0 < r.t1 - tol);   // neighbours overlapping in t
+    // neighbours along u overlapping in t (a partial overlap counts as a whole neighbour — approximation)
+    const nb = recv.filter((o) => o !== r && o.t1 > r.t0 + tol && o.t0 < r.t1 - tol);
     const left = nb.filter((o) => o.s < r.s - tol).reduce((m, o) => Math.max(m, o.s), -Infinity);
     const right = nb.filter((o) => o.s > r.s + tol).reduce((m, o) => Math.min(m, o.s), Infinity);
-    const bL = left > -Infinity ? (r.s - Math.max(left, sl)) / 2 : r.s - sl;
-    const bR = right < Infinity ? (Math.min(right, sr) - r.s) / 2 : sr - r.s;
-    const b = Math.max(0, bL) + Math.max(0, bR);
+    const sLo = left > -Infinity ? (left + r.s) / 2 : -Infinity, sHi = right < Infinity ? (right + r.s) / 2 : Infinity;
+    // along the member: its own extent; an end with no member continuing the row extends to the panel edge
+    const row = recv.filter((o) => o !== r && Math.abs(o.s - r.s) <= tol);
+    const tLo = row.some((o) => o.t1 <= r.t0 + tol) ? r.t0 : -Infinity, tHi = row.some((o) => o.t0 >= r.t1 - tol) ? r.t1 : Infinity;
+    const L = r.t1 - r.t0;
+    const Astrip = clipArea(poly, sLo, sHi, tLo, tHi);
+    const b = L > 0 ? Astrip / L : 0;
+    // strip width at the two ends of the member: different → the real load is not uniform along it
+    const [s0l, s0r] = spanAt(poly, r.s, r.t0 + 1e-6 * (L || 1)), [s1l, s1r] = spanAt(poly, r.s, r.t1 - 1e-6 * (L || 1));
+    const wid = (a, c) => Math.min(c, sHi) - Math.max(a, sLo);
+    if (Math.abs(wid(s0l, s0r) - wid(s1l, s1r)) > 1e-3 * Math.max(1, Math.abs(b))) varying++;
     const w = q * b * fArea;                                           // kN/m along the member
     if (!(Math.abs(w) > 0)) continue;
     const tag = { panelId: panel.id };
     const dir = panel.dir || 'gravity';
-    if (dir === 'normal') {                                            // split the normal into global components
-      const c = [n[0] * w, n[1] * w, n[2] * w];
+    if (dir === 'normal' || dir === 'against') {                     // split the normal into global components
+      const sg = dir === 'against' ? -1 : 1, c = [sg * n[0] * w, sg * n[1] * w, sg * n[2] * w];
       if (Math.abs(c[0]) > 1e-12) loads.push({ type: 'dist', elemId: r.e.id, dir: 'globalX', w: +c[0].toFixed(6), ...tag });
       if (Math.abs(c[1]) > 1e-12) loads.push({ type: 'dist', elemId: r.e.id, dir: 'globalY', w: +c[1].toFixed(6), ...tag });
       if (Math.abs(c[2]) > 1e-12) loads.push({ type: 'dist', elemId: r.e.id, dir: 'gravity', w: +(-c[2]).toFixed(6), ...tag });   // gravity: w > 0 down
     } else loads.push({ type: 'dist', elemId: r.e.id, dir: dir === 'globalX' || dir === 'globalY' ? dir : 'gravity', w: +w.toFixed(6), ...tag });
   }
+  if (varying) warnings.push(`${varying} barra(s) com faixa de largura variável (borda do pano inclinada): carga uniforme equivalente com a resultante exata (b = A_faixa/L); o momento de vão real difere.`);
   return { loads, warnings, members: recv.length };
 }
 

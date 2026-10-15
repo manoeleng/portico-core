@@ -2519,6 +2519,10 @@ export const PT = {
   "Paños actualizados": "Panos atualizados",
   "q inválido": "q inválido",
   "No hay caso de carga activo.": "Não há caso de carga ativo.",
+  "Normal al paño (q > 0 en el sentido de la normal, regla de la mano derecha)": "Normal ao pano (q > 0 no sentido da normal, regra da mão direita)",
+  "Contra el paño (presión: opuesta a la normal)": "Contra o pano (pressão: oposta à normal)",
+  "Superficie del paño (peso de tejas, permanentes)": "Superfície do pano (peso de telhas, permanentes)",
+  "Proyección horizontal (sobrecargas — NBR 6120 6.4)": "Projeção horizontal (sobrecargas — NBR 6120 6.4)",
 };
 
 export default PT;

@@ -2774,6 +2774,10 @@ export const EN = {
   "Paños actualizados": "Panels updated",
   "q inválido": "invalid q",
   "No hay caso de carga activo.": "No active load case.",
+  "Normal al paño (q > 0 en el sentido de la normal, regla de la mano derecha)": "Normal to the panel (q > 0 along the normal, right-hand rule)",
+  "Contra el paño (presión: opuesta a la normal)": "Against the panel (pressure: opposite to the normal)",
+  "Superficie del paño (peso de tejas, permanentes)": "Panel surface (roofing weight, dead loads)",
+  "Proyección horizontal (sobrecargas — NBR 6120 6.4)": "Horizontal projection (live loads — NBR 6120 6.4)",
 };
 
 export default EN;
