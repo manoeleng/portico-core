@@ -169,7 +169,24 @@ function shearCheck({ VSd, bw, d, fck, fcd, fctm, fyd, fywk, gc, stir, modelo, t
   const aswMin = 0.2 * fctm / fywk * bw * Math.sin(a);            // m²/m (17.4.1.1.1)
   const aswNec = Math.max(Math.max(VSd - Vc, 0) / kSw, aswMin);
   const VRd3 = Vc + Vsw;
-  return { VRd2, Vc, Vc0, Vsw, VRd3, aswS, aswMin, aswNec, modelo: modelo === 'II' ? 'II' : 'I' };
+  return { VRd2, Vc, Vc0, Vsw, VRd3, aswS, aswMin, aswNec, kSw, modelo: modelo === 'II' ? 'II' : 'I' };
+}
+
+
+// ── Torsion (17.5.1, 17.7.2) — solid rectangle b × h, units m / kN / MPa ─────────
+// Equivalent hollow section (17.5.1.4.1): he = A/u; when A/u < 2·c1, he = A/u ≤ b − 2·c1 and Ae is taken
+// on the corner-bar axes. TRd2 = 0,50·αv2·fcd·Ae·he·sen2θ; TRd3 = (A90/s)·fywd·2Ae·cotgθ (one leg);
+// TRd4 = (Asl/ue)·2Ae·fywd·tgθ. θ is the shear θ (17.7.2.1: model I ⇒ 45°).
+export function torsionCheck({ TSd, b, h, c1, fck, fcd, fywd, theta = 45 }) {
+  const th = theta * Math.PI / 180, A = b * h, u = 2 * (b + h);
+  let he = A / u, Ae, ue, regra;
+  if (he >= 2 * c1) { Ae = (b - he) * (h - he); ue = 2 * ((b - he) + (h - he)); regra = 'he = A/u'; }
+  else { he = Math.min(A / u, b - 2 * c1); Ae = (b - 2 * c1) * (h - 2 * c1); ue = 2 * ((b - 2 * c1) + (h - 2 * c1)); regra = 'A/u < 2c1: Ae nos eixos das barras de canto'; }
+  const av2 = 1 - fck / 250;
+  const TRd2 = 0.50 * av2 * fcd * 1000 * Ae * he * Math.sin(2 * th);                  // kN·m
+  const a90Nec = TSd / (2 * Ae * fywd * 1000 / Math.tan(th));                          // m²/m, one leg
+  const aslNec = TSd * ue / (2 * Ae * fywd * 1000 * Math.tan(th));                     // m², total
+  return { he, Ae, ue, regra, TRd2, a90Nec, aslNec, theta };
 }
 
 
@@ -217,7 +234,6 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const b = sec.b, h = sec.h, A = sec.A ?? b * h;
   let naoVerificado = false;                                      // forces NO CUMPLE (never a silent pass)
   if (sec.shape && sec.shape !== 'rect') { naoVerificado = true; avisos.push(`Seção "${sec.shape}": a v1 verifica só seção retangular maciça — resultado NÃO verificado.`); }
-  if (Math.abs(demands.T || 0) > 1e-6) { naoVerificado = true; avisos.push('Momento torçor ≠ 0: torção (NBR 6118 17.5) não implementada na v1 — resultado NÃO verificado.'); }
 
   const reb = sec.rebar || (sec.design && sec.design.rebar) || {};
   const cover = (reb.cover_mm ?? options.cover_mm ?? 40) / 1000;
@@ -374,12 +390,37 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const svz = shearCheck({ VSd: VzD, bw: h, d: dz, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir: null, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero: vcZeroZ });
   const corteZ = ratObj(VzD, Math.min(svz.VRd2, svz.VRd3), { dir: 'Vz', modelo: svz.modelo });
 
+  // ── torsion (17.5.1 / 17.7.2) ────────────────────────────────────────────────
+  let torcao = null;
+  const TSd = gn * Math.abs(demands.T || 0);
+  if (TSd > 1e-6 && options.torcaoCompatibilidade) {
+    avisos.push('Torção de compatibilidade desprezada por opção do projeto (17.5.1.2): exige capacidade de adaptação plástica e os demais esforços calculados sem ela.');
+  } else if (TSd > 1e-6) {
+    const fywd = Math.min(fyd, 435);
+    const t = torsionCheck({ TSd, b, h, c1: cover, fck, fcd: P.fcd, fywd, theta });
+    const inter = VyD / sv.VRd2 + TSd / t.TRd2;                                   // 17.7.2.2
+    const legs = stir ? (+stir.legs || 2) : 2;
+    const legS = sv.aswS / legs;                                                   // provided, one leg (m²/m)
+    const legNec = Math.max(VyD - sv.Vc, 0) / sv.kSw / legs + t.a90Nec;            // shear part per leg + torsion
+    const rTransv = legS > 0 ? legNec / legS : Infinity;                           // 17.7.2.3 (sum V + T)
+    const aslProv = reb.Asl_torcao_cm2 != null ? reb.Asl_torcao_cm2 / 1e4 : null;
+    const rLong = aslProv != null ? (aslProv > 0 ? t.aslNec / aslProv : Infinity) : Infinity;
+    if (aslProv == null) avisos.push(`Torção: armadura longitudinal de torção não informada (rebar.Asl_torcao_cm2) — necessária As,l = ${(t.aslNec * 1e4).toFixed(2)} cm² ao longo de ue = ${t.ue.toFixed(3)} m, ACRESCIDA à de flexão no banzo tracionado (17.7.1.2). NÃO verificado.`);
+    if (!stir) avisos.push('Torção: sem estribos informados — TRd3 = 0 (estribos periféricos fechados obrigatórios, 17.5.1.2).');
+    if (b * h / (2 * (b + h)) < 2 * cover) avisos.push(`Torção: A/u < 2c1 — ${t.regra} (17.5.1.4.1).`);
+    torcao = { demand: +TSd.toFixed(4), capacity: +t.TRd2.toFixed(4), ratio: +Math.max(inter, rTransv, rLong).toFixed(4),
+      TRd2: +t.TRd2.toFixed(3), interacaoVT: +inter.toFixed(4), razaoEstribos: +rTransv.toFixed(4), razaoLongitudinal: isFinite(rLong) ? +rLong.toFixed(4) : null,
+      he: +t.he.toFixed(4), Ae: +t.Ae.toFixed(5), ue: +t.ue.toFixed(4), a90Nec: t.a90Nec, aslNec: t.aslNec, theta,
+      formula: 'VSd/VRd2 + TSd/TRd2 ≤ 1 (17.7.2.2); estribos V + T (17.7.2.3); TRd4 com As,l (17.5.1.5-b)' };
+    if (theta !== 45 && modelo === 'I') avisos.push('Modelo I: θ = 45° também na torção (17.7.2.1).');
+  }
+
   if (pilar && !(pilar.z.ok && pilar.y.ok)) { flexao.ratio = Infinity; interaction.ratio = Infinity; }
-  if (naoVerificado) for (const o of [flexao, flexaoY, interaction, cortante, corteZ, axial]) o.ratio = Infinity;
+  if (naoVerificado) for (const o of [flexao, flexaoY, interaction, cortante, corteZ, axial, torcao].filter(Boolean)) o.ratio = Infinity;
   const bending = flexao.ratio >= flexaoY.ratio ? flexao : flexaoY;
-  const shear = cortante.ratio >= corteZ.ratio ? cortante : corteZ;
+  const shear = [cortante, corteZ, torcao].filter(Boolean).reduce((a, c) => c.ratio > a.ratio ? c : a);
   return finalize({ material: 'concreto', metodo: 'ABNT NBR 6118:2026', axial, bending, shear, interaction,
-    flexao, flexaoY, cortante, corteZ, pilar, avisos, diagrama: diag ? { pts: diag.pts, Pu: Nc, Mu: Mz } : null }, options);
+    flexao, flexaoY, cortante, corteZ, torcao, pilar, avisos, diagrama: diag ? { pts: diag.pts, Pu: Nc, Mu: Mz } : null }, options);
 }
 
 export const nbr6118 = {

@@ -276,7 +276,7 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 - Testes: `tests/test_nbr6118.mjs` com casos BR-6118-01..04.
 
 > **Fase 5 (NBR 6118:2026) concluída em 15/10/2026** — `js/design/codes/nbr6118.js` (vigas: flexão/N+M por compatibilidade, bloco αc·ηc·fcd com ηc novo da 2026, As necessária simples/dupla, ductilidade da armadura dada, cortante modelos I e II; pilares: M1d,mín, λ1/αb (balanço = 1,0 na 2026), pilar-padrão curvatura/κ, γn; ELS: Mr, estádio II, Branson, αf, wk). Testes: Carvalho Vol. 1 (flexão, cortante, flecha, fissuras), Bastos e Kimura (pilares). Revisão do especialista: FECHADO após 3 rodadas.
-> Pendências: torção (17.5) e seções não retangulares → "não verificado"; sentido do momento não verificado (aviso); pilar exige papel "pilar" na seção ou ν ≥ 0,10 (critério adotado, sinalizado).
+> Pendências: ~~torção (17.5)~~ (15/10/2026: `torsionCheck` — seção vazada equivalente 17.5.1.4.1, TRd2/TRd3/TRd4 17.5.1.5, interação V+T 17.7.2.2, estribos somados 17.7.2.3; As,l de torção só verificada se informada em `rebar.Asl_torcao_cm2`, senão NÃO verificado com a área necessária; opção `torcaoCompatibilidade` (17.5.1.2). Oráculo: cálculo manual — **sem exemplo de literatura no acervo** (IBRACON = LACUNA). Revisão do especialista: **pendente**. Não feito: torção em perfis abertos 17.5.2, redução de As,l no banzo comprimido 17.7.1.3, ρ mínimo de torção específico) e seções não retangulares → "não verificado"; sentido do momento não verificado (aviso); pilar exige papel "pilar" na seção ou ν ≥ 0,10 (critério adotado, sinalizado).
 
 ### 7.3 NBR 7190 — madeira (`js/design/codes/nbr7190.js`)
 - ~~**[LACUNA]** a NBR 7190 não está no acervo.~~ Resolvido: NBR 7190-1:2022 obtida em
