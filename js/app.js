@@ -7128,6 +7128,13 @@ class App {
   // Floating side panel (the 3D stays visible): every change rebuilds the spec, runs the deterministic
   // generator with the Brazil preset (NBR 6123 wind, NBR 8681 combinations, Gerdau / NBR 6355 catalogues)
   // and reloads the model — live preview, no hand-written JSON. «Gerar» keeps it; «Cancelar» restores.
+  // Assistant by typology: gallery of structure types → parametric form with live preview (js/ui/typology_wizard.js)
+  async typologyWizard() {
+    const { openTypologyWizard } = await import('./ui/typology_wizard.js?v=7');
+    this.setPanelCollapsed?.(false);
+    return openTypologyWizard(this);
+  }
+
   async warehouseDialog() {
     document.getElementById('wh-panel')?.remove();
     const libs = await this._loadAssistantLibraries('brasil');

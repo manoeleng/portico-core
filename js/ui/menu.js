@@ -129,6 +129,7 @@ export class MenuBar {
       case 'diag-estabilidad': a.runStabilityDiagnosis();    break;
       case 'assistant':      a.assistantDialog();            break;
       case 'warehouse':      a.warehouseDialog();            break;
+      case 'typology':       a.typologyWizard();             break;
       case 'res-deformed':   a.setResultType('deformed');    break;
       case 'res-N':          a.setResultType('N');           break;
       case 'res-Vy':         a.setResultType('Vy');          break;

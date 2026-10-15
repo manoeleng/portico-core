@@ -107,6 +107,7 @@ export class PropertiesPanel {
     // Keyboard-runnable example: Tab fills the example, Enter generates it immediately.
     this.app._wireAsisExample('asis-nl-side', (t) => this.app.assistantFromText(t));
     document.getElementById('btn-asis-side-ficha')?.addEventListener('click', () => this.app.assistantDialog());
+    document.getElementById('btn-typology')?.addEventListener('click', () => this.app.typologyWizard());
     document.getElementById('btn-asis-side-mod')?.addEventListener('click', () => {
       const txt = document.getElementById('asis-mod-nl')?.value.trim();
       if (!txt) { this.app.toast(i18n.t('Escribe qué cambio hacer'), 'warn'); return; }

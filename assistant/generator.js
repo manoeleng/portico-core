@@ -252,6 +252,10 @@ function applyNbrCombinations(model, spec) {
   model.combinations = r.lista.map((c, i) => ({ id: i + 1, name: c.nombre,
     factors: Object.entries(c.factores).map(([k, f]) => ({ lcId: sym.get(k), factor: f })) }));
   if (model._counters) model._counters.combinations = model.combinations.length;
+  // the typology's summary counted its own (replaced) combinations — keep it in step with the NBR set
+  const g = model._generado, nc = model.combinations.length;
+  if (g?.resumenT?.v && g.resumenT.v.ncb != null) g.resumenT.v.ncb = nc;
+  if (typeof g?.resumen === 'string') g.resumen = g.resumen.replace(/\b\d+ combinations\b/, `${nc} combinations`);
   warn('info', `Combinações NBR 8681:2025 (${r.code}; ψ de uso "${spec.loads?.uso_nbr || 'residencial'}"): ${model.combinations.length} geradas.`);
   return model;
 }
@@ -1156,9 +1160,13 @@ export function generateTruss(spec, libs) {
   const mat = pickMat((spec.sections || {}).material); mat.id = 1;
 
   const c = spec.truss || {};
+  const perfilPorNombre = new Map((libs.perfiles || []).map((p) => [String(p.nombre).trim().toLowerCase(), p]));
   const pickSec = (spec, label, defKey) => {
     const r = sizeToSection(spec, label);
     if (r) { if (spec) addWarning('info', `${label}: ${r.etiqueta}.`); return r.sec; }
+    // steel truss: profile of the catalogue (e.g. Gerdau 'W 150 x 13,0'), as pickSection does for the other typologies
+    const pf = typeof spec === 'string' ? perfilPorNombre.get(spec.trim().toLowerCase()) : null;
+    if (pf) { addWarning('info', `${label}: profile ${pf.nombre}.`); return profileToSection(pf, pf.nombre); }
     addWarning('replacement', `${label}: size ${spec == null ? '(not given)' : `"${spec}"`} not recognized: used ${defKey}" by default.`);
     return sizeToSection(defKey, label).sec;
   };
@@ -1270,9 +1278,13 @@ export function generateSpaceTruss(spec, libs) {
   const mat = pickMat((spec.sections || {}).material); mat.id = 1;
 
   const c = spec.truss || {};
+  const perfilPorNombre = new Map((libs.perfiles || []).map((p) => [String(p.nombre).trim().toLowerCase(), p]));
   const pickSec = (spec, label, defKey) => {
     const r = sizeToSection(spec, label);
     if (r) { if (spec) addWarning('info', `${label}: ${r.etiqueta}.`); return r.sec; }
+    // steel truss: profile of the catalogue (e.g. Gerdau 'W 150 x 13,0'), as pickSection does for the other typologies
+    const pf = typeof spec === 'string' ? perfilPorNombre.get(spec.trim().toLowerCase()) : null;
+    if (pf) { addWarning('info', `${label}: profile ${pf.nombre}.`); return profileToSection(pf, pf.nombre); }
     addWarning('replacement', `${label}: size ${spec == null ? '(not given)' : `"${spec}"`} not recognized: used ${defKey}" by default.`);
     return sizeToSection(defKey, label).sec;
   };

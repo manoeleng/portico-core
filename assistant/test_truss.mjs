@@ -5,6 +5,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generateModel } from './generator.js';
+import { parseCSV as parseCSVq } from '../js/utils/csv.js';   // quoted names ("W 150 x 13,0")
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(dir, '..');
@@ -85,5 +86,18 @@ ok(Math.abs(Rz - Wcv) / Wcv < 1e-4, `ΣRz = ΣCV aplicada (Rz=${Rz.toFixed(3)} k
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 
 console.log('── Avisos ──'); for (const a of m0._warnings) console.log(`   [${a.type}] ${a.msg}`);
+
+// Treliça de AÇO com perfis do catálogo (preset Brasil, Gerdau): banzos e diagonais W resolvidos pelo nome
+{
+  const BR = path.join(raiz, 'presets', 'brasil');
+  const libsBR = { reglas: JSON.parse(fs.readFileSync(path.join(BR, 'rules.json'), 'utf8')),
+    materiales: parseCSVq(fs.readFileSync(path.join(BR, 'materials.csv'), 'utf8')), perfiles: parseCSVq(fs.readFileSync(path.join(BR, 'profiles.csv'), 'utf8')) };
+  const pW = libsBR.perfiles.find((p) => p.nombre === 'W 150 x 13,0');
+  const mA = generateModel({ mode: '2D', typology: 'truss', sections: { material: 'MR250' },
+    truss: { span_m: 15, slope_pct: 10, n_panels: 10, spacing_m: 5, truss_type: 'pratt', chord_size: 'W 150 x 13,0', diagonal_size: 'W 150 x 13,0' } }, libsBR);
+  const sc = mA.sections.find((x) => x.id === 1);
+  ok(!!pW && Math.abs(sc.A - (+pW.A_cm2) * 1e-4) < 1e-9, `banzo W 150 x 13,0: A = ${sc.A} m² = catálogo ${pW?.A_cm2} cm²`);
+  ok(!mA._warnings.some((w) => /not recognized/.test(w.msg)), 'nenhuma substituição por bitola de madeira');
+}
 console.log(fail === 0 ? '\n✅ CERCHA: TODOS LOS CHEQUEOS OK' : `\n❌ ${fail} CHEQUEO(S) FALLARON`);
 process.exit(fail === 0 ? 0 : 1);
