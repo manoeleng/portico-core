@@ -120,13 +120,15 @@ export function panelToDistLoads(model, panel) {
   const projected = panel.area === 'projected';
   const fArea = projected ? Math.abs(n[2]) : 1;
   const q = +panel.q || 0;
-  let varying = 0;
+  let varying = 0, partial = 0;
   for (const r of recv) {
     // neighbours along u overlapping in t (a partial overlap counts as a whole neighbour — approximation)
     const nb = recv.filter((o) => o !== r && o.t1 > r.t0 + tol && o.t0 < r.t1 - tol);
     const left = nb.filter((o) => o.s < r.s - tol).reduce((m, o) => Math.max(m, o.s), -Infinity);
     const right = nb.filter((o) => o.s > r.s + tol).reduce((m, o) => Math.min(m, o.s), Infinity);
     const sLo = left > -Infinity ? (left + r.s) / 2 : -Infinity, sHi = right < Infinity ? (right + r.s) / 2 : Infinity;
+    // the nearest neighbours only partly beside this member (interrupted members, openings): total kept, split rough
+    if (nb.some((o) => (o.s === left || o.s === right) && (Math.abs(o.t0 - r.t0) > tol || Math.abs(o.t1 - r.t1) > tol))) partial++;
     // along the member: its own extent; an end with no member continuing the row extends to the panel edge
     const row = recv.filter((o) => o !== r && Math.abs(o.s - r.s) <= tol);
     const tLo = row.some((o) => o.t1 <= r.t0 + tol) ? r.t0 : -Infinity, tHi = row.some((o) => o.t0 >= r.t1 - tol) ? r.t1 : Infinity;
@@ -148,6 +150,7 @@ export function panelToDistLoads(model, panel) {
       if (Math.abs(c[2]) > 1e-12) loads.push({ type: 'dist', elemId: r.e.id, dir: 'gravity', w: +(-c[2]).toFixed(6), ...tag });   // gravity: w > 0 down
     } else loads.push({ type: 'dist', elemId: r.e.id, dir: dir === 'globalX' || dir === 'globalY' ? dir : 'gravity', w: +w.toFixed(6), ...tag });
   }
+  if (partial) warnings.push(`${partial} barra(s) com vizinha que cobre só parte da sua extensão (barra interrompida ou abertura): resultante exata, mas a divisão entre essas barras é aproximada — confira as cargas.`);
   if (varying) warnings.push(`${varying} barra(s) com faixa de largura variável (borda do pano inclinada): carga uniforme equivalente com a resultante exata (b = A_faixa/L); o momento de vão real difere.`);
   return { loads, warnings, members: recv.length };
 }

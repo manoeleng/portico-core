@@ -87,6 +87,18 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   const rp = panelToDistLoads(m, { id: 6, nodes: [A, B, C], q: 1, dir: 'against', axis: 'Y' });
   assert('P5f. "contra o pano" = oposto da normal (pano anti-horário visto de cima, normal +Z → carga para baixo)', rp.loads.every((l) => l.dir === 'gravity' && l.w > 0));
 }
+// (6) interrupted member (review layout): 12 × 8 panel, members along Y at x = 2, 10 (8 m) and x = 6 only y 0→3:
+//     total still q·A = 96, with a warning that the split between those members is rough
+{
+  const m = new Model(); m.materials.clear(); m.sections.clear();
+  const mat = m.addMaterial({ name: 'S', E: 2e8, G: 8e7, nu: 0.3, rho: 0 }), sec = m.addSection({ name: 'P', A: 0.002, Iy: 2e-6, Iz: 4e-6, J: 1e-8, Avy: 1e-3, Avz: 1e-3 });
+  const c = [m.addNode(0, 0, 0).id, m.addNode(12, 0, 0).id, m.addNode(12, 8, 0).id, m.addNode(0, 8, 0).id];
+  for (const x of [2, 10]) m.addElement(m.addNode(x, 0, 0).id, m.addNode(x, 8, 0).id, mat.id, sec.id);
+  m.addElement(m.addNode(6, 0, 0).id, m.addNode(6, 3, 0).id, mat.id, sec.id);
+  const r = panelToDistLoads(m, { id: 8, nodes: c, q: 1, dir: 'gravity', axis: 'X' });
+  ok('P6. barra interrompida: Σ = q·A = 96 kN', total(m, r.loads), 96, 1e-6);
+  assert('P6b. aviso de vizinha parcial', r.warnings.some((w) => /cobre só parte/.test(w)), r.warnings.join(' | '));
+}
 // (4) two-way refused (no uniform approximation); regeneration replaces only panel loads
 {
   const { m, corners } = roof();
