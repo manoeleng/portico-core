@@ -5,6 +5,7 @@
 // or a generator stage still to be written) — never a silent substitution.
 import { i18n } from '../i18n/i18n.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
+import { toDisp, fromDisp, ulbl, isTf } from '../utils/units.js?v=7';
 
 const t = (k) => i18n.t(k);
 
@@ -39,6 +40,13 @@ const WIND = [
     { id: 's3', label: 'Grupo S3', sel: range(1, 5), v: '2' }] },
 ];
 
+// Display units (js/utils/units.js): a field with `u` (kind) holds a force-bearing value. `num` and the spec stay in kN;
+// the input shows toDisp(·) and vals() returns fromDisp(typed). An untouched input returns the exact kN value it
+// was filled with (data-kn), so the rounding of the shown tf value never changes the stored load.
+const dispStr = (kn, u) => (isTf() ? String(Number(toDisp(kn, u).toPrecision(3))) : String(kn));
+const dispStep = (st, u) => (isTf() ? String(Number(toDisp(st, u).toPrecision(1))) : String(st));
+const setKN = (inp, kn, u) => { const s = dispStr(kn, u); inp.value = s; inp.dataset.kn = String(kn); inp.dataset.disp = s; };
+
 // ── typology definitions ──────────────────────────────────────────────────────
 const EDIFICIO = {
   title: 'Edificio de pórticos (varios pisos)',
@@ -61,7 +69,7 @@ const EDIFICIO = {
       { id: 'diaf', label: 'Diafragma rígido', sel: [['1', 'Sí'], ['0', 'No']], v: '1', show: (v) => v.mode === '3D' }] },
     { sec: '4. Cargas (NBR 6120)' },
     { row: [{ id: 'uso', label: 'Uso (NBR 6120, Tab. 10)', sel: USOS, v: '', fills: 'q' }] },
-    { row: [{ id: 'g', label: 'Permanente adicional (kN/m²)', num: [1.5, 0.1, 0] }, { id: 'q', label: 'Sobrecarga (kN/m²)', num: [2, 0.1, 0] }] },
+    { row: [{ id: 'g', label: 'Permanente adicional (kN/m²)', num: [1.5, 0.1, 0], u: 'Q' }, { id: 'q', label: 'Sobrecarga (kN/m²)', num: [2, 0.1, 0], u: 'Q' }] },
     ...WIND,
     { sec: '6. Sismo (NBR 15421)' },
     { row: [{ id: 'ag', label: 'ag (g) · 0 = sin sismo', num: [0, 0.005, 0] },
@@ -94,7 +102,7 @@ const TRELICA = {
     { row: [{ id: 'mat', label: 'Acero', sel: ACO, v: 'MR250' }] },
     { row: [{ id: 'ch', label: 'Cordones', sel: PERFIS, v: 'W 150 x 13,0' }, { id: 'dg', label: 'Montantes y diagonales', sel: PERFIS, v: 'W 150 x 13,0' }] },
     { sec: '3. Cargas' },
-    { row: [{ id: 'g', label: 'Peso de cubierta (kN/m²)', num: [0.15, 0.05, 0] }, { id: 'q', label: 'Sobrecarga de cubierta (kN/m²)', num: [0.25, 0.05, 0] }] },
+    { row: [{ id: 'g', label: 'Peso de cubierta (kN/m²)', num: [0.15, 0.05, 0], u: 'Q' }, { id: 'q', label: 'Sobrecarga de cubierta (kN/m²)', num: [0.25, 0.05, 0], u: 'Q' }] },
   ],
   note: 'Cercha plana representativa, cargada por su ancho tributario. Viento: use el generador de galpón (NBR 6123 con Cpe/Cpi).',
   spec: (v) => ({
@@ -121,7 +129,7 @@ const PASSARELA = {
     { row: [{ id: 'gb', label: 'Viga b (cm)', num: [30, 5, 15] }, { id: 'gh', label: 'Viga h (cm)', num: [80, 5, 30] },
       { id: 'pb', label: 'Pila b (cm)', num: [50, 5, 20] }, { id: 'phh', label: 'Pila h (cm)', num: [50, 5, 20] }], show: (v) => v.sys === 'hormigon' },
     { sec: '3. Cargas (NBR 7188)' },
-    { row: [{ id: 'g', label: 'Peso del tablero (kN/m²)', num: [2, 0.1, 0] }, { id: 'q', label: 'Multitud p (kN/m²) — NBR 7188 6.1', num: [5, 0.5, 0] }] },
+    { row: [{ id: 'g', label: 'Peso del tablero (kN/m²)', num: [2, 0.1, 0], u: 'Q' }, { id: 'q', label: 'Multitud p (kN/m²) — NBR 7188 6.1', num: [5, 0.5, 0], u: 'Q' }] },
   ],
   note: 'NBR 7188:2024 6.1: p = 5,0 kN/m² sin coeficiente de impacto. Barandas (6.1/6.2: 2,0 kN/m) y choque de vehículos (6.3: 100 kN) no se generan; puente carretero (TB-450) no disponible.',
   spec: (v) => {
@@ -194,7 +202,10 @@ export async function openTypologyForm(app, def) {
   const prev = app.serializer.toJSON(app.model), prevName = app._fileName;
   const opts = (o) => (typeof o === 'function' ? o(libs) : o).map((x) => (Array.isArray(x) ? x : [x, x]));
   const fieldHTML = (f) => {
-    const wrap = (inner) => `<div class="prop-field" data-fid="${f.id}"><label>${esc(t(f.label))}</label>${inner}</div>`;
+    const lbl = f.u ? t(f.label).replace(/kN\/m²/g, ulbl(f.u)) : t(f.label);
+    const wrap = (inner) => `<div class="prop-field" data-fid="${f.id}"><label>${esc(lbl)}</label>${inner}</div>`;
+    if (f.num && f.u) { const sv = dispStr(f.num[0], f.u);
+      return wrap(`<input type="number" id="typ-${f.id}" value="${sv}" step="${dispStep(f.num[1], f.u)}" min="${toDisp(f.num[2], f.u)}" data-kn="${f.num[0]}" data-disp="${sv}">`); }
     if (f.num) return wrap(`<input type="number" id="typ-${f.id}" value="${f.num[0]}" step="${f.num[1]}" min="${f.num[2]}">`);
     return wrap(`<select id="typ-${f.id}">${opts(f.sel).map(([v, l]) => `<option value="${esc(v)}" ${v === f.v ? 'selected' : ''}>${esc(t(l))}</option>`).join('')}</select>`);
   };
@@ -215,6 +226,7 @@ export async function openTypologyForm(app, def) {
   const fields = def.fields.flatMap((it) => it.row || []);
   const vals = () => Object.fromEntries(fields.map((f) => {
     const inp = el.querySelector('#typ-' + f.id);
+    if (f.num && f.u) return [f.id, inp.value === inp.dataset.disp ? +inp.dataset.kn : fromDisp(parseFloat(String(inp.value).replace(',', '.')), f.u)];
     return [f.id, f.num ? parseFloat(String(inp.value).replace(',', '.')) : inp.value];
   }));
   const applyShow = () => {
@@ -237,8 +249,11 @@ export async function openTypologyForm(app, def) {
     } catch (e) { last = null; el.querySelector('#typ-status').textContent = e.message; }
   };
   // a «fills» select copies its value into another field (e.g. NBR 6120 use → live load)
+  // (the option value is in kN/m² — a unit field shows it converted and keeps the exact kN value)
   for (const f of fields) if (f.fills) el.querySelector('#typ-' + f.id).addEventListener('change', (e) => {
-    if (e.target.value !== '') el.querySelector('#typ-' + f.fills).value = e.target.value;
+    if (e.target.value === '') return;
+    const tgt = el.querySelector('#typ-' + f.fills), tf = fields.find((x) => x.id === f.fills);
+    if (tf?.u) setKN(tgt, +e.target.value, tf.u); else tgt.value = e.target.value;
   });
   el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(preview, 350); });
   el.addEventListener('change', () => { clearTimeout(timer); timer = setTimeout(preview, 50); });

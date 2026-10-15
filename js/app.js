@@ -51,6 +51,8 @@ import { resolveSectionProps } from './design/section_props.js?v=7';
 import { autoDetectDiaphragms, computeFloorCR } from './solver/diaphragm.js?v=7';
 import { interstoryDrifts, buildStoryLevels } from './solver/drift.js?v=7';
 import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements } from './model/discretize.js?v=7';
+import { unbracedLengths, memberWithUnbraced } from './design/unbraced.js?v=7';
+import { setUnits, normUnits, toDisp, fromDisp, ulbl, fmtU, isTf } from './utils/units.js?v=7';
 import { localAxes, mirroredBeta, mirroredOffset, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
 import { blockCells, cornerGridIndices } from './model/mesher.js?v=7';
 import { coonsGridFromCorners } from './model/mesh_map.js?v=7';
@@ -73,6 +75,18 @@ const _csv = (csv) => csvLocalize(csv, i18n.getLocale());
 // BCP-47 tag of the active UI language for dates (es → es-CL keeps the historic format).
 const _localeTag = () => ({ pt: 'pt-BR', en: 'en-US' })[i18n.getLocale()] || 'es-CL';
 import { reportHTML, reportDocx, reportDocxCover, reportDocxBody } from './report/report.js?v=7';
+
+// Display units (js/utils/units.js): a force-bearing input shows toDisp(kN) and keeps the exact kN value (data-kn), so
+// an untouched field returns it unchanged; a typed value is converted back with fromDisp. `_uT` swaps the kN unit of a
+// translated label for the current system (the i18n key keeps the kN text).
+const _KN_RE = { F: /kN(?![·/])/g, M: /kN·m(?!\/)/g, W: /kN\/m(?![²³/])/g, Q: /kN\/m²/g };
+const _uT = (s, kind) => (isTf() ? i18n.t(s).replace(_KN_RE[kind], ulbl(kind)) : i18n.t(s));
+const _knIn = (kn, kind) => { const s = isTf() ? String(+toDisp(kn, kind).toPrecision(4)) : String(kn); return `value="${s}" data-kn="${kn}" data-disp="${s}"`; };
+const _knRd = (inp, kind, parse = parseFloat) => {
+  if (!inp) return NaN;
+  if (inp.dataset.disp != null && inp.value === inp.dataset.disp) return +inp.dataset.kn;
+  return fromDisp(parse(inp.value), kind);
+};
 
 // Load categories (#106) — for automatic combinations and design.
 const LOAD_TYPES = [
@@ -938,7 +952,7 @@ class App {
     lc.loads = (lc.loads || []).filter(l => !(l.type === 'dist' && l.panelId == null && set.has(l.elemId)));   // replaces the existing one (panel loads are the panel's)
     if (w && Number.isFinite(w)) for (const id of ids) lc.loads.push({ type: 'dist', elemId: id, dir, w });
     this.refreshLoads(); this.markDirty(); this._updateStats();
-    this.toast(w ? `${i18n.t('Carga')} ${w} kN/m (${dir}) ${i18n.t('en')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}` : `${i18n.t('Cargas distribuidas quitadas de')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}`, 'ok');
+    this.toast(w ? `${i18n.t('Carga')} ${+toDisp(w, 'W').toPrecision(4)} ${ulbl('W')} (${dir}) ${i18n.t('en')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}` : `${i18n.t('Cargas distribuidas quitadas de')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}`, 'ok');
     this._reselect(ids);
   }
 
@@ -1332,7 +1346,7 @@ class App {
       const hd = up ? -8 : 8;
       return `<line x1="${x}" y1="${yTail}" x2="${x}" y2="${yTip + hd}" stroke="${CV}" stroke-width="2.4"/>` +
              `<polygon points="${x - 5},${yTip + hd} ${x + 5},${yTip + hd} ${x},${yTip}" fill="${CV}"/>` +
-             `<text x="${x}" y="${up ? yTail + 16 : yTail - 8}" class="dcl-val" fill="${CV}">${name}=${fmt(val)}</text>`;
+             `<text x="${x}" y="${up ? yTail + 16 : yTail - 8}" class="dcl-val" fill="${CV}">${name}=${fmt(toDisp(val, 'F'))}</text>`;
     };
     // moment arc: positive = counterclockwise (right-hand rule)
     const mArc = (x, val, name) => {
@@ -1343,7 +1357,7 @@ class App {
       const [sx, sy] = p(ccw ? -50 : 230), [tx2, ty2] = p(ccw ? 230 : -50);
       return `<path d="M ${sx} ${sy} A ${r} ${r} 0 1 ${sweep} ${tx2} ${ty2}" fill="none" stroke="${CM}" stroke-width="2.2"/>` +
              `<circle cx="${tx2}" cy="${ty2}" r="3.4" fill="${CM}"/>` +
-             `<text x="${x}" y="${yb - r - 12}" class="dcl-val" fill="${CM}">${name}=${fmt(val)}</text>`;
+             `<text x="${x}" y="${yb - r - 12}" class="dcl-val" fill="${CM}">${name}=${fmt(toDisp(val, 'M'))}</text>`;
     };
     // distributed load (positive = +y local = ↑)
     let qs = '';
@@ -1356,7 +1370,7 @@ class App {
               `<polygon points="${x - 4},${yB + hd} ${x + 4},${yB + hd} ${x},${yB}" fill="${CQ}"/>`;
       }
       qs += `<line x1="${x1 + 30}" y1="${yA}" x2="${x2 - 30}" y2="${yA}" stroke="${CQ}" stroke-width="1.6"/>`;
-      qs += `<text x="${(x1 + x2) / 2}" y="${up ? yA + 16 : yA - 8}" class="dcl-val" fill="${CQ}">${lblQ}=${fmt(q)} kN/m</text>`;
+      qs += `<text x="${(x1 + x2) / 2}" y="${up ? yA + 16 : yA - 8}" class="dcl-val" fill="${CQ}">${lblQ}=${fmt(toDisp(q, 'W'))} ${ulbl('W')}</text>`;
     }
     // V₂/M₂ with the results convention: ef.Vy2 = internal shear at 2; the force ON
     // the element at end 2 is −Vy2 (same for the moment). Passed already signed.
@@ -1391,15 +1405,15 @@ class App {
         <td style="color:${ok ? 'var(--success)' : 'var(--danger)'};font-weight:700">${ok ? '✓ ≈ 0' : '✗ ≠ 0'}</td></tr>`;
     }).join('');
 
-    const axial = ef.N > 1e-9 ? `${i18n.t('tracción,')} +${fmt(ef.N)} kN` :
-                  ef.N < -1e-9 ? `${i18n.t('compresión,')} ${fmt(ef.N)} kN` : '≈ 0';
+    const axial = ef.N > 1e-9 ? `${i18n.t('tracción,')} +${fmt(toDisp(ef.N, 'F'))} ${ulbl('F')}` :
+                  ef.N < -1e-9 ? `${i18n.t('compresión,')} ${fmt(toDisp(ef.N, 'F'))} ${ulbl('F')}` : '≈ 0';
 
     let html = `
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:6px">
         ${i18n.t('Fuerzas que actúan')} <b>${i18n.t('sobre el elemento')}</b>, ${i18n.t('en coordenadas')} <b>${i18n.t('locales')}</b>.
         ${i18n.t('Corte positivo = +y/+z local (↑ en el dibujo) · momento positivo = antihorario ⟲.')}<br>
-        <b style="color:var(--success)">N = ${fmt(ef.N)} kN (${axial})</b> &nbsp;·&nbsp;
-        <b>T = ${fmt(ef.T)} kN·m (${i18n.t('torsión')})</b></p>`;
+        <b style="color:var(--success)">N = ${fmt(toDisp(ef.N, 'F'))} ${ulbl('F')} (${axial})</b> &nbsp;·&nbsp;
+        <b>T = ${fmt(toDisp(ef.T, 'M'))} ${ulbl('M')} (${i18n.t('torsión')})</b></p>`;
     html += this._dclPlaneSVG({ titulo: i18n.t('Plano local x–y · corte Vy y momento Mz'),
       V1: ef.Vy1, V2: -ef.Vy2, M1: ef.Mz1, M2: -ef.Mz2, q: qy || 0, L, lblV: 'Vy', lblM: 'Mz', lblQ: 'qy' });
     html += this._dclPlaneSVG({ titulo: i18n.t('Plano local x–z · corte Vz y momento My'),
@@ -2338,6 +2352,21 @@ class App {
       }
     };
     setTimeout(tick, 30);
+  }
+
+  // Display units (js/utils/units.js): the model keeps kN·m; tf·m only converts what is shown and typed. Switching
+  // redraws every view that prints a force-bearing value.
+  setDisplayUnits(u, { quiet = false } = {}) {
+    const n = normUnits(u);
+    this.model.units = n;
+    setUnits(n);
+    const sel = document.getElementById('unit-select'); if (sel) sel.value = n;
+    const sb = document.getElementById('sb-units'); if (sb) sb.textContent = n.replace('-', ' — ');
+    if (quiet) return;
+    try { this.refreshLoads(); } catch { /* no loads view */ }
+    try { if (this._results && this.viewport._inResultsMode) this._refreshResultView(); } catch { /* no results */ }
+    try { this.panel?.refresh?.(); } catch { /* panel without refresh */ }
+    try { this.renderDesignIfOpen?.(); } catch { /* design panel closed */ }
   }
 
   _refreshResultView(autoScale = false) {
@@ -3534,12 +3563,12 @@ class App {
         <div id="th-plastic-box" style="display:none;margin-top:4px">
           <div class="prop-row">
             <label style="flex:1;display:flex;align-items:center;gap:6px"><input type="checkbox" id="th-plastic" ${d.plasticHinges?'checked':''}> ${i18n.t('Rótulas plásticas (Mz, histerético)')}</label>
-            <div class="prop-field" style="width:150px"><label>Mp [kN·m]${selEls.length ? ' ' + i18n.t('(resto)') : ''}</label><input type="number" id="th-mp" value="${d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:110px"></div>
+            <div class="prop-field" style="width:150px"><label>Mp [${ulbl('M')}]${selEls.length ? ' ' + i18n.t('(resto)') : ''}</label><input type="number" id="th-mp" ${_knIn(d.mp ?? this._lastMp ?? 100, 'M')} min="0" step="10" style="width:110px"></div>
           </div>
           <div class="prop-row" style="margin-top:4px">
             <div class="prop-field" style="width:120px"><label>Endurec. b</label><input type="number" id="th-hard" value="${d.hardening ?? 0.03}" min="0" max="0.5" step="0.01" style="width:80px"></div>
-            <div class="prop-field" style="width:180px"><label>${i18n.t('Np axial [kN] (0 = sin P–M)')}</label><input type="number" id="th-np" value="${d.np ?? 0}" min="0" step="100" style="width:100px"></div>
-            ${selEls.length ? `<div class="prop-field" style="width:170px"><label>${i18n.t('Mp selección [kN·m]')} (${selEls.length} el.)</label><input type="number" id="th-mpsel" value="${d.mpSel ?? d.mp ?? this._lastMp ?? 100}" min="0" step="10" style="width:100px"></div>` : ''}
+            <div class="prop-field" style="width:180px"><label>${_uT('Np axial [kN] (0 = sin P–M)', 'F')}</label><input type="number" id="th-np" ${_knIn(d.np ?? 0, 'F')} min="0" step="100" style="width:100px"></div>
+            ${selEls.length ? `<div class="prop-field" style="width:170px"><label>${_uT('Mp selección [kN·m]', 'M')} (${selEls.length} el.)</label><input type="number" id="th-mpsel" ${_knIn(d.mpSel ?? d.mp ?? this._lastMp ?? 100, 'M')} min="0" step="10" style="width:100px"></div>` : ''}
           </div>
         </div>
         <div class="prop-row">
@@ -3606,11 +3635,11 @@ class App {
         // Plastic hinges (nldirect only): Mp (uniform, or "rest" when a selection exists),
         // optional Mp for the selected elements, bilinear hardening b, axial Np (P–M).
         const plasticHinges = method === 'nldirect' && document.getElementById('th-plastic').checked;
-        const mp = Math.max(0, parseFloat(document.getElementById('th-mp').value) || 0);
+        const mp = Math.max(0, _knRd(document.getElementById('th-mp'), 'M') || 0);
         const hardening = Math.max(0, Math.min(0.5, parseFloat(document.getElementById('th-hard').value) || 0));
-        const np = Math.max(0, parseFloat(document.getElementById('th-np')?.value) || 0);
+        const np = Math.max(0, _knRd(document.getElementById('th-np'), 'F') || 0);
         const mpSelEl = document.getElementById('th-mpsel');
-        const mpSel = mpSelEl ? Math.max(0, parseFloat(mpSelEl.value) || 0) : null;
+        const mpSel = mpSelEl ? Math.max(0, _knRd(mpSelEl, 'M') || 0) : null;
         const plasticSel = selEls.length ? [...selEls] : null;   // element ids that take mpSel
         overlay.classList.add('hidden');
         resolve({ dir, zeta, nModes, ag, dt, agName, method, plasticHinges, mp, hardening, np, mpSel, plasticSel });
@@ -3747,8 +3776,8 @@ class App {
   // Label + unit of the monitored object.
   _thMonitorInfo() {
     const R = this._thResult;
-    if (R.monType === 'elem') { const isM = /^M/.test(R.monComp); return { txt: `${R.monComp.replace('-i', ' i').replace('-j', ' j')} · elem ${R.monId}`, unit: isM ? 'kN·m' : 'kN' }; }
-    if (R.monType === 'area') { const lbl = { vm: 'von Mises', s1: 'σ₁', s2: 'σ₂', sx: 'σx', sy: 'σy', txy: 'τxy' }[R.monComp] || R.monComp; return { txt: `${lbl} · ${i18n.t('área')} ${R.monId}`, unit: 'kPa' }; }
+    if (R.monType === 'elem') { const isM = /^M/.test(R.monComp); return { txt: `${R.monComp.replace('-i', ' i').replace('-j', ' j')} · elem ${R.monId}`, unit: ulbl(isM ? 'M' : 'F'), kind: isM ? 'M' : 'F' }; }
+    if (R.monType === 'area') { const lbl = { vm: 'von Mises', s1: 'σ₁', s2: 'σ₂', sx: 'σx', sy: 'σy', txy: 'τxy' }[R.monComp] || R.monComp; return { txt: `${lbl} · ${i18n.t('área')} ${R.monId}`, unit: isTf() ? ulbl('Q') : 'kPa', kind: 'Q' }; }
     if (R.monType === 'diaph') { const d = this.model.diaphragms.get(R.monId); const isRz = R.monComp === 'rz'; const lbl = { ux: 'u X', uy: 'u Y', mag: '|u|', rz: i18n.t('θ torsión') }[R.monComp] || R.monComp; return { txt: `${lbl} · ${i18n.t('CM piso')} ${R.monId}${d ? ` (z=${d.z})` : ''}`, unit: isRz ? 'rad' : 'm' }; }
     if (R.monComp === 'mag') return { txt: `|u| · ${i18n.t('nodo')} ${R.monId}`, unit: 'm' };
     const isRot = /^r/.test(R.monComp); return { txt: `${R.monComp} · ${i18n.t('nodo')} ${R.monId}`, unit: isRot ? 'rad' : 'm' };
@@ -3895,7 +3924,7 @@ class App {
     const ro = document.getElementById('th-readout');
     const info = this._thMonitorInfo();
     if (ro) ro.innerHTML = `t = <b>${t.toFixed(3)} s</b> / ${((R.nSteps - 1) * R.dt).toFixed(2)} s · a_g = ${ag.toFixed(3)} m/s²<br>`
-      + `${info.txt} = ${R._hist[step].toExponential(3)} ${info.unit} · máx = <b>${(R._peak ?? 0).toExponential(3)} ${info.unit}</b><br>`
+      + `${info.txt} = ${(info.kind ? toDisp(R._hist[step], info.kind) : R._hist[step]).toExponential(3)} ${info.unit} · máx = <b>${(info.kind ? toDisp(R._peak ?? 0, info.kind) : (R._peak ?? 0)).toExponential(3)} ${info.unit}</b><br>`
       + `${R.method === 'direct' ? 'Newmark directo' : R.method === 'nldirect' ? 'Newmark directo NL (corot.)' : R.modes.length + ' modos'} · ζ=${(R.zeta * 100).toFixed(1)}% · dir ${R.dir} · PGA=${R.stats.pga.toFixed(2)} m/s² · ${R.agName}`;
   }
 
@@ -3907,7 +3936,7 @@ class App {
     const col = `${R.monComp}_${obj}${R.monId}[${info.unit}]`;
     let csv = `# Time-history ${R.method === 'direct' ? i18n.t('(Newmark directo)') : R.method === 'nldirect' ? i18n.t('(Newmark directo NO lineal, corotacional)') : `${i18n.t('modal')} · ${R.modes.length} ${i18n.t('modos')}`} · dir ${R.dir} · zeta ${(R.zeta*100).toFixed(1)}% · ${R.agName}\n`;
     csv += `t[s],a_g[m/s2],${col}\n`;
-    for (let k = 0; k < R.nSteps; k++) csv += `${(k*R.dt).toFixed(5)},${R.ag[k].toFixed(6)},${h[k].toExponential(6)}\n`;
+    for (let k = 0; k < R.nSteps; k++) csv += `${(k*R.dt).toFixed(5)},${R.ag[k].toFixed(6)},${(info.kind ? toDisp(h[k], info.kind) : h[k]).toExponential(6)}\n`;
     const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `timehistory_${R.monType}${R.monId}_${R.monComp}.csv`; a.click();
@@ -4052,7 +4081,7 @@ class App {
       for (const ld of eq.loads) lc.loads.push(ld);
       this.refreshLoads?.();
       this.markDirty();
-      this.toast(`${i18n.t('Tendón aplicado a')} «${lc.name}» · P=${eq.P.toFixed(0)} kN · w_eq=${Math.abs(eq.weq).toFixed(2)} kN/m · L=${eq.L.toFixed(2)} m`, 'ok');
+      this.toast(`${i18n.t('Tendón aplicado a')} «${lc.name}» · P=${toDisp(eq.P, 'F').toFixed(0)} ${ulbl('F')} · w_eq=${Math.abs(toDisp(eq.weq, 'W')).toFixed(2)} ${ulbl('W')} · L=${eq.L.toFixed(2)} m`, 'ok');
       if (cfg.solve) this.runAnalysis();
     } catch (err) {
       this.toast(`${i18n.t('Tendón:')} ${i18n.t(err.message)}`, 'error'); console.error(err);
@@ -4086,10 +4115,10 @@ class App {
       </div>
       <div class="prop-row">
         <div class="prop-field"><label>Fuerza</label><select id="td-fmode"><option value="P">Efectiva P directa</option><option value="jack">Tesado + pérdidas</option></select></div>
-        <div class="prop-field" id="td-P"><label>P (kN)</label><input type="number" id="td-Pval" value="1000" step="50" style="width:100px"></div>
+        <div class="prop-field" id="td-P"><label>P (${ulbl('F')})</label><input type="number" id="td-Pval" ${_knIn(1000, 'F')} step="50" style="width:100px"></div>
       </div>
       <div class="prop-row" id="td-jack" style="display:none">
-        <div class="prop-field"><label>P₀ gato (kN)</label><input type="number" id="td-jackval" value="1200" step="50" style="width:90px"></div>
+        <div class="prop-field"><label>${_uT('P₀ gato (kN)', 'F')}</label><input type="number" id="td-jackval" ${_knIn(1200, 'F')} step="50" style="width:90px"></div>
         <div class="prop-field"><label>μ (1/rad)</label><input type="number" id="td-mu" value="0.2" step="0.01" style="width:70px"></div>
         <div class="prop-field"><label>k (1/m)</label><input type="number" id="td-k" value="0.001" step="0.0005" style="width:80px"></div>
         <div class="prop-field"><label>Pérdida tanto alzado</label><input type="number" id="td-lump" value="0.1" min="0" max="0.5" step="0.01" style="width:70px"></div>
@@ -4121,11 +4150,11 @@ class App {
         .map(l => { const [s, e] = l.split(/[,\s]+/).map(Number); return { s, e }; }).filter(p => Number.isFinite(p.s) && Number.isFinite(p.e));
     }
     if (document.getElementById('td-fmode').value === 'jack') {
-      tendon.jack = +document.getElementById('td-jackval').value || 0;
+      tendon.jack = _knRd(document.getElementById('td-jackval'), 'F') || 0;
       tendon.friction = { mu: +document.getElementById('td-mu').value || 0, k: +document.getElementById('td-k').value || 0 };
       tendon.lumpSum = +document.getElementById('td-lump').value || 0;
     } else {
-      tendon.P = +document.getElementById('td-Pval').value || 0;
+      tendon.P = _knRd(document.getElementById('td-Pval'), 'F') || 0;
     }
     return { tendon, lcId, solve: document.getElementById('td-solve').checked };
   }
@@ -4143,7 +4172,8 @@ class App {
     try {
       const result = computeMovingLoad(model, cfg);   // js/solver/moving_load.js
       this._movingResult = result;
-      this.toast(`${i18n.t('Cargas móviles OK')} · ${cfg.label} · ${i18n.t('máx')} ${result.max.toExponential(3)} ${cfg.unit} · ${i18n.t('mín')} ${result.min.toExponential(3)} ${cfg.unit}`, 'ok');
+      result.kind = cfg.kind;   // display units: the envelope (train in kN) converts; the IL (per unit load) does not
+      this.toast(`${i18n.t('Cargas móviles OK')} · ${cfg.label} · ${i18n.t('máx')} ${this._mlDisp(result, result.max).toExponential(3)} ${cfg.unit} · ${i18n.t('mín')} ${this._mlDisp(result, result.min).toExponential(3)} ${cfg.unit}`, 'ok');
       this._movingPlotOverlay(result);
       this._updateResultsIndicator?.();
     } catch (err) {
@@ -4159,6 +4189,7 @@ class App {
     document.getElementById('modal-title').textContent = i18n.t('Cargas móviles / líneas de influencia');
     const nodeOpts = [...this.model.nodes.keys()].map(id => `<option value="${id}">Nodo ${id}</option>`).join('');
     const elemOpts = sel.map(id => `<option value="${id}">Elem ${id}</option>`).join('');
+    const trainKN = '0,100\n4,100', trainDisp = isTf() ? `0,${+toDisp(100, 'F').toPrecision(4)}\n4,${+toDisp(100, 'F').toPrecision(4)}` : trainKN;
     document.getElementById('modal-body').innerHTML = `
       <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
         Pista = <b>${sel.length}</b> elemento(s) seleccionado(s), en orden. La <b>línea de influencia</b> barre una
@@ -4181,9 +4212,8 @@ class App {
         <div class="prop-field"><label>Esfuerzo</label><select id="ml-key"><option value="Mz">Mz</option><option value="My">My</option><option value="Vy">Vy</option><option value="Vz">Vz</option><option value="N">N</option></select></div>
       </div>
       <div class="prop-row cols1" id="ml-train" style="display:none">
-        <div class="prop-field"><label>Tren «offset,P» por línea (offset m respecto al eje de referencia, P en kN ↓)</label>
-          <textarea id="ml-trainpts" rows="3" style="width:100%;font-family:var(--font-mono);font-size:11px">0,100
-4,100</textarea></div>
+        <div class="prop-field"><label>${_uT('Tren «offset,P» por línea (offset m respecto al eje de referencia, P en kN ↓)', 'F')}</label>
+          <textarea id="ml-trainpts" rows="3" style="width:100%;font-family:var(--font-mono);font-size:11px">${trainDisp}</textarea></div>
       </div>`;
     document.getElementById('modal-cancel').style.display = '';
     overlay.classList.remove('hidden');
@@ -4207,22 +4237,28 @@ class App {
     if (respType === 'reaction') {
       cfg.nodeId = parseInt(document.getElementById('ml-node').value);
       cfg.comp = document.getElementById('ml-comp').value;
-      cfg.unit = isMoment(cfg.comp) ? 'kN·m' : 'kN';
+      cfg.kind = isMoment(cfg.comp) ? 'M' : 'F'; cfg.unit = ulbl(cfg.kind);
       cfg.label = `R${cfg.comp} · nodo ${cfg.nodeId}`;
     } else {
       cfg.elemId = parseInt(document.getElementById('ml-elem').value);
       cfg.xi = Math.max(0, Math.min(1, +document.getElementById('ml-xi').value || 0.5));
       cfg.key = document.getElementById('ml-key').value;
-      cfg.unit = isMoment(cfg.key) ? 'kN·m' : 'kN';
+      cfg.kind = isMoment(cfg.key) ? 'M' : 'F'; cfg.unit = ulbl(cfg.kind);
       cfg.label = `${cfg.key} · elem ${cfg.elemId} @ξ=${cfg.xi.toFixed(2)}`;
     }
     if (mode === 'env') {
-      cfg.train = document.getElementById('ml-trainpts').value.split(/\n/).map(l => l.trim()).filter(Boolean)
-        .map(l => { const [offset, P] = l.split(/[,\s]+/).map(Number); return { offset, P }; }).filter(a => Number.isFinite(a.offset) && Number.isFinite(a.P));
+      const tv = document.getElementById('ml-trainpts').value, untouched = tv.replace(/\r/g, '') === trainDisp;   // untouched → exact kN default
+      cfg.train = (untouched ? trainKN : tv).split(/\n/).map(l => l.trim()).filter(Boolean)
+        .map(l => { const [offset, P] = l.split(/[,\s]+/).map(Number); return { offset, P: untouched ? P : fromDisp(P, 'F') }; }).filter(a => Number.isFinite(a.offset) && Number.isFinite(a.P));
       if (!cfg.train.length) { this.toast('Define al menos un eje del tren', 'warn'); return null; }
     }
     return cfg;
   }
+
+  // Display value of a moving-load response: the envelope (train in kN) is converted; the influence line is the
+  // response to a UNIT load, the same number in kN/kN and tf/tf (or m), so it is shown unchanged.
+  _mlDisp(R, v) { return R.mode === 'env' && R.kind ? toDisp(v, R.kind) : v; }
+  _mlUnit(R) { return R.kind ? ulbl(R.kind) : R.unit; }
 
   // #90: Moving loads → «Moving loads» tab in Results.
   _movingPlotOverlay(R) {
@@ -4242,29 +4278,29 @@ class App {
     const W = 460, H = 200, ml = 44, mr = 14, mt = 14, mb = 28;
     const n = R.xs.length;
     const xmin = R.xs[0], xmax = R.xs[n - 1] || 1;
-    let ymax = R.max, ymin = R.min;
+    let ymax = this._mlDisp(R, R.max), ymin = this._mlDisp(R, R.min);
     if (ymax === ymin) { ymax += 1; ymin -= 1; }
     const pad = (ymax - ymin) * 0.08; ymax += pad; ymin -= pad;
     const sx = x => ml + (W - ml - mr) * (x - xmin) / (xmax - xmin || 1);
     const sy = y => mt + (H - mt - mb) * (1 - (y - ymin) / (ymax - ymin || 1));
-    let poly = ''; for (let i = 0; i < n; i++) poly += `${sx(R.xs[i]).toFixed(1)},${sy(R.ys[i]).toFixed(1)} `;
+    let poly = ''; for (let i = 0; i < n; i++) poly += `${sx(R.xs[i]).toFixed(1)},${sy(this._mlDisp(R, R.ys[i])).toFixed(1)} `;
     const y0 = sy(0).toFixed(1);
     const mk = (x, y, col) => `<circle cx="${sx(x).toFixed(1)}" cy="${sy(y).toFixed(1)}" r="3.5" fill="${col}"/>`;
     const title = R.mode === 'il' ? i18n.t('Línea de influencia (carga unitaria ↓)') : `${i18n.t('Envolvente del tren (largo')} ${R.trainLen?.toFixed(1)} m)`;
     el.innerHTML = `
       <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--accent,#38bdf8)">${title}</div>
-      <div style="font-size:12px;margin-bottom:6px">${R.label} <span style="color:var(--text-muted)">(${R.unit})</span></div>
+      <div style="font-size:12px;margin-bottom:6px">${R.label} <span style="color:var(--text-muted)">(${this._mlUnit(R)})</span></div>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:var(--bg3,#0b1220);border-radius:6px">
         <line x1="${ml}" y1="${y0}" x2="${W - mr}" y2="${y0}" stroke="var(--border,#26324d)" stroke-width="1"/>
         <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${H - mb}" stroke="var(--border,#26324d)" stroke-width="1"/>
         <polyline points="${poly}" fill="none" stroke="var(--accent,#38bdf8)" stroke-width="1.6"/>
-        ${mk(R.sMax, R.max, '#ef4444')}${mk(R.sMin, R.min, '#22c55e')}
+        ${mk(R.sMax, this._mlDisp(R, R.max), '#ef4444')}${mk(R.sMin, this._mlDisp(R, R.min), '#22c55e')}
         <text x="${ml}" y="${H - 8}" fill="var(--text-muted,#9aa)" font-size="10">${i18n.t('pos.')} ${xmin.toFixed(1)} m</text>
         <text x="${W - mr}" y="${H - 8}" fill="var(--text-muted,#9aa)" font-size="10" text-anchor="end">${xmax.toFixed(1)} m</text>
       </svg>
       <div style="font-size:11.5px;margin-top:8px;line-height:1.7">
-        <span style="color:#ef4444">●</span> ${i18n.t('máx')} = <b>${R.max.toExponential(3)} ${R.unit}</b> ${i18n.t('en pos.')} ${R.sMax.toFixed(2)} m<br>
-        <span style="color:#22c55e">●</span> ${i18n.t('mín')} = <b>${R.min.toExponential(3)} ${R.unit}</b> ${i18n.t('en pos.')} ${R.sMin.toFixed(2)} m<br>
+        <span style="color:#ef4444">●</span> ${i18n.t('máx')} = <b>${this._mlDisp(R, R.max).toExponential(3)} ${this._mlUnit(R)}</b> ${i18n.t('en pos.')} ${R.sMax.toFixed(2)} m<br>
+        <span style="color:#22c55e">●</span> ${i18n.t('mín')} = <b>${this._mlDisp(R, R.min).toExponential(3)} ${this._mlUnit(R)}</b> ${i18n.t('en pos.')} ${R.sMin.toFixed(2)} m<br>
         <span style="color:var(--text-muted)">${i18n.t('Pista L =')} ${R.lane.L.toFixed(2)} m · ${n} ${i18n.t('posiciones')}</span>
       </div>
       <div style="margin-top:8px"><button class="ml-csv btn-secondary" style="font-size:11px;padding:4px 10px">⬇ CSV</button></div>`;
@@ -4273,8 +4309,8 @@ class App {
 
   _movingExportCSV(R) {
     let csv = `# ${i18n.t('Cargas móviles')} · ${R.mode === 'il' ? i18n.t('línea de influencia (carga unitaria)') : i18n.t('envolvente del tren')} · ${R.label}\n`;
-    csv += `posicion[m],${R.label.replace(/[,\s]+/g, '_')}[${R.unit}]\n`;
-    for (let i = 0; i < R.xs.length; i++) csv += `${R.xs[i].toFixed(4)},${R.ys[i].toExponential(6)}\n`;
+    csv += `posicion[m],${R.label.replace(/[,\s]+/g, '_')}[${this._mlUnit(R)}]\n`;
+    for (let i = 0; i < R.xs.length; i++) csv += `${R.xs[i].toFixed(4)},${this._mlDisp(R, R.ys[i]).toExponential(6)}\n`;
     const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `cargas_moviles_${R.mode}.csv`; a.click(); URL.revokeObjectURL(a.href);
@@ -4351,8 +4387,8 @@ class App {
       <tr>
         <td style="white-space:nowrap">${s.label}</td>
         <td><input type="number" data-st="${i}" data-f="m"  value="${(+s.m).toPrecision(5)}"  step="0.1"  style="width:90px"></td>
-        <td><input type="number" data-st="${i}" data-f="k"  value="${(+s.k).toPrecision(5)}"  step="100"  style="width:100px"></td>
-        <td><input type="number" data-st="${i}" data-f="Vy" value="${(+s.Vy).toPrecision(5)}" step="10"   style="width:100px"></td>
+        <td><input type="number" data-st="${i}" data-f="k"  value="${(+toDisp(s.k, 'K')).toPrecision(5)}"  step="100"  style="width:100px"></td>
+        <td><input type="number" data-st="${i}" data-f="Vy" value="${(+toDisp(s.Vy, 'F')).toPrecision(5)}" step="10"   style="width:100px"></td>
       </tr>`).join('');
     document.getElementById('modal-body').innerHTML = `
       <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
@@ -4367,7 +4403,7 @@ class App {
       </div>
       <div style="max-height:170px;overflow:auto;border:1px solid var(--border);border-radius:6px;margin:6px 0">
         <table class="nlth-tbl" style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead><tr style="position:sticky;top:0;background:var(--bg4)"><th style="text-align:left;padding:3px 6px">Piso</th><th>masa m</th><th>rigidez k</th><th>Vy (corte fluencia)</th></tr></thead>
+          <thead><tr style="position:sticky;top:0;background:var(--bg4)"><th style="text-align:left;padding:3px 6px">Piso</th><th>masa m</th><th>rigidez k<span> [${ulbl('K')}]</span></th><th>Vy (corte fluencia)<span> [${ulbl('F')}]</span></th></tr></thead>
           <tbody id="nlth-rows">${rowsHTML(stories)}</tbody>
         </table>
       </div>
@@ -4400,8 +4436,8 @@ class App {
     document.getElementById('nlth-file').addEventListener('change', async (e) => { const f = e.target.files?.[0]; if (f) document.getElementById('nlth-text').value = await f.text(); });
     const readTable = () => stories.map((s, i) => ({ ...s,
       m: +document.querySelector(`[data-st="${i}"][data-f="m"]`).value || 0,
-      k: +document.querySelector(`[data-st="${i}"][data-f="k"]`).value || 0,
-      Vy: +document.querySelector(`[data-st="${i}"][data-f="Vy"]`).value || 0 }));
+      k: fromDisp(+document.querySelector(`[data-st="${i}"][data-f="k"]`).value, 'K') || 0,
+      Vy: fromDisp(+document.querySelector(`[data-st="${i}"][data-f="Vy"]`).value, 'F') || 0 }));
     const refreshT1 = () => {
       const st = readTable();
       if (st.every(s => s.k > 0 && s.m > 0)) document.getElementById('nlth-t1').textContent = (2 * Math.PI / shearFreqs(st.map(s => s.m), st.map(s => s.k))[0]).toFixed(3);
@@ -4410,7 +4446,7 @@ class App {
     document.getElementById('nlth-reseed').addEventListener('click', () => {
       const Cy = +document.getElementById('nlth-cy').value || 0.15, g = GACC || 9.80665;
       const st = readTable();
-      for (let i = 0; i < st.length; i++) { const massAbove = st.slice(i).reduce((a, b) => a + (b.m || 0), 0); document.querySelector(`[data-st="${i}"][data-f="Vy"]`).value = (Cy * g * massAbove).toPrecision(5); }
+      for (let i = 0; i < st.length; i++) { const massAbove = st.slice(i).reduce((a, b) => a + (b.m || 0), 0); document.querySelector(`[data-st="${i}"][data-f="Vy"]`).value = (+toDisp(Cy * g * massAbove, 'F')).toPrecision(5); }
     });
 
     const ok = await new Promise(res => { overlay._resolve = res; overlay._reject = () => res(false); });
@@ -4775,12 +4811,13 @@ class App {
     let csv = `# ${i18n.t('Reporte de diseño PORTICO')} · ${new Date().toLocaleString(_localeTag())}\n`;
     csv += `# ${i18n.t('Caso/combo:')} ${dis.caso || i18n.t('activo')} · ${i18n.t('codigo por familia:')} ${code}\n`;
     csv += `# ${i18n.t('D/C = demanda/capacidad <= 1 (cumple). |delta| = desplazamiento nodal max del elemento.')}\n`;
-    csv += `elem,seccion,gobierna,N[kN],Vy[kN],Vz[kN],My[kNm],Mz[kNm],DC_flexion,DC_corte,DC_axial,DC_interaccion,DC_max,cumple,delta_mm\n`;
+    const uF = ulbl('F'), uM = ulbl('M').replace('·', '');
+    csv += `elem,seccion,gobierna,N[${uF}],Vy[${uF}],Vz[${uF}],My[${uM}],Mz[${uM}],DC_flexion,DC_corte,DC_axial,DC_interaccion,DC_max,cumple,delta_mm\n`;
     for (const x of f) {
       const fz = x.forces || {};
       const dmm = dispOf(x.id); const dmmS = dmm == null ? '' : (dmm * 1000).toFixed(3);
       csv += [x.id, `"${(x.sec || '').replace(/"/g, "'")}"`, `"${x.governs || ''}"`,
-        num(fz.N), num(fz.Vy), num(fz.Vz), num(fz.My), num(fz.Mz),
+        num(toDisp(fz.N, 'F')), num(toDisp(fz.Vy, 'F')), num(toDisp(fz.Vz, 'F')), num(toDisp(fz.My, 'M')), num(toDisp(fz.Mz, 'M')),
         num(x.bending?.ratio), num(x.shear?.ratio), num(x.axial?.ratio), num(x.interaction?.ratio),
         num(x.ratioMax), (x.ratioMax <= 1 ? 'si' : 'NO'), dmmS].join(',') + '\n';
     }
@@ -4867,8 +4904,8 @@ class App {
       </div>
       <div class="prop-row">
         <div class="prop-field"><label>Luz / altura L (m)</label><input type="number" id="pd-L" value="6" step="0.5" style="width:90px"></div>
-        <div class="prop-field" id="pd-q-box"><label>Carga q (kN/m)</label><input type="number" id="pd-q" value="20" step="1" style="width:90px"></div>
-        <div class="prop-field" id="pd-N-box" style="display:none"><label>${i18n.t('Axial N (kN)')}</label><input type="number" id="pd-N" value="800" step="50" style="width:90px"></div>
+        <div class="prop-field" id="pd-q-box"><label>${_uT('Carga q (kN/m)', 'W')}</label><input type="number" id="pd-q" ${_knIn(20, 'W')} step="1" style="width:90px"></div>
+        <div class="prop-field" id="pd-N-box" style="display:none"><label>${_uT('Axial N (kN)', 'F')}</label><input type="number" id="pd-N" ${_knIn(800, 'F')} step="50" style="width:90px"></div>
         <div class="prop-field" id="pd-fc-box" style="display:none"><label>f'c (MPa)</label><input type="number" id="pd-fc" value="25" step="5" style="width:70px"></div>
       </div>
       <div id="pd-out" style="font-size:12px;margin-top:6px;padding:8px;border:1px dashed var(--border);border-radius:6px;color:var(--text-muted)">…</div>
@@ -4882,7 +4919,7 @@ class App {
       document.getElementById('pd-N-box').style.display = isCol ? '' : 'none';
       document.getElementById('pd-fc-box').style.display = (isCol && isC) ? '' : 'none';
       const p = predimensionar({ tipo: tipo() === 'column' ? 'columna' : 'viga', material: matf(), L: +document.getElementById('pd-L').value || 6,
-        q: +document.getElementById('pd-q').value || 20, N: +document.getElementById('pd-N').value || 800, fc: +document.getElementById('pd-fc').value || 25,
+        q: _knRd(document.getElementById('pd-q'), 'W') || 20, N: _knRd(document.getElementById('pd-N'), 'F') || 800, fc: +document.getElementById('pd-fc').value || 25,
         H: +document.getElementById('pd-L').value || 3 });
       this._predim = p;
       const dimTxt = p.profile ? `<b>${p.profile}</b>` : Object.entries(p.dims).map(([k, v]) => `${k}=${(v * 1000).toFixed(0)} mm`).join(' · ');
@@ -5090,11 +5127,11 @@ class App {
     if (ro) {
       const Nmax = Math.max(0, ...step.N.map(Math.abs));
       if (corot) {
-        ro.innerHTML = `λ = <b>${step.lambda.toFixed(3)}</b> · iter ${step.iters} · resid ${step.resid.toExponential(1)}<br>${i18n.t('δmáx =')} ${maxD.toExponential(3)} m · ${i18n.t('|N|máx =')} ${Nmax.toFixed(2)} kN · ${step.N.length} ${i18n.t('elementos')}`;
+        ro.innerHTML = `λ = <b>${step.lambda.toFixed(3)}</b> · iter ${step.iters} · resid ${step.resid.toExponential(1)}<br>${i18n.t('δmáx =')} ${maxD.toExponential(3)} m · ${i18n.t('|N|máx =')} ${toDisp(Nmax, 'F').toFixed(2)} ${ulbl('F')} · ${step.N.length} ${i18n.t('elementos')}`;
       } else {
         const taut = step.taut.filter(t => t !== false).length;
         const slack = step.taut.length - taut;
-        ro.innerHTML = `λ = <b>${step.lambda.toFixed(3)}</b> · iter ${step.iters} · resid ${step.resid.toExponential(1)}<br>${i18n.t('|N|máx =')} ${Nmax.toFixed(2)} kN · ${i18n.t('cables tensos')} ${taut}${slack ? ` · ${i18n.t('flojos')} ${slack}` : ''}`;
+        ro.innerHTML = `λ = <b>${step.lambda.toFixed(3)}</b> · iter ${step.iters} · resid ${step.resid.toExponential(1)}<br>${i18n.t('|N|máx =')} ${toDisp(Nmax, 'F').toFixed(2)} ${ulbl('F')} · ${i18n.t('cables tensos')} ${taut}${slack ? ` · ${i18n.t('flojos')} ${slack}` : ''}`;
       }
     }
   }
@@ -5251,8 +5288,8 @@ class App {
     box.innerHTML = `
       <div style="${mut};font-size:11px;margin-bottom:3px">${i18n.t('Carga de pandeo por elemento')} (N<sub>cr</sub> = λcr·N), ${i18n.t('más comprimidos:')}</div>
       <table style="width:100%;border-collapse:collapse;font-size:10.5px">
-        <thead><tr style="${mut}"><th style="text-align:left">${i18n.t('Elem')}</th><th style="text-align:right">N ref</th><th style="text-align:right">N cr [kN]</th></tr></thead>
-        <tbody>${rows.map(r => `<tr><td>#${r.id}</td><td style="text-align:right">${r.Nref.toFixed(1)}</td><td style="text-align:right;color:#f87171">${r.Ncr.toFixed(1)}</td></tr>`).join('')}</tbody>
+        <thead><tr style="${mut}"><th style="text-align:left">${i18n.t('Elem')}</th><th style="text-align:right">N ref</th><th style="text-align:right">N cr [${ulbl('F')}]</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td>#${r.id}</td><td style="text-align:right">${toDisp(r.Nref, 'F').toFixed(1)}</td><td style="text-align:right;color:#f87171">${toDisp(r.Ncr, 'F').toFixed(1)}</td></tr>`).join('')}</tbody>
       </table>`;
   }
 
@@ -5354,8 +5391,8 @@ class App {
       document.getElementById('modal-body').innerHTML = `
         <div class="prop-row cols1">
           <div class="prop-field">
-            <label>Densidad de fuerza q = N/L [kN/m] (mayor q → forma más tensa/recta)</label>
-            <input type="text" id="ff-q" value="10" style="width:100%;margin-top:4px">
+            <label>${_uT('Densidad de fuerza q = N/L [kN/m] (mayor q → forma más tensa/recta)', 'W')}</label>
+            <input type="text" id="ff-q" ${_knIn(10, 'W')} style="width:100%;margin-top:4px">
           </div>
         </div>
         <div class="prop-row cols1" style="margin-top:8px">
@@ -5373,7 +5410,7 @@ class App {
       overlay.classList.remove('hidden');
       setTimeout(() => { const el = document.getElementById('ff-q'); el?.focus(); el?.select(); }, 50);
       overlay._resolve = () => {
-        const q0 = parseNum(document.getElementById('ff-q')?.value);
+        const q0 = _knRd(document.getElementById('ff-q'), 'W', parseNum);
         if (!(q0 > 0)) { this.toast('q debe ser un número > 0', 'warn'); resolve(null); return; }
         const axes = document.getElementById('ff-axes')?.value === 'xyz' ? [0, 1, 2] : [2];
         resolve({ q0, axes });
@@ -5614,8 +5651,8 @@ class App {
       const selBlock = hasSel ? `
         <div class="prop-row cols1" style="margin-top:8px">
           <div class="prop-field">
-            <label>Mp para los elementos SELECCIONADOS [kN·m]</label>
-            <input type="text" id="pl-mp-sel" value="100" style="width:100%;margin-top:4px">
+            <label>${_uT('Mp para los elementos SELECCIONADOS [kN·m]', 'M')}</label>
+            <input type="text" id="pl-mp-sel" ${_knIn(100, 'M')} style="width:100%;margin-top:4px">
           </div>
         </div>
         <div class="prop-row cols1" style="margin-top:6px">
@@ -5626,8 +5663,8 @@ class App {
       document.getElementById('modal-body').innerHTML = `
         <div class="prop-row cols1">
           <div class="prop-field">
-            <label>${i18n.t('Momento plástico Mp [kN·m] (capacidad')} ${hasSel ? i18n.t('del resto de elementos') : i18n.t('de cada rótula')})</label>
-            <input type="text" id="pl-mp-def" value="100" style="width:100%;margin-top:4px">
+            <label>${_uT('Momento plástico Mp [kN·m] (capacidad', 'M')} ${hasSel ? i18n.t('del resto de elementos') : i18n.t('de cada rótula')})</label>
+            <input type="text" id="pl-mp-def" ${_knIn(100, 'M')} style="width:100%;margin-top:4px">
           </div>
         </div>
         ${selBlock}
@@ -5652,8 +5689,8 @@ class App {
           <div class="prop-field"><label>${i18n.t('δu desplaz. último [m] (N/V)')}</label><input type="text" id="pl-deltau" value="0.02" style="width:100%;margin-top:4px"></div>
         </div>
         <div class="prop-row cols2" style="margin-top:6px">
-          <div class="prop-field"><label>Np axial [kN] (resorte/rótula N; vacío = ∞)</label><input type="text" id="pl-np" value="" placeholder="∞" style="width:100%;margin-top:4px"></div>
-          <div class="prop-field"><label>Vp cortante [kN] (rótula V; vacío = ∞)</label><input type="text" id="pl-vp" value="" placeholder="∞" style="width:100%;margin-top:4px"></div>
+          <div class="prop-field"><label>${_uT('Np axial [kN] (resorte/rótula N; vacío = ∞)', 'F')}</label><input type="text" id="pl-np" value="" placeholder="∞" style="width:100%;margin-top:4px"></div>
+          <div class="prop-field"><label>${_uT('Vp cortante [kN] (rótula V; vacío = ∞)', 'F')}</label><input type="text" id="pl-vp" value="" placeholder="∞" style="width:100%;margin-top:4px"></div>
         </div>
         <div class="prop-row cols1" style="margin-top:8px;text-align:center">
           <div id="pl-curve">${this._hingeBackboneSVG('perfecto', 0.01)}</div>
@@ -5679,11 +5716,11 @@ class App {
       };
       setTimeout(() => { document.getElementById('pl-mode')?.addEventListener('change', redrawCurve); document.getElementById('pl-residual')?.addEventListener('input', redrawCurve); const el = document.getElementById('pl-mp-def'); el?.focus(); el?.select(); }, 50);
       overlay._resolve = () => {
-        const mpDefault = parseNum(document.getElementById('pl-mp-def')?.value);
+        const mpDefault = _knRd(document.getElementById('pl-mp-def'), 'M', parseNum);
         if (!(mpDefault > 0)) { this.toast('Mp debe ser un número > 0', 'warn'); resolve(null); return; }
         let mpSel = mpDefault, soloSel = false;
         if (hasSel) {
-          mpSel = parseNum(document.getElementById('pl-mp-sel')?.value);
+          mpSel = _knRd(document.getElementById('pl-mp-sel'), 'M', parseNum);
           if (!(mpSel > 0)) { this.toast('Mp de la selección debe ser > 0', 'warn'); resolve(null); return; }
           soloSel = !!document.getElementById('pl-solo-sel')?.checked;
         }
@@ -5693,8 +5730,8 @@ class App {
         const residual = (mode === 'perfecto') ? 1 : Math.max(0, (parseNum(document.getElementById('pl-residual')?.value) || 0.01) / 100);
         const thetaU = parseNum(document.getElementById('pl-thetau')?.value) || 0.02;
         const deltaU = parseNum(document.getElementById('pl-deltau')?.value) || 0.02;
-        const Np = parseNum(document.getElementById('pl-np')?.value);
-        const Vp = parseNum(document.getElementById('pl-vp')?.value);
+        const Np = fromDisp(parseNum(document.getElementById('pl-np')?.value), 'F');
+        const Vp = fromDisp(parseNum(document.getElementById('pl-vp')?.value), 'F');
         resolve({ mpDefault, mpSel, soloSel, pattern, mode, residual, thetaU, deltaU, Np: Np > 0 ? Np : 0, Vp: Vp > 0 ? Vp : 0 });
       };
       overlay._reject = () => resolve(null);
@@ -6896,9 +6933,8 @@ class App {
       this.viewport.applyProjectMode();   // camera/inputs per 2D/3D mode
       if (this.model.mode !== '2D') this.viewport.zoomExtents();
       this.toast(`${i18n.t('Modelo cargado:')} ${filename}${this.model.mode === '2D' ? ' (2D)' : ''}`, 'ok');
-      // Sync unit selector
-      document.getElementById('unit-select').value = this.model.units || 'kN-m';
-      document.getElementById('sb-units').textContent = (this.model.units || 'kN-m').replace('-', ' — ');
+      // Sync unit selector (display units of this model)
+      this.setDisplayUnits(this.model.units || 'kN-m', { quiet: true });
     } catch (err) {
       this.toast(`${i18n.t('Error al cargar archivo:')} ${err.message}`, 'error');
     }
@@ -7193,6 +7229,8 @@ class App {
       + (ue ? `<optgroup label="${esc(t('Formados a frío — Ue (NBR 6355)'))}">${opt(UE, sel)}</optgroup>` : '')
       + (l ? `<optgroup label="${esc(t('Formados a frío — L (NBR 6355)'))}">${opt(LDF, sel)}</optgroup>` : '');
     const num = (id, label, v, step = 0.1, min = 0) => `<div class="prop-field"><label>${label}</label><input type="number" id="${id}" value="${v}" step="${step}" min="${min}"></div>`;
+    // surface load (kN/m² stored): shown in the display system; an untouched field keeps the exact kN value (data-kn)
+    const numQ = (id, key, kn, step) => `<div class="prop-field"><label>${_uT(key, 'Q')}</label><input type="number" id="${id}" ${_knIn(kn, 'Q')} step="${isTf() ? +toDisp(step, 'Q').toPrecision(1) : step}" min="0"></div>`;
     const sel = (id, label, html) => `<div class="prop-field"><label>${label}</label><select id="${id}">${html}</select></div>`;
     const sec = (title) => `<div style="margin:10px 0 4px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase">${title}</div>`;
     const row = (n, html, show = '') => `<div class="prop-row cols${n}"${show ? ` data-show="${show}"` : ''}>${html}</div>`;
@@ -7226,7 +7264,7 @@ ${sel('wh-brace', t('Cubierta y fachadas'), `<option value="extremidades">${t('S
 <div class="prop-field" id="wh-bays-wrap" style="display:none"><label id="wh-bays-lbl">${t('Vanos arriostrados (ej.: 1, 3, 6)')}</label><input type="text" id="wh-bays" value="1"></div>
 ${row(2, sel('wh-mrod', t('Acero de los tirantes'), opt(ACOS, 'MR250')) + num('wh-rod', t('Tirante redondo (mm)'), 12, 1, 12))}
 ${sec(t('6. Cargas y viento (NBR 6123)'))}
-<div class="prop-row cols2">${num('wh-cm', t('Peso de cubierta (kN/m²)'), 0.15, 0.05, 0)}${num('wh-cv', t('Sobrecarga de cubierta (kN/m²)'), 0.25, 0.05, 0)}</div>
+<div class="prop-row cols2">${numQ('wh-cm', 'Peso de cubierta (kN/m²)', 0.15, 0.05)}${numQ('wh-cv', 'Sobrecarga de cubierta (kN/m²)', 0.25, 0.05)}</div>
 <div class="prop-row cols3">${num('wh-v0', 'V0 (m/s)', 35, 1, 0)}${sel('wh-cat', t('Categoría'), '<option>I</option><option>II</option><option>III</option><option selected>IV</option><option>V</option>')}${sel('wh-s3', t('Grupo S3'), '<option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>')}</div>
 <div class="prop-row cols2">${sel('wh-zona', t('Zona sísmica (NBR 15421)'), `<option value="">${t('sin sismo')}</option><option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>`)}</div>
 <small id="wh-status" style="display:block;margin:8px 0;color:var(--text-muted)"></small>
@@ -7251,7 +7289,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
           sag_rod_lines: +v('wh-sagn'), sag_rod_type: v('wh-sagt'), sag_rod_mm: n('wh-sagd'), sag_rod_section: v('wh-sags'),
           materials: { columns: tp === 'concreto' ? v('wh-ccol') : steelCol ? v('wh-mcol') : undefined, chords: v('wh-mchord'),
             web: v('wh-mweb'), purlins: v('wh-mpurl'), rods: v('wh-mrod') } },
-        loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0, seismic: v('wh-zona') !== '' },
+        loads: { dead_extra_kN_m2: _knRd($('wh-cm'), 'Q'), live_load_kN_m2: _knRd($('wh-cv'), 'Q'), wind: n('wh-v0') > 0, seismic: v('wh-zona') !== '' },
         seismic: v('wh-zona') !== '' ? { zona: +v('wh-zona') } : undefined,
         wind: { V0_m_s: n('wh-v0'), categoria: v('wh-cat'), grupoS3: v('wh-s3') },
       };
@@ -8875,6 +8913,8 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
       // deflections under unfactored live load (_computeBeamDeflections) and
       // story drifts (_computeDrift). Here only strength (D/C).
       const filas = [], excluidos = [];
+      // unbraced lengths per axis from the physical members and their restraint points (NBR 8800:2024 4.10.6.1)
+      const ub = unbracedLengths(this.model, localAxes);
       for (const el of this.model.elements.values()) {
         const sec = this.model.sections.get(el.secId);
         const mat = this.model.materials.get(el.matId);
@@ -8890,11 +8930,21 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
             Vy: maxAbs(res, el.id, 'Vy'), Vz: maxAbs(res, el.id, 'Vz'),
             My: maxAbs(res, el.id, 'My'), Mz: maxAbs(res, el.id, 'Mz'), L: f.L,
           };
+          const member = memberWithUnbraced(el, ub.get(el.id));
           const r = mod.checkElement({ forces: fuerzas, sec, mat, matName: mat.name, params,
-            designSettings: this.model.designSettings, member: el.design });
+            designSettings: this.model.designSettings, member });
+          r.flamb = member ? { Lx: member.Lx, Ly: member.Ly, Lb: member.Lb, Lz: member.Lz, auto: !!member.unbracedAuto } : null;
           if (!peor || r.ratioMax > peor.ratioMax) { peor = r; peorNom = nombre; peorFuerzas = fuerzas; }
         }
         if (!peor) continue;
+        const au = ub.get(el.id);
+        if (au && Array.isArray(peor.avisos)) {
+          const f2 = (v) => v == null ? '—' : (+v).toFixed(2).replace('.', ',');
+          const fl = peor.flamb || {};
+          peor.avisos.push(`Comprimentos destravados (NBR 8800:2024 4.10.6.1${fl.auto ? ', automático' : ''}): Lx = ${f2(fl.Lx)} m, Ly = ${f2(fl.Ly)} m, Lb = ${f2(fl.Lb)} m, Lz = ${f2(fl.Lz)} m — barra física de ${au.chain.length} trecho(s), ${f2(au.chainL)} m. Contenção = apoio, diafragma/placa ou barra que chega ao nó e se ancora em um deles (4.10.3.2); resistência e rigidez das contenções (4.12) NÃO verificadas. ${el.design?.contencaoTorcao ? 'Lb = Lz = Ly (contenção à torção declarada pelo usuário).' : 'Lb e Lz entre extremidades/apoios (conservador): declare a contenção à torção e da mesa comprimida para usar Ly.'} K = 1 pressupõe esforços de 2ª ordem (4.10.6.2).`);
+          if (au.mixedSections) peor.avisos.push('Barra física com troca de seção: cada trecho verificado com o comprimento da barra inteira — barra não prismática, aproximação (contra a segurança no trecho mais pesado).');
+          if (au.freeEnd) peor.avisos.push('Barra com extremidade livre (balanço): comprimento destravado com K = 1 — o balanço exige comprimento de flambagem maior; informe Lx/Ly.');
+        }
         filas.push({ id: el.id, mat: mat.name, sec: sec.name, forces: peorFuerzas, combo: peorNom, ...peor });
       }
       filas.sort((a, b) => b.ratioMax - a.ratioMax);

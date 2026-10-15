@@ -62,7 +62,7 @@ export class Serializer {
     m.materials.clear(); m.sections.clear();
     m._cnt = { nodes:0, elements:0, areas:0, materials:0, sections:0, diaphragms:0, loadCases:0, combinations:0, links:0 };
 
-    m.units = obj.units || 'kN-m';
+    m.units = /^(ton|tf)/i.test(String(obj.units || '')) ? 'tf-m' : 'kN-m';   // display units (values always kN·m)
     m.mode  = obj.mode === '2D' ? '2D' : '3D';
     m.planar = obj.planar === true && m.mode === '3D';
     m.layers = Array.isArray(obj.layers) && obj.layers.length ? obj.layers : null;   // old files: default layer

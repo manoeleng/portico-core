@@ -45,6 +45,15 @@ limitação da cantoneira que foi corrigida na NBR 8800.
 6. Pano de carga bidirecional (exige carga parcial na barra).
 7. Espelhar seção monossimétrica (Ue/U/L): o desenho mantém a abertura do lado original (esforços exatos, Iyz = 0).
 8. Dividir barra não copia `cable` nem `layer` (bug anterior, só reportado).
+9. Comprimento destravado automático (NBR 8800:2024 4.10.6.1; ancoragem 4.10.3.2) FEITO 15/10/2026 (revisão
+   FECHADA; `js/design/unbraced.js`, `tests/test_unbraced.mjs`). Pendências: UI para Lx/Ly/Lb e `contencaoTorcao`
+   (prioridade: viga com laje fica com Lb = vão até declarar); relatório do caminho de ancoragem usado; gerador de
+   galpão sem contraventamento do banzo inferior (Ly = 15 m no 15×30); dimensionar com P-Delta + imperfeições
+   (4.10.7.1.1, força nocional 0,3 %) em vez da envoltória linear.
+10. Unidades tf–m (exibição/entrada; 1 tf = 9,80665 kN; cálculo interno em kN·m) FEITO 15/10/2026 (`js/utils/units.js`,
+    `tests/test_units.mjs`). Pendências: resistências em MPa (fy, fu, fc) seguem em MPa; EI de alvenaria (kN·m²) sem
+    tipo; frases de ajuda com "kN" fixo.
+11. NavCube (estilo SkyCiv das imagens do Manoel: cubo translúcido tracejado, eixos +X/+Y/+Z) FEITO 15/10/2026.
 
 ---
 

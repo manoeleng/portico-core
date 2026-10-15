@@ -2579,6 +2579,13 @@ export const PT = {
   "Capa padrão: nombre fijo": "Camada padrão: nome fixo",
   "Doble clic para renombrar": "Duplo clique para renomear",
   "Ejes de grilla (rótulos)": "Eixos da grade (rótulos)",
+  "Derecha": "Direita",
+  "Izquierda": "Esquerda",
+  "Arriba": "Topo",
+  "Abajo": "Base",
+  "Atrás": "Fundos",
+  "Frente": "Frente",
+  "Cubo de navegación: clic en una cara, arista o vértice para ver desde ese lado": "Cubo de navegação: clique numa face, aresta ou vértice para ver daquele lado",
 };
 
 export default PT;

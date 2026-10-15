@@ -57,8 +57,7 @@ export class MenuBar {
 
     // ── Unit selector ─────────────────────────────────────────────────────────
     document.getElementById('unit-select').addEventListener('change', e => {
-      this.app.model.units = e.target.value;
-      document.getElementById('sb-units').textContent = e.target.value.replace('-', ' — ');
+      this.app.setDisplayUnits(e.target.value);
       this.app.markDirty();
     });
   }

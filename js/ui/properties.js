@@ -5,6 +5,11 @@ import { computeFloorCR, computeFloorCM, computeTributaryWeights } from '../solv
 import { localAxes } from '../solver/timoshenko.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
+import { toDisp, fromDisp, ulbl, isTf, inVal, readIn } from '../utils/units.js?v=7';
+
+// Hard-coded kN label that is an i18n dictionary key (kept verbatim) → translated label with the force unit of the
+// current display system (tf-m: kN → tf inside every compound unit — kN/m → tf/m, kN·m → tf·m, kN·m/m → tf·m/m).
+const uT = (es) => { const s = i18n.t(es); return isTf() ? s.replace(/kN/g, ulbl('F')) : s; };
 
 export class PropertiesPanel {
   constructor(panelEl, app) {
@@ -176,7 +181,7 @@ export class PropertiesPanel {
     const m = this.app.model, t = (k) => i18n.t(k);
     const r = node.restraints || {}, dof = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz'];
     const fixed = dof.filter(d => r[d]).map(d => d.toUpperCase());
-    const sp = node.springs || {}, spr = Object.entries(sp).filter(([, k]) => k > 0).map(([k, v]) => `${k.toUpperCase()} = ${this._fmt(v, 1)}`);
+    const sp = node.springs || {}, spr = Object.entries(sp).filter(([, k]) => k > 0).map(([k, v]) => { const kd = k.startsWith('kr') ? 'KR' : 'K'; return `${k.toUpperCase()} = ${this._fmt(toDisp(v, kd), 1)} ${ulbl(kd)}`; });
     const pd = node.prescDisp || {}, presc = dof.filter(d => +pd[d]).map(d => `${d.toUpperCase()} = ${this._fmt(pd[d], 4)}`);
     const nm = node.nodeMass || {}, mass = ['mx', 'my', 'mz'].filter(k => nm[k] > 0).map(k => `${k} = ${this._fmt(nm[k], 2)} t`);
     const ext = fixed.length || spr.length || presc.length || (Array.isArray(node.springK) && node.springK.some(v => v));
@@ -211,7 +216,7 @@ export class PropertiesPanel {
       else { if (rel[o + 4]) parts.push('M2 ' + t('libre')); if (rel[o + 5]) parts.push('M3 ' + t('libre')); }
       if (rel[o + 3]) parts.push('T ' + t('libre'));
       for (const i of [4, 5]) if (ef[o + i] > 0) parts.push(`M${i - 2} αR = ${this._fmt(ef[o + i], 2)}`);
-      for (const i of [3, 4, 5]) if (es[o + i] > 0) parts.push(`k M${i - 2 || ''} = ${this._fmt(es[o + i], 0)}`);
+      for (const i of [3, 4, 5]) if (es[o + i] > 0) parts.push(`k M${i - 2 || ''} = ${this._fmt(toDisp(es[o + i], 'KR'), 0)} ${ulbl('KR')}`);
       if (rel[o] || rel[o + 1] || rel[o + 2]) parts.push(t('traslación liberada'));
       return parts.join(', ') || t('continuo');
     };
@@ -290,7 +295,7 @@ export class PropertiesPanel {
     const rows = m.panels.map(p => `<tr class="${p.id === this._panelEdit ? 'pn-on' : ''}" data-p="${p.id}"><td><b>#${p.id}</b></td>
       <td>${p.nodes.length} ${t('nodos')} · ${t('vano')} ${esc(axL[p.axis] || p.axis)}<br><span class="muted">${layName(p.layer)} · ${nLoads(p.id)} ${t('carga(s) en el caso')}</span></td>
       <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pn-sel" title="${esc(t('Seleccionar'))}">▸</button> <button class="btn-danger pn-del" title="${esc(t('Eliminar paño y sus cargas'))}">✕</button></td></tr>`).join('');
-    const lrows = loads.map(l => `<tr class="${l.id === this._panelLoadEdit ? 'pn-on' : ''}" data-l="${l.id}"><td>q = ${fmt(l.q)} kN/m² ${esc(dirS[l.dir] || '')}<br><span class="muted">${l.area === 'projected' ? t('proyectada') : t('superficie')}</span></td>
+    const lrows = loads.map(l => `<tr class="${l.id === this._panelLoadEdit ? 'pn-on' : ''}" data-l="${l.id}"><td>q = ${fmt(toDisp(l.q, 'Q'))} ${ulbl('Q')} ${esc(dirS[l.dir] || '')}<br><span class="muted">${l.area === 'projected' ? t('proyectada') : t('superficie')}</span></td>
       <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pl-ed" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pl-del" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
     const lv = LE || { q: 1, dir: 'gravity', area: 'real' };
     root.innerHTML = `
@@ -306,7 +311,7 @@ export class PropertiesPanel {
       ${!lc ? `<p class="panel-hint">${t('No hay caso de carga activo.')}</p>` : `
       ${lrows ? `<table class="pn-list"><tbody>${lrows}</tbody></table>` : `<p class="panel-hint">${t('Este paño no tiene cargas en este caso.')}</p>`}
       <div class="prop-row cols2">
-        <div class="prop-field"><label>q (kN/m²)</label><input type="number" id="pl-q" value="${lv.q}" step="0.05"></div>
+        <div class="prop-field"><label>q (${ulbl('Q')})</label><input type="number" id="pl-q" value="${LE ? toDisp(lv.q, 'Q') : lv.q}" step="0.05"></div>
         <div class="prop-field"><label>${t('Dirección')}</label><select id="pl-dir">${opt(dirL, lv.dir)}</select></div>
       </div>
       <div class="prop-row cols1">
@@ -358,7 +363,7 @@ export class PropertiesPanel {
       const q = parseFloat(String(val('pl-q')).replace(',', '.'));
       if (!isFinite(q)) { app.toast?.(t('q inválido'), 'warn'); return; }
       app.snapshot();
-      const props = { q, dir: val('pl-dir'), area: val('pl-area') };
+      const props = { q: fromDisp(q, 'Q'), dir: val('pl-dir'), area: val('pl-area') };
       lc.panelLoads = lc.panelLoads || [];
       if (LE) Object.assign(LE, props);
       else lc.panelLoads.push({ id: lc.panelLoads.reduce((mx, l) => Math.max(mx, l.id), 0) + 1, panelId: P.id, ...props });
@@ -548,13 +553,13 @@ export class PropertiesPanel {
     const cap = (e) => { const c = pr.capByElem && pr.capByElem.get(e.elemId); const v = c ? c[e.axis] : Mp; return isFinite(v) ? v : Mp; };
     const rows = events.map((e, i) =>
       `<tr><td>${i + 1}${e.cascade ? '↯' : ''}</td><td>#${e.elemId}</td><td>${e.nodeId}</td><td>${e.axis}</td>` +
-      `<td>${e.lambda.toFixed(3)}</td><td>${cap(e).toFixed(0)}</td><td>${e.dctrl.toExponential(1)}</td></tr>`).join('');
+      `<td>${e.lambda.toFixed(3)}</td><td>${toDisp(cap(e), 'M').toFixed(0)}</td><td>${e.dctrl.toExponential(1)}</td></tr>`).join('');
     // constitutive curve of the hinge model used (N / V / M)
     const mode = pr.hingeMode || 'perfecto', caida = mode !== 'perfecto';
     const lab = mode === 'fragil' ? `${i18n.t('frágil')} (${i18n.t('caída inmediata a')} ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
       : mode === 'ductil_caida' ? `${i18n.t('dúctil con caída')} (${i18n.t('meseta hasta')} θu=${pr.thetaU}/δu=${pr.deltaU}, ${i18n.t('luego')} ${((pr.residual ?? 0) * 100).toFixed(2)}%)`
       : i18n.t('dúctil — perfectamente plástica (meseta ∞)');
-    const caps = `Mp=${pr.Mp}` + (isFinite(pr.Np) && pr.Np ? ` · Np=${pr.Np}` : '') + (isFinite(pr.Vp) && pr.Vp ? ` · Vp=${pr.Vp}` : '');
+    const caps = `Mp=${toDisp(pr.Mp, 'M')}` + (isFinite(pr.Np) && pr.Np ? ` · Np=${toDisp(pr.Np, 'F')}` : '') + (isFinite(pr.Vp) && pr.Vp ? ` · Vp=${toDisp(pr.Vp, 'F')}` : '');
     const curve = this.app._hingeBackboneSVG ? this.app._hingeBackboneSVG(mode, (pr.residual ?? 1) * 100, 220, 130) : '';
     const modeBox = `<div style="padding:6px 10px;border-radius:6px;background:var(--bg4);margin-top:8px">
         <b>Rótula:</b> ${lab}<br><span style="${mut};font-size:10px">${i18n.t('capacidades:')} ${caps}</span>
@@ -576,7 +581,7 @@ export class PropertiesPanel {
         <thead><tr style="${mut}">
           <th>#</th><th>Elem</th><th>Nodo</th><th>Eje</th><th>λ</th><th>Mp</th><th>δctrl</th>
         </tr></thead><tbody>${rows}</tbody></table>
-      <p class="panel-hint" style="margin-top:8px">Secuencia de formación de rótulas (λ = factor de carga). Mp = capacidad de cada rótula [kN·m]. δctrl = desplazamiento máximo.</p>`;
+      <p class="panel-hint" style="margin-top:8px">${uT('Secuencia de formación de rótulas (λ = factor de carga). Mp = capacidad de cada rótula [kN·m]. δctrl = desplazamiento máximo.')}</p>`;
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -674,17 +679,17 @@ export class PropertiesPanel {
           sum.T  += T;
           rowsHtml += `<tr>
             <td style="color:var(--text-muted);font-size:10px;font-family:var(--font-mono)">${id}</td>
-            ${fv(f.N)}${fv(Vy)}${fv(Vz)}${fv(T)}${fv(My)}${fv(Mz)}
+            ${fv(toDisp(f.N, 'F'))}${fv(toDisp(Vy, 'F'))}${fv(toDisp(Vz, 'F'))}${fv(toDisp(T, 'M'))}${fv(toDisp(My, 'M'))}${fv(toDisp(Mz, 'M'))}
           </tr>`;
         }
         const sepStyle = 'border-top:1px solid var(--warn)';
         rowsHtml += `<tr style="${sepStyle}">
           <td style="font-size:10px;color:var(--warn);font-weight:700">Σ</td>
-          ${fv(sum.N,true)}${fv(sum.Vy,true)}${fv(sum.Vz,true)}${fv(sum.T,true)}${fv(sum.My,true)}${fv(sum.Mz,true)}
+          ${fv(toDisp(sum.N, 'F'),true)}${fv(toDisp(sum.Vy, 'F'),true)}${fv(toDisp(sum.Vz, 'F'),true)}${fv(toDisp(sum.T, 'M'),true)}${fv(toDisp(sum.My, 'M'),true)}${fv(toDisp(sum.Mz, 'M'),true)}
         </tr>
         <tr>
           <td style="font-size:10px;color:#ffc107">max|·|</td>
-          ${fv(sum.maxN,true)}${fv(sum.maxVy,true)}${fv(sum.maxVz,true)}<td>—</td>${fv(sum.maxMy,true)}${fv(sum.maxMz,true)}
+          ${fv(toDisp(sum.maxN, 'F'),true)}${fv(toDisp(sum.maxVy, 'F'),true)}${fv(toDisp(sum.maxVz, 'F'),true)}<td>—</td>${fv(toDisp(sum.maxMy, 'M'),true)}${fv(toDisp(sum.maxMz, 'M'),true)}
         </tr>`;
         html += `<div style="border:1px solid var(--warn);border-radius:4px;padding:8px;margin-bottom:8px;overflow-x:auto">
           <div class="res-section-title" style="color:var(--warn);margin-top:0">${elems.length} ${i18n.t('Elementos — Fuerzas Internas (valor dominante en extremos)')}</div>
@@ -832,7 +837,7 @@ export class PropertiesPanel {
     sel.querySelectorAll('.nod-sup').forEach(b => b.addEventListener('click', () => this.app.setSupportSelectedNodes(b.dataset.p)));
     const lcId = () => +(sel.querySelector('#loads-lc-multinode')?.value) || this.app._activeLcId;
     sel.querySelector('#btn-apply-load-multi')?.addEventListener('click', () => {
-      const F = [0,1,2,3,4,5].map(i => parseFloat(sel.querySelector(`[data-mlf="${i}"]`)?.value) || 0);
+      const F = [0,1,2,3,4,5].map(i => fromDisp(parseFloat(sel.querySelector(`[data-mlf="${i}"]`)?.value) || 0, i < 3 ? 'F' : 'M'));
       this.app.setNodalLoadSelected(F, lcId());
     });
     sel.querySelector('#btn-clear-load-multi')?.addEventListener('click', () => this.app.setNodalLoadSelected(null, lcId()));
@@ -933,7 +938,7 @@ export class PropertiesPanel {
         <div class="prop-title" style="color:var(--accent);margin-top:0">${withDist ? i18n.t('Carga Distribuida') + ' / ΔT' : 'ΔT'} · ${elems.length} ${i18n.t('elemento(s)')}</div>
         <div>
           <div class="prop-row cols3" style="gap:6px;margin-bottom:6px;${withDist ? '' : 'display:none'}">
-            <div class="prop-field"><label>Carga w (kN/m)</label><input type="number" id="sel-w" value="10" step="1"></div>
+            <div class="prop-field"><label>${uT('Carga w (kN/m)')}</label><input type="number" id="sel-w" value="10" step="1"></div>
             <div class="prop-field"><label>Dirección</label>
               <select id="sel-wdir">
                 <option value="gravity">Gravedad ↓</option>
@@ -965,7 +970,7 @@ export class PropertiesPanel {
     $('#sel-sec-go')?.addEventListener('click', () => { const v = $('#sel-sec').value; if (v) this.app.setSectionSelected(v); });
     $('#sel-layer-go')?.addEventListener('click', () => { const v = $('#sel-layer').value; if (v) this.app.setLayerSelected(+v); });
     $('#sel-disc-go')?.addEventListener('click', () => this.app.discretizeSelected(parseInt($('#sel-disc').value, 10)));
-    $('#sel-w-go')?.addEventListener('click', () => this.app.setDistLoadSelected(parseFloat($('#sel-w').value), $('#sel-wdir').value, $('#sel-wlc').value));
+    $('#sel-w-go')?.addEventListener('click', () => this.app.setDistLoadSelected(fromDisp(parseFloat($('#sel-w').value), 'W'), $('#sel-wdir').value, $('#sel-wlc').value));
     $('#sel-w-clr')?.addEventListener('click', () => this.app.setDistLoadSelected(0, $('#sel-wdir').value, $('#sel-wlc').value));
     $('#sel-dt-go')?.addEventListener('click', () => this.app.setTempLoadSelected(parseFloat($('#sel-dt').value), $('#sel-wlc').value));
     $('#sel-dt-clr')?.addEventListener('click', () => this.app.setTempLoadSelected(0, $('#sel-wlc').value));
@@ -1204,20 +1209,22 @@ export class PropertiesPanel {
     }
     if (!s && !dispRows) return '';
     const f = v => (v == null || !isFinite(v)) ? '—' : (+v).toExponential(3);
+    const fq = v => f(v == null ? v : toDisp(v, 'Q'));    // stresses (kN/m²) → display
+    const fm = v => f(v == null ? v : toDisp(v, 'MW'));   // plate moments (kN·m/m) → display
     const stressBlock = s ? `
-        <div class="prop-title" style="color:var(--warn);margin-top:0">Tensiones (centro)</div>
+        <div class="prop-title" style="color:var(--warn);margin-top:0">${i18n.t('Tensiones (centro)')} [${ulbl('Q')}]</div>
         <table class="res-table"><tbody>
-          <tr><td>von Mises${s.vmSurf != null ? ' (superficie)' : ' (membrana)'}</td><td style="text-align:right;font-family:var(--font-mono)">${f(s.vm)}</td></tr>
-          ${s.vmSurf != null ? `<tr><td>· membrana</td><td style="text-align:right;font-family:var(--font-mono);color:var(--text-muted)">${f(s.vmMembrane)}</td></tr>
-          <tr><td>· cara sup / inf</td><td style="text-align:right;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${f(s.vmTop)} / ${f(s.vmBot)}</td></tr>` : ''}
-          <tr><td>σ₁ (principal, membrana)</td><td style="text-align:right;font-family:var(--font-mono)">${f(s.s1)}</td></tr>
-          <tr><td>σ₂ (principal, membrana)</td><td style="text-align:right;font-family:var(--font-mono)">${f(s.s2)}</td></tr>
-          <tr><td>σx, σy, τxy (membrana, local)</td><td style="text-align:right;font-family:var(--font-mono);font-size:10px">${f(s.sx)}, ${f(s.sy)}, ${f(s.txy)}</td></tr>
+          <tr><td>von Mises${s.vmSurf != null ? ' (superficie)' : ' (membrana)'}</td><td style="text-align:right;font-family:var(--font-mono)">${fq(s.vm)}</td></tr>
+          ${s.vmSurf != null ? `<tr><td>· membrana</td><td style="text-align:right;font-family:var(--font-mono);color:var(--text-muted)">${fq(s.vmMembrane)}</td></tr>
+          <tr><td>· cara sup / inf</td><td style="text-align:right;font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${fq(s.vmTop)} / ${fq(s.vmBot)}</td></tr>` : ''}
+          <tr><td>σ₁ (principal, membrana)</td><td style="text-align:right;font-family:var(--font-mono)">${fq(s.s1)}</td></tr>
+          <tr><td>σ₂ (principal, membrana)</td><td style="text-align:right;font-family:var(--font-mono)">${fq(s.s2)}</td></tr>
+          <tr><td>σx, σy, τxy (membrana, local)</td><td style="text-align:right;font-family:var(--font-mono);font-size:10px">${fq(s.sx)}, ${fq(s.sy)}, ${fq(s.txy)}</td></tr>
         </tbody></table>` : '';
     const momentBlock = (s && s.Mx != null) ? `
-        <div class="prop-title" style="margin-top:8px">Momentos de placa (kN·m/m, centro, local)</div>
+        <div class="prop-title" style="margin-top:8px">${uT('Momentos de placa (kN·m/m, centro, local)')}</div>
         <table class="res-table"><tbody>
-          <tr><td>Mx, My, Mxy</td><td style="text-align:right;font-family:var(--font-mono);font-size:11px">${f(s.Mx)}, ${f(s.My)}, ${f(s.Mxy)}</td></tr>
+          <tr><td>Mx, My, Mxy</td><td style="text-align:right;font-family:var(--font-mono);font-size:11px">${fm(s.Mx)}, ${fm(s.My)}, ${fm(s.Mxy)}</td></tr>
         </tbody></table>` : '';
     const strainBlock = (s && s.ex != null) ? `
         <div class="prop-title" style="margin-top:8px">Deformaciones de membrana (ε, centro, local)</div>
@@ -1283,8 +1290,8 @@ export class PropertiesPanel {
         : (ld.type === 'nodal' && ld.nodeId === id));
       if (!loads.length) continue;
       const desc = loads.map(ld => ld.type === 'dist'
-        ? `w = ${f(ld.w)} kN/m (${dir[ld.dir] || ld.dir || 'grav'})${ld.panelId != null ? ` · ${i18n.t('paño')} #${ld.panelId}` : ''}`
-        : `F=(${f(ld.F[0])}, ${f(ld.F[1])}, ${f(ld.F[2])}) kN${(ld.F[3]||ld.F[4]||ld.F[5]) ? `<br>M=(${f(ld.F[3])}, ${f(ld.F[4])}, ${f(ld.F[5])})` : ''}`).join('<br>');
+        ? `w = ${f(toDisp(ld.w, 'W'))} ${ulbl('W')} (${dir[ld.dir] || ld.dir || 'grav'})${ld.panelId != null ? ` · ${i18n.t('paño')} #${ld.panelId}` : ''}`
+        : `F=(${f(toDisp(ld.F[0], 'F'))}, ${f(toDisp(ld.F[1], 'F'))}, ${f(toDisp(ld.F[2], 'F'))}) ${ulbl('F')}${(ld.F[3]||ld.F[4]||ld.F[5]) ? `<br>M=(${f(toDisp(ld.F[3], 'M'))}, ${f(toDisp(ld.F[4], 'M'))}, ${f(toDisp(ld.F[5], 'M'))})` : ''}`).join('<br>');
       const cmb = combosOf(lc.id);
       rows.push(`<tr><td>${esc(lc.name)}${lc.selfWeight ? ' <span class="muted">+pp</span>' : ''}</td><td>${desc}</td><td>${cmb.length ? cmb.join('<br>') : '<span class="muted">—</span>'}</td></tr>`);
     }
@@ -1513,7 +1520,7 @@ export class PropertiesPanel {
 
     const fCol = (f, key1, key2 = null) => {
       if (!f) return '<td class="eg-f">—</td>';
-      const v = key2 ? (Math.abs(f[key1]) > Math.abs(f[key2]) ? f[key1] : f[key2]) : f[key1];
+      const v = toDisp(key2 ? (Math.abs(f[key1]) > Math.abs(f[key2]) ? f[key1] : f[key2]) : f[key1], 'F');   // N, Vy (F) and My, Mz (M) scale alike
       const col = Math.abs(v) < 1e-10 ? '' : v > 0 ? ' style="color:#ef5350"' : ' style="color:#42a5f5"';
       return `<td class="eg-f"${col}>${Math.abs(v) < 1e-10 ? '—' : v.toExponential(2)}</td>`;
     };
@@ -1706,25 +1713,25 @@ export class PropertiesPanel {
           ${i18n.t('Apoyo Elástico — Resortes')}${hasSp ? ' ●' : ''}
         </div>
         <div class="prop-row cols3">
-          <div class="prop-field"><label>kUX (kN/m)</label>
-            <input type="number" id="ns-kux" value="${sp.kux ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kUX (${ulbl('K')})</label>
+            <input type="number" id="ns-kux" ${inVal(sp.kux ?? 0, 'K')} step="100" min="0">
           </div>
-          <div class="prop-field"><label>kUY (kN/m)</label>
-            <input type="number" id="ns-kuy" value="${sp.kuy ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kUY (${ulbl('K')})</label>
+            <input type="number" id="ns-kuy" ${inVal(sp.kuy ?? 0, 'K')} step="100" min="0">
           </div>
-          <div class="prop-field"><label>kUZ (kN/m)</label>
-            <input type="number" id="ns-kuz" value="${sp.kuz ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kUZ (${ulbl('K')})</label>
+            <input type="number" id="ns-kuz" ${inVal(sp.kuz ?? 0, 'K')} step="100" min="0">
           </div>
         </div>
         <div class="prop-row cols3">
-          <div class="prop-field"><label>kRX (kN·m/rad)</label>
-            <input type="number" id="ns-krx" value="${sp.krx ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kRX (${ulbl('KR')})</label>
+            <input type="number" id="ns-krx" ${inVal(sp.krx ?? 0, 'KR')} step="100" min="0">
           </div>
-          <div class="prop-field"><label>kRY (kN·m/rad)</label>
-            <input type="number" id="ns-kry" value="${sp.kry ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kRY (${ulbl('KR')})</label>
+            <input type="number" id="ns-kry" ${inVal(sp.kry ?? 0, 'KR')} step="100" min="0">
           </div>
-          <div class="prop-field"><label>kRZ (kN·m/rad)</label>
-            <input type="number" id="ns-krz" value="${sp.krz ?? 0}" step="100" min="0">
+          <div class="prop-field"><label>kRZ (${ulbl('KR')})</label>
+            <input type="number" id="ns-krz" ${inVal(sp.krz ?? 0, 'KR')} step="100" min="0">
           </div>
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
@@ -1743,7 +1750,7 @@ export class PropertiesPanel {
           </div>
         </div>
         <div class="prop-row cols4" style="margin-top:6px">
-          <div class="prop-field"><label title="Rigidez del resorte a lo largo de la dirección dada">k incl. (kN/m)</label>
+          <div class="prop-field"><label title="Rigidez del resorte a lo largo de la dirección dada">k incl. (${ulbl('K')})</label>
             <input type="number" id="ns-incl-k" value="0" step="100" min="0"></div>
           <div class="prop-field"><label>dx</label><input type="number" id="ns-incl-dx" value="1" step="0.1"></div>
           <div class="prop-field"><label>dy</label><input type="number" id="ns-incl-dy" value="0" step="0.1"></div>
@@ -1916,8 +1923,8 @@ export class PropertiesPanel {
         irz: numVal('#nm-irz'),
       };
       const springs = {
-        kux: numVal('#ns-kux'), kuy: numVal('#ns-kuy'), kuz: numVal('#ns-kuz'),
-        krx: numVal('#ns-krx'), kry: numVal('#ns-kry'), krz: numVal('#ns-krz'),
+        kux: readIn(sel.querySelector('#ns-kux'), 'K'), kuy: readIn(sel.querySelector('#ns-kuy'), 'K'), kuz: readIn(sel.querySelector('#ns-kuz'), 'K'),
+        krx: readIn(sel.querySelector('#ns-krx'), 'KR'), kry: readIn(sel.querySelector('#ns-kry'), 'KR'), krz: readIn(sel.querySelector('#ns-krz'), 'KR'),
       };
       const prescDisp = {
         ux: numVal('#np-ux'), uy: numVal('#np-uy'), uz: numVal('#np-uz'),
@@ -1968,7 +1975,7 @@ export class PropertiesPanel {
 
     // INCLINED support spring → coupled 6×6 matrix (#2)
     sel.querySelector('#btn-incl-spring')?.addEventListener('click', () => {
-      const k = numVal('#ns-incl-k');
+      const k = fromDisp(numVal('#ns-incl-k'), 'K');
       const dir = [numVal('#ns-incl-dx'), numVal('#ns-incl-dy'), numVal('#ns-incl-dz')];
       if (k <= 0 || !dir.some(v => v)) { this.app.toast(i18n.t('Indique k > 0 y una dirección (dx,dy,dz)'), 'warn'); return; }
       this.app.snapshot();
@@ -2042,7 +2049,7 @@ export class PropertiesPanel {
         const k = elem.endSprings?.[idx];
         const aR = (d.i === 4 || d.i === 5) ? elem.endFixity?.[idx] : undefined;   // αR, NBR 9062:2017 5.1.2.7
         const mode = (aR > 0 && aR < 1) ? 'alfa' : (k > 0 && isFinite(k)) ? 'resorte' : (elem.releases[idx] ? 'libre' : 'fijo');
-        const unit = d.rot ? 'kN·m/rad' : 'kN/m';
+        const unit = ulbl(d.rot ? 'KR' : 'K');
         const showK = mode === 'resorte' || mode === 'alfa';
         return `<div class="rel-comp" style="display:flex;align-items:center;gap:6px" title="${d.lbl}: ${d.tip}">
           <span class="rel-comp-lbl" style="width:26px;font-weight:600">${d.lbl}</span>
@@ -2052,7 +2059,7 @@ export class PropertiesPanel {
             <option value="resorte" ${mode === 'resorte' ? 'selected' : ''}>${i18n.t('Resorte')}</option>
             ${(d.i === 4 || d.i === 5) ? `<option value="alfa" ${mode === 'alfa' ? 'selected' : ''} title="αR = [1 + 3EI/(Rsec·Lef)]⁻¹ — NBR 9062:2017 5.1.2.7">αR (NBR 9062)</option>` : ''}
           </select>
-          <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? k : mode === 'alfa' ? aR : ''}" min="0" step="${mode === 'alfa' ? 0.05 : 100}"
+          <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? toDisp(k, d.rot ? 'KR' : 'K') : mode === 'alfa' ? aR : ''}" min="0" step="${mode === 'alfa' ? 0.05 : 100}"
             placeholder="${mode === 'alfa' ? 'αR' : unit}" title="${mode === 'alfa' ? 'αR (0–1)' : i18n.t('Rigidez del resorte') + ' (' + unit + ')'}" style="width:96px;${showK ? '' : 'display:none'}">
         </div>`;
       }).join('');
@@ -2147,10 +2154,10 @@ export class PropertiesPanel {
       <div class="prop-section">
         <div class="prop-title" title="Viga sobre fundación elástica / resorte de LÍNEA (modelo de Winkler): módulo de balasto distribuido a lo largo de la barra, kN/m por metro (= kN/m²). Resiste la traslación transversal del miembro (suelo bajo una viga de fundación, pilote lateral…). Matriz consistente sumada a K. Afecta el análisis lineal (F5).">Fundación elástica (resorte de línea, Winkler)</div>
         <div class="prop-row">
-          <div class="prop-field"><label title="Módulo de balasto en la dirección transversal local y (kN/m por m de longitud).">k·y (kN/m/m)</label>
-            <input type="number" id="e-found-ky" value="${elem.foundation?.ky ?? ''}" min="0" step="100" placeholder="0"></div>
-          <div class="prop-field"><label title="Módulo de balasto en la dirección transversal local z (kN/m por m de longitud).">k·z (kN/m/m)</label>
-            <input type="number" id="e-found-kz" value="${elem.foundation?.kz ?? ''}" min="0" step="100" placeholder="0"></div>
+          <div class="prop-field"><label title="Módulo de balasto en la dirección transversal local y (kN/m por m de longitud).">k·y (${ulbl('KW')})</label>
+            <input type="number" id="e-found-ky" value="${elem.foundation?.ky != null ? toDisp(elem.foundation.ky, 'KW') : ''}" min="0" step="100" placeholder="0"></div>
+          <div class="prop-field"><label title="Módulo de balasto en la dirección transversal local z (kN/m por m de longitud).">k·z (${ulbl('KW')})</label>
+            <input type="number" id="e-found-kz" value="${elem.foundation?.kz != null ? toDisp(elem.foundation.kz, 'KW') : ''}" min="0" step="100" placeholder="0"></div>
         </div>
         <p class="rel-warn" style="color:var(--text-muted)">Balasto = (módulo de subrasante k_s) × (ancho de contacto). Vacío/0 = sin fundación. Σreacción del suelo = k·δ por unidad de longitud.</p>
       </div>
@@ -2212,7 +2219,7 @@ export class PropertiesPanel {
         if (s.value === 'libre') releases[idx] = 1;
         else if (s.value === 'resorte') {
           const k = parseFloat(sel.querySelector(`.rel-k[data-relk="${idx}"]`)?.value);
-          if (k > 0 && isFinite(k)) endSprings[idx] = k; else releases[idx] = 1;
+          if (k > 0 && isFinite(k)) endSprings[idx] = fromDisp(k, idx % 6 >= 3 ? 'KR' : 'K'); else releases[idx] = 1;
         } else if (s.value === 'alfa') {
           // αR (NBR 9062:2017 5.1.2.7): 0 < αR < 1; empty → 0,5; ≥ 1 rigid; ≤ 0 released
           const inp = sel.querySelector(`.rel-k[data-relk="${idx}"]`);
@@ -2226,7 +2233,7 @@ export class PropertiesPanel {
       const L0factor = parseFloat(sel.querySelector('#e-l0f')?.value) || 1;
       const rigidEnd = { i: parseFloat(sel.querySelector('#e-rig-i')?.value) || 0, j: parseFloat(sel.querySelector('#e-rig-j')?.value) || 0 };
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
-      const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
+      const foundation = { ky: fromDisp(parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, 'KW'), kz: fromDisp(parseFloat(sel.querySelector('#e-found-kz')?.value) || 0, 'KW') };
       const layer = +sel.querySelector('#e-layer')?.value || elem.layer || 1;
       const beta = parseFloat(String(sel.querySelector('#e-beta')?.value ?? '0').replace(',', '.')) || 0;
       const num = (id) => parseFloat(String(sel.querySelector(id)?.value ?? '0').replace(',', '.')) || 0;
@@ -2332,14 +2339,14 @@ export class PropertiesPanel {
     return `<div class="load-section">
       <div class="prop-title load-title-row">${i18n.t('Cargas Nodales')} ${this._lcSelectHTML('loads-lc-node')}</div>
       <div class="prop-row cols3">
-        <div class="prop-field"><label>Fx</label><input type="number" data-lf="0" value="${F[0]}" step="1"></div>
-        <div class="prop-field"><label>Fy</label><input type="number" data-lf="1" value="${F[1]}" step="1"></div>
-        <div class="prop-field"><label>Fz</label><input type="number" data-lf="2" value="${F[2]}" step="1"></div>
+        <div class="prop-field"><label>Fx</label><input type="number" data-lf="0" ${inVal(F[0], 'F')} step="1"></div>
+        <div class="prop-field"><label>Fy</label><input type="number" data-lf="1" ${inVal(F[1], 'F')} step="1"></div>
+        <div class="prop-field"><label>Fz</label><input type="number" data-lf="2" ${inVal(F[2], 'F')} step="1"></div>
       </div>
       <div class="prop-row cols3">
-        <div class="prop-field"><label>Mx</label><input type="number" data-lf="3" value="${F[3]}" step="0.1"></div>
-        <div class="prop-field"><label>My</label><input type="number" data-lf="4" value="${F[4]}" step="0.1"></div>
-        <div class="prop-field"><label>Mz</label><input type="number" data-lf="5" value="${F[5]}" step="0.1"></div>
+        <div class="prop-field"><label>Mx</label><input type="number" data-lf="3" ${inVal(F[3], 'M')} step="0.1"></div>
+        <div class="prop-field"><label>My</label><input type="number" data-lf="4" ${inVal(F[4], 'M')} step="0.1"></div>
+        <div class="prop-field"><label>Mz</label><input type="number" data-lf="5" ${inVal(F[5], 'M')} step="0.1"></div>
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button class="btn-primary" id="btn-apply-load" style="flex:1;font-size:11px;">Aplicar Carga</button>
@@ -2360,7 +2367,7 @@ export class PropertiesPanel {
       this.app.snapshot();
       const lc = this.app.model.loadCases.get(this.app._activeLcId);
       if (!lc) { this.app.toast('No hay caso de carga activo', 'warn'); return; }
-      const F = [0,1,2,3,4,5].map(i => parseFloat(sel.querySelector(`[data-lf="${i}"]`)?.value) || 0);
+      const F = [0,1,2,3,4,5].map(i => readIn(sel.querySelector(`[data-lf="${i}"]`), i < 3 ? 'F' : 'M'));
       const idx = lc.loads.findIndex(l => l.type === 'nodal' && l.nodeId === node.id);
       const load = { type: 'nodal', nodeId: node.id, F };
       if (idx >= 0) lc.loads[idx] = load; else lc.loads.push(load);
@@ -2397,11 +2404,11 @@ export class PropertiesPanel {
             <option value="localZ"  ${ex?.dir==='localZ' ?'selected':''}>Local z</option>
           </select>
         </div>
-        <div class="prop-field"><label>w en i (kN/m)</label>
-          <input type="number" id="dist-w" value="${ex?.w ?? 0}" step="1">
+        <div class="prop-field"><label>${uT('w en i (kN/m)')}</label>
+          <input type="number" id="dist-w" ${inVal(ex?.w ?? 0, 'W')} step="1">
         </div>
-        <div class="prop-field"><label>w en j (kN/m)</label>
-          <input type="number" id="dist-w2" value="${ex?.w2 ?? ''}" step="1" placeholder="= w (uniforme)">
+        <div class="prop-field"><label>${uT('w en j (kN/m)')}</label>
+          <input type="number" id="dist-w2" value="${ex?.w2 != null ? toDisp(ex.w2, 'W') : ''}" step="1" placeholder="= w (uniforme)">
         </div>
       </div>
       <small style="color:var(--text-muted);display:block;margin-top:2px">Deja <b>w en j</b> vacío para carga uniforme; complétalo para una carga <b>trapecial</b> (w en el nodo i → w en el nodo j).</small>
@@ -2424,13 +2431,14 @@ export class PropertiesPanel {
       this.app.snapshot();
       const lc = this.app.model.loadCases.get(this.app._activeLcId);
       if (!lc) { this.app.toast('No hay caso de carga activo', 'warn'); return; }
-      const w   = parseFloat(sel.querySelector('#dist-w')?.value) || 0;
+      const wD  = parseFloat(sel.querySelector('#dist-w')?.value) || 0;   // typed (display units)
+      const w   = readIn(sel.querySelector('#dist-w'), 'W');
       const w2raw = sel.querySelector('#dist-w2')?.value;
       const dir = sel.querySelector('#dist-dir')?.value || 'globalZ';
       const idx = lc.loads.findIndex(l => l.type === 'dist' && l.elemId === elem.id && l.panelId == null);
       const load = { type: 'dist', elemId: elem.id, dir, w };
       // w2 only if filled in and differing from w → trapezoidal load
-      if (w2raw != null && w2raw !== '' && isFinite(+w2raw) && +w2raw !== w) load.w2 = +w2raw;
+      if (w2raw != null && w2raw !== '' && isFinite(+w2raw) && +w2raw !== wD) load.w2 = fromDisp(+w2raw, 'W');
       if (idx >= 0) lc.loads[idx] = load; else lc.loads.push(load);
       this.app.markDirty();
       this.app.refreshLoads();
@@ -2461,7 +2469,7 @@ export class PropertiesPanel {
       html += `<div class="prop-title" style="color:var(--danger);margin-top:8px;">Reacciones</div>
       <table class="results-table">
         <tr><th>DOF</th><th>Valor</th></tr>
-        ${['Rx','Ry','Rz','Rmx','Rmy','Rmz'].map((n,i)=>`<tr><td>${n}</td><td>${fv(rx[i])}</td></tr>`).join('')}
+        ${['Rx','Ry','Rz','Rmx','Rmy','Rmz'].map((n,i)=>`<tr><td>${n} (${ulbl(i < 3 ? 'F' : 'M')})</td><td>${fv(toDisp(rx[i], i < 3 ? 'F' : 'M'))}</td></tr>`).join('')}
       </table>`;
     }
     return html + '</div>';
@@ -2475,12 +2483,12 @@ export class PropertiesPanel {
       <div class="prop-title" style="color:var(--success)">Fuerzas Internas</div>
       <table class="results-table">
         <tr><th>Fuerza</th><th>Nodo 1</th><th>Nodo 2</th></tr>
-        <tr><td>N</td>${fv(f.N)}<td>—</td></tr>
-        <tr><td>Vy</td>${fv(f.Vy1)}${fv(f.Vy2)}</tr>
-        <tr><td>Vz</td>${fv(f.Vz1)}${fv(f.Vz2)}</tr>
-        <tr><td>T</td>${fv(f.T)}<td>—</td></tr>
-        <tr><td>My</td>${fv(f.My1)}${fv(f.My2)}</tr>
-        <tr><td>Mz</td>${fv(f.Mz1)}${fv(f.Mz2)}</tr>
+        <tr><td>N (${ulbl('F')})</td>${fv(toDisp(f.N, 'F'))}<td>—</td></tr>
+        <tr><td>Vy (${ulbl('F')})</td>${fv(toDisp(f.Vy1, 'F'))}${fv(toDisp(f.Vy2, 'F'))}</tr>
+        <tr><td>Vz (${ulbl('F')})</td>${fv(toDisp(f.Vz1, 'F'))}${fv(toDisp(f.Vz2, 'F'))}</tr>
+        <tr><td>T (${ulbl('M')})</td>${fv(toDisp(f.T, 'M'))}<td>—</td></tr>
+        <tr><td>My (${ulbl('M')})</td>${fv(toDisp(f.My1, 'M'))}${fv(toDisp(f.My2, 'M'))}</tr>
+        <tr><td>Mz (${ulbl('M')})</td>${fv(toDisp(f.Mz1, 'M'))}${fv(toDisp(f.Mz2, 'M'))}</tr>
       </table>
     </div>`;
   }
@@ -2532,8 +2540,8 @@ export class PropertiesPanel {
           <div class="prop-field"><label>ρ (ton/m³)</label><input type="number" data-f="rho" value="${mat.rho}" step="0.01"></div>
         </div>
         <div class="prop-row">
-          <div class="prop-field"><label>E (kN/m²)</label><input type="number" data-f="E" value="${mat.E}" step="1e5"></div>
-          <div class="prop-field"><label>G (kN/m²)</label><input type="number" data-f="G" value="${mat.G}" step="1e5"></div>
+          <div class="prop-field"><label>E (${ulbl('Q')})</label><input type="number" data-f="E" ${inVal(mat.E, 'Q')} step="1e5"></div>
+          <div class="prop-field"><label>G (${ulbl('Q')})</label><input type="number" data-f="G" ${inVal(mat.G, 'Q')} step="1e5"></div>
         </div>
         <div class="prop-row">
           <div class="prop-field"><label>ν</label><input type="number" data-f="nu" value="${mat.nu}" step="0.01" min="0" max="0.5"></div>
@@ -2555,6 +2563,7 @@ export class PropertiesPanel {
         card.querySelectorAll('[data-f]').forEach(i => {
           updates[i.dataset.f] = i.type === 'number' ? +i.value : i.value;
         });
+        for (const k of ['E', 'G']) if (k in updates) updates[k] = readIn(card.querySelector(`[data-f="${k}"]`), 'Q');   // moduli typed in display units; ρ is a mass density (t/m³) → unchanged
         this.app.model.updateMaterial(mat.id, updates);
         // Update card name
         card.querySelector('.mat-card-name').textContent = updates.name || mat.name;
@@ -3403,7 +3412,7 @@ export class PropertiesPanel {
       const Vz = Math.abs(f.Vz1) > Math.abs(f.Vz2) ? f.Vz1 : f.Vz2;
       const My = Math.abs(f.My1) > Math.abs(f.My2) ? f.My1 : f.My2;
       const Mz = Math.abs(f.Mz1) > Math.abs(f.Mz2) ? f.Mz1 : f.Mz2;
-      rowsE += `<tr><td>${elem.id}</td>${fv(f.N)}${fv(Vy)}${fv(Vz)}${fv(f.T)}${fv(My)}${fv(Mz)}</tr>`;
+      rowsE += `<tr><td>${elem.id}</td>${fv(toDisp(f.N, 'F'))}${fv(toDisp(Vy, 'F'))}${fv(toDisp(Vz, 'F'))}${fv(toDisp(f.T, 'M'))}${fv(toDisp(My, 'M'))}${fv(toDisp(Mz, 'M'))}</tr>`;
     }
     body.insertAdjacentHTML('beforeend',
       `<table class="res-table"><thead>${thE}</thead><tbody>${rowsE}</tbody></table>`);

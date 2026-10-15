@@ -2834,6 +2834,13 @@ export const EN = {
   "Capa padrão: nombre fijo": "Default layer: fixed name",
   "Doble clic para renombrar": "Double-click to rename",
   "Ejes de grilla (rótulos)": "Grid axes (labels)",
+  "Derecha": "Right",
+  "Izquierda": "Left",
+  "Arriba": "Top",
+  "Abajo": "Bottom",
+  "Atrás": "Back",
+  "Frente": "Front",
+  "Cubo de navegación: clic en una cara, arista o vértice para ver desde ese lado": "Navigation cube: click a face, edge or corner to view from that side",
 };
 
 export default EN;

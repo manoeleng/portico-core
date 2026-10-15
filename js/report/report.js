@@ -11,6 +11,11 @@
 import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
 import { localizeNum } from './numfmt.js?v=7';
+import { toDisp, ulbl, isTf, KN_PER_TF } from '../utils/units.js?v=7';
+
+// Display-unit system for the cover (js/utils/units.js). Every force-bearing number below is printed with toDisp/ulbl;
+// under tf·m the memorial records the conversion factor used.
+const unitsTxt = () => isTf() ? `tf · m (1 tf = ${localizeNum(String(KN_PER_TF), i18n.getLocale())} kN)` : 'kN · m';
 
 export function reportDocx(app, Docx, imgs, diseno, deflex, drift) {
     const d = new Docx();
@@ -24,7 +29,7 @@ export function reportDocxCover(app, d, opts = {}) {
     const cm = app._report();
     const proyecto = (document.title || '').replace(/^●\s*/, '').replace(/\s*—\s*[^—]*$/, '').trim() || i18n.t('Modelo sin título');
     const fecha = new Date().toLocaleDateString(i18n.getLocale() === 'en' ? 'en-US' : 'es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
-    const U = app.model.units || 'kN-m';
+    const U = unitsTxt();   // display system (app.model.units mirrors it via setDisplayUnits)
     const tieneLogoPro = !!(app._brandingPro && cm.logoEmpresa);
     if (tieneLogoPro) d.image(cm.logoEmpresa, '', 2 * 914400);   // company logo (if PNG/JPEG)
     if (!tieneLogoPro)
@@ -39,7 +44,7 @@ export function reportDocxCover(app, d, opts = {}) {
     d.table(null, [
       [{ text: i18n.t('Proyecto'), bold: true }, proyecto],
       [{ text: i18n.t('Fecha'), bold: true }, fecha],
-      [{ text: i18n.t('Unidades'), bold: true }, U.replace('-', ' · ')],
+      [{ text: i18n.t('Unidades'), bold: true }, U],
       [{ text: i18n.t('Proyectista'), bold: true }, cm.proyectista || ''],
       [{ text: i18n.t('Revisó'), bold: true }, cm.revisor || ''],
     ]);
@@ -67,8 +72,8 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
     ]);
 
     d.heading(i18n.t('1.2 Materiales'), 2);
-    d.table([i18n.t('Material'), 'E', 'G', 'ν', 'ρ'],
-      [...m.materials.values()].map(mt => [mt.name, fmt(mt.E, 0), fmt(mt.G, 0), fmt(mt.nu, 2), fmt(mt.rho, 3)]));
+    d.table([i18n.t('Material'), `E (${ulbl('Q')})`, `G (${ulbl('Q')})`, 'ν', 'ρ'],
+      [...m.materials.values()].map(mt => [mt.name, fmt(toDisp(mt.E, 'Q'), 0), fmt(toDisp(mt.G, 'Q'), 0), fmt(mt.nu, 2), fmt(mt.rho, 3)]));
 
     d.heading(i18n.t('1.3 Secciones'), 2);
     const secCount = new Map();
@@ -82,9 +87,9 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
     for (const lc of [...m.loadCases.values()].filter(l => l.type !== 'spectrum')) {
       d.heading(`${lc.name}${lc.selfWeight ? '  ' + i18n.t('(+ peso propio)') : ''}`, 3);
       const rows = (lc.loads || []).map(ld => {
-        if (ld.type === 'nodal') { const F = ld.F || []; return [i18n.t('Puntual'), `${i18n.t('Nodo')} ${ld.nodeId}`, `F=(${fmt(F[0], 1)}, ${fmt(F[1], 1)}, ${fmt(F[2], 1)}) kN`]; }
+        if (ld.type === 'nodal') { const F = ld.F || []; return [i18n.t('Puntual'), `${i18n.t('Nodo')} ${ld.nodeId}`, `F=(${fmt(toDisp(F[0], 'F'), 1)}, ${fmt(toDisp(F[1], 'F'), 1)}, ${fmt(toDisp(F[2], 'F'), 1)}) ${ulbl('F')}`]; }
         if (ld.type === 'temp') return [i18n.t('Temperatura'), `${i18n.t('Elem')} ${ld.elemId}`, `ΔT = ${fmt(ld.dT, 1)} °C`];
-        return [i18n.t('Distribuida'), `${i18n.t('Elem')} ${ld.elemId}`, `w = ${fmt(ld.w, 2)} kN/m · ${dirLabel[ld.dir] || ld.dir || i18n.t('gravedad')}`];
+        return [i18n.t('Distribuida'), `${i18n.t('Elem')} ${ld.elemId}`, `w = ${fmt(toDisp(ld.w, 'W'), 2)} ${ulbl('W')} · ${dirLabel[ld.dir] || ld.dir || i18n.t('gravedad')}`];
       });
       if (rows.length) d.table([i18n.t('Tipo'), i18n.t('Aplicada en'), i18n.t('Valor')], rows);
       else d.paragraph([{ text: lc.selfWeight ? i18n.t('Solo peso propio.') : i18n.t('Sin cargas asignadas.'), italic: true, color: '5C6A7D' }]);
@@ -120,10 +125,10 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
       const estado = r => r > 1 ? i18n.t('NO CUMPLE') : r > 0.9 ? i18n.t('ajustado') : i18n.t('cumple');
       const alcance = diseno.envolvente ? i18n.t('envolvente de las combinaciones') : `${i18n.t('el estado')} «${diseno.caso || i18n.t('activo')}»`;
       d.paragraph(`${i18n.t('Verificación por')} ${alcance}. ${i18n.t('La razón D/C = demanda/capacidad debe ser ≤ 1.0.')}`);
-      d.table([i18n.t('Elem'), i18n.t('Sección'), i18n.t('Material'), 'N (kN)', 'M (kN·m)', 'V (kN)', i18n.t('D/C máx'), i18n.t('Gobierna'), i18n.t('Estado')],
+      d.table([i18n.t('Elem'), i18n.t('Sección'), i18n.t('Material'), `N (${ulbl('F')})`, `M (${ulbl('M')})`, `V (${ulbl('F')})`, i18n.t('D/C máx'), i18n.t('Gobierna'), i18n.t('Estado')],
         f.slice(0, 60).map(x => [
-          `#${x.id}`, x.sec, x.mat, fmt(x.forces.N, 1),
-          fmt(Math.max(x.forces.My, x.forces.Mz), 1), fmt(Math.max(x.forces.Vy, x.forces.Vz), 1),
+          `#${x.id}`, x.sec, x.mat, fmt(toDisp(x.forces.N, 'F'), 1),
+          fmt(toDisp(Math.max(x.forces.My, x.forces.Mz), 'M'), 1), fmt(toDisp(Math.max(x.forces.Vy, x.forces.Vz), 'F'), 1),
           { text: fmt(x.ratioMax, 2), bold: true, color: colorR(x.ratioMax) },
           i18n.t(String(x.governs ?? '—')),
           { text: estado(x.ratioMax), color: colorR(x.ratioMax) },
@@ -206,7 +211,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       : (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? (+v).toExponential(2) : (+v).toFixed(d)), i18n.getLocale());
     const proyecto = (document.title || '').replace(/^●\s*/, '').replace(/\s*—\s*[^—]*$/, '').trim() || i18n.t('Modelo sin título');
     const fecha = new Date().toLocaleDateString(i18n.getLocale() === 'en' ? 'en-US' : 'es-CL', { year:'numeric', month:'long', day:'numeric' });
-    const U = m.units || 'kN-m';
+    const U = unitsTxt();   // display system (m.units mirrors it via setDisplayUnits)
     const cm = app._report();   // effective report: per-project + global defaults (#41)
     const clasif = (n) => { n = String(n||'').toLowerCase();
       if (/(horm|concret|h\s*\d|fc)/.test(n)) return 'concrete';
@@ -216,7 +221,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
 
     // ── Materials ───────────────────────────────────────────────────────────
     const matRows = [...m.materials.values()].map(mt => `<tr>
-      <td>${esc(mt.name)}</td><td>${fmt(mt.E,0)}</td><td>${fmt(mt.G,0)}</td>
+      <td>${esc(mt.name)}</td><td>${fmt(toDisp(mt.E,'Q'),0)}</td><td>${fmt(toDisp(mt.G,'Q'),0)}</td>
       <td>${fmt(mt.nu,2)}</td><td>${fmt(mt.rho,3)}</td></tr>`).join('') || `<tr><td colspan="5">${i18n.t('Sin materiales')}</td></tr>`;
 
     // ── Sections (with count of elements using each) ────────────────────────
@@ -250,13 +255,13 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         if (ld.type === 'nodal') {
           const [Fx,Fy,Fz,Mx,My,Mz] = ld.F || [];
           return `<tr><td>${i18n.t('Puntual')}</td><td>${i18n.t('Nodo')} ${ld.nodeId}</td><td>—</td>
-            <td>F=(${fmt(Fx,2)}, ${fmt(Fy,2)}, ${fmt(Fz,2)}) kN · M=(${fmt(Mx,2)}, ${fmt(My,2)}, ${fmt(Mz,2)}) kN·m</td></tr>`;
+            <td>F=(${fmt(toDisp(Fx,'F'),2)}, ${fmt(toDisp(Fy,'F'),2)}, ${fmt(toDisp(Fz,'F'),2)}) ${ulbl('F')} · M=(${fmt(toDisp(Mx,'M'),2)}, ${fmt(toDisp(My,'M'),2)}, ${fmt(toDisp(Mz,'M'),2)}) ${ulbl('M')}</td></tr>`;
         }
         if (ld.type === 'temp') {
           return `<tr><td>${i18n.t('Temperatura')}</td><td>${i18n.t('Elem')} ${ld.elemId}</td><td>${i18n.t('Uniforme')}</td><td>ΔT = ${fmt(ld.dT,1)} °C</td></tr>`;
         }
         return `<tr><td>${i18n.t('Distribuida')}</td><td>${i18n.t('Elem')} ${ld.elemId}</td>
-          <td>${esc(dirLabel[ld.dir] || ld.dir || i18n.t('Gravedad'))}</td><td>w = ${fmt(ld.w,2)} kN/m</td></tr>`;
+          <td>${esc(dirLabel[ld.dir] || ld.dir || i18n.t('Gravedad'))}</td><td>w = ${fmt(toDisp(ld.w,'W'),2)} ${ulbl('W')}</td></tr>`;
       }).join('');
       const cuerpo = loadRows || `<tr><td colspan="4" class="muted">${lc.selfWeight ? i18n.t('Solo peso propio') : i18n.t('Sin cargas asignadas')}</td></tr>`;
       return `<h3>${esc(lc.name)} <span class="tag">${tipoCaso(lc)}</span>${lc.selfWeight ? ` <span class="tag tag-pp">${i18n.t('+ peso propio')}</span>` : ''}</h3>
@@ -380,7 +385,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       const top = f.slice(0, 60);
       const rows = top.map(x => `<tr>
         <td>#${x.id}</td><td>${esc(x.sec)}</td><td>${esc(x.mat)}</td><td title="${esc(x.combo||'')}">${esc((x.combo||'').slice(0,14))}</td>
-        <td>${fmt(x.forces.N,1)}</td><td>${fmt(Math.max(x.forces.My,x.forces.Mz),1)}</td><td>${fmt(Math.max(x.forces.Vy,x.forces.Vz),1)}</td>
+        <td>${fmt(toDisp(x.forces.N,'F'),1)}</td><td>${fmt(toDisp(Math.max(x.forces.My,x.forces.Mz),'M'),1)}</td><td>${fmt(toDisp(Math.max(x.forces.Vy,x.forces.Vz),'F'),1)}</td>
         <td class="${rClass(x.bending.ratio)}">${fmt(x.bending.ratio,2)}</td>
         <td class="${rClass(x.shear.ratio)}">${fmt(x.shear.ratio,2)}</td>
         <td class="${rClass(x.axial.ratio)}">${fmt(x.axial.ratio,2)}</td>
@@ -395,7 +400,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         ${i18n.t('para cada elemento se reporta la combinación más desfavorable. La razón')} <b>D/C = ${i18n.t('demanda/capacidad')}</b> ${i18n.t('debe ser ≤ 1.0.')}
         ${i18n.t('Las deformaciones (servicio) se verifican en la sección de deformaciones de vigas. Parámetros en')} <code>assistant/design_params.json</code>.</p>
         <table style="font-size:9.5px"><thead><tr>
-          <th>${i18n.t('Elem')}</th><th>${i18n.t('Sección')}</th><th>${i18n.t('Material')}</th><th>${i18n.t('Combo')}</th><th>N (kN)</th><th>M (kN·m)</th><th>V (kN)</th>
+          <th>${i18n.t('Elem')}</th><th>${i18n.t('Sección')}</th><th>${i18n.t('Material')}</th><th>${i18n.t('Combo')}</th><th>N (${ulbl('F')})</th><th>M (${ulbl('M')})</th><th>V (${ulbl('F')})</th>
           <th>${i18n.t('flex.')}</th><th>${i18n.t('corte')}</th><th>${i18n.t('axial')}</th><th>${i18n.t('interac.')}</th><th>${i18n.t('Gobierna')}</th><th>${i18n.t('D/C máx')}</th><th>${i18n.t('Estado')}</th>
         </tr></thead><tbody>${rows}</tbody></table>
         ${diseno.excluidos?.length ? `<p class="r-warn"><b>${diseno.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}</b>: ${esc([...new Set(diseno.excluidos.map(x => x.why))].join(' '))} (${diseno.excluidos.slice(0, 30).map(x => '#' + x.id).join(', ')}${diseno.excluidos.length > 30 ? ' …' : ''})</p>` : ''}
@@ -508,7 +513,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       <table class="cover-meta"><tbody>
         <tr><th>${i18n.t('Proyecto')}</th><td>${esc(proyecto)}</td></tr>
         <tr><th>${i18n.t('Fecha')}</th><td>${esc(fecha)}</td></tr>
-        <tr><th>${i18n.t('Unidades')}</th><td>${esc(U.replace('-',' · '))}</td></tr>
+        <tr><th>${i18n.t('Unidades')}</th><td>${esc(U)}</td></tr>
         <tr><th>${i18n.t('Proyectista')}</th><td>${esc(cm.proyectista) || '&nbsp;'}</td></tr>
         <tr><th>${i18n.t('Revisó')}</th><td>${esc(cm.revisor) || '&nbsp;'}</td></tr>
       </tbody></table>
@@ -592,7 +597,7 @@ ${figBase}
 <table><tbody>${normas}</tbody></table>
 
 <h3>${i18n.t('1.4 Materiales y propiedades mecánicas')}</h3>
-<table><thead><tr><th>${i18n.t('Material')}</th><th>E (kN/m²)</th><th>G (kN/m²)</th><th>ν</th><th>ρ (t/m³)</th></tr></thead>
+<table><thead><tr><th>${i18n.t('Material')}</th><th>E (${ulbl('Q')})</th><th>G (${ulbl('Q')})</th><th>ν</th><th>ρ (t/m³)</th></tr></thead>
 <tbody>${matRows}</tbody></table>
 
 <h3>${i18n.t('1.5 Secciones')}</h3>

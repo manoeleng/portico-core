@@ -236,11 +236,11 @@
       <button id="btn-theme" type="button" title="Cambiar tema claro/oscuro"
         style="background:var(--bg4);border:1px solid var(--border2);color:var(--text);border-radius:6px;cursor:pointer;font-size:14px;line-height:1;padding:4px 8px;margin-right:10px">🌙</button>
       <label class="unit-label" for="unit-select">Unidades</label>
-      <!-- Sistema fijo kN · m · ton · rad. Las otras opciones están deshabilitadas
-           porque la app NO convierte valores (ver Ayuda → Convenciones). -->
-      <select id="unit-select" title="Sistema de unidades fijo: kN, m, ton, rad. Todo el cálculo se hace en estas unidades.">
+      <!-- Unidades de EXHIBICIÓN (js/utils/units.js): el cálculo siempre es en kN · m; tf – m convierte en la interfaz
+           (1 tf = 9,80665 kN). kip – ft no está disponible. -->
+      <select id="unit-select" title="Unidades de exhibición y de entrada. El cálculo interno es siempre en kN y m (1 tf = 9,80665 kN).">
         <option value="kN-m">kN – m</option>
-        <option value="ton-m" disabled>ton – m (no disponible)</option>
+        <option value="tf-m">tf – m</option>
         <option value="kip-ft" disabled>kip – ft (no disponible)</option>
       </select>
     </div>

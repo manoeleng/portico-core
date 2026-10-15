@@ -7,12 +7,14 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { panelFrame, panelMembers } from '../model/panel_loads.js?v=7';
 import { localAxes } from '../solver/timoshenko.js?v=7';
+import { NavCube } from './navcube.js?v=7';
 import { getProfile } from '../design/profiles.js?v=7';
 import { cfProfile } from '../design/profiles_cf.js?v=7';
 import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { i18n } from '../i18n/i18n.js?v=7';
+import { toDisp, ulbl } from '../utils/units.js?v=7';
 
 const COL = {
   BG:          0x0a0e1a,
@@ -378,6 +380,8 @@ export class Viewport {
     this._controls.update();
     this._updateNodePxFactor();
     this._renderer.render(this._scene, this._camera);
+    if (this._navCube) this._navCube.render();
+    else if (this._navCube !== false) { try { this._navCube = new NavCube(this); } catch { this._navCube = false; } }
   }
 
   // world-size factor of one screen pixel for sprites with sizeAttenuation = false (perspective: the shader
@@ -688,7 +692,7 @@ export class Viewport {
       : null;
     for (const a of model.areas.values()) this.addAreaMeshSmooth(a, nodal, mn, span, dispFn);
     this._areaVMrange = [mn, mx];
-    this._drawColorbar(mn, mx);   // von Mises color bar (overwrites the δ one)
+    this._drawColorbar(mn, mx, 'Q');   // von Mises color bar (overwrites the δ one)
   }
 
   // Same as addAreaMesh but with per-vertex color (nodal smoothing).
@@ -935,7 +939,7 @@ export class Viewport {
         const arrow = new THREE.ArrowHelper(dir, tail, len, 0xffa726, len * 0.3, len * 0.14);
         this._scene.add(arrow);
         this._reactionObjects.push(arrow);
-        const lbl = this._makeValSprite(`${F_LBL[i]}=${fmt(r[i])}`, '#ffa726');
+        const lbl = this._makeValSprite(`${F_LBL[i]}=${fmt(toDisp(r[i], 'F'))}`, '#ffa726');
         lbl.position.copy(tail).addScaledVector(dir, -0.12).add(new THREE.Vector3(0, 0.16, 0));
         this._scene.add(lbl);
         this._reactionObjects.push(lbl);
@@ -952,7 +956,7 @@ export class Viewport {
         const a2 = new THREE.ArrowHelper(dir, tail, len * 0.82, 0xce93d8, len * 0.26, len * 0.12);
         this._scene.add(a1); this._scene.add(a2);
         this._reactionObjects.push(a1, a2);
-        const lbl = this._makeValSprite(`${M_LBL[ax]}=${fmt(r[i])}`, '#ce93d8');
+        const lbl = this._makeValSprite(`${M_LBL[ax]}=${fmt(toDisp(r[i], 'M'))}`, '#ce93d8');
         lbl.position.copy(tail).addScaledVector(dir, -0.12).add(new THREE.Vector3(0, -0.16, 0));
         this._scene.add(lbl);
         this._reactionObjects.push(lbl);
@@ -1782,9 +1786,8 @@ export class Viewport {
   _buildResultTip(type, id) {
     if (!this._inResultsMode || !this._results) return '';
     const model = this.app.model;
-    const [fU = 'kN', lU = 'm'] = (model.units || 'kN-m').split('-');
-    const unitFor = t => (t === 'N' || t === 'Vy' || t === 'Vz') ? fU
-      : (t === 'T' || t === 'My' || t === 'Mz') ? `${fU}·${lU}` : lU;
+    const lU = 'm';   // displacements: always m (display units only scale force-bearing quantities)
+    const kindFor = t => (t === 'N' || t === 'Vy' || t === 'Vz') ? 'F' : 'M';
 
     if (type === 'elem') {
       const t = this._currentDiagramType;
@@ -1798,7 +1801,7 @@ export class Viewport {
           for (const e of (d.extremes || [])) { if (e.val < mn) mn = e.val; if (e.val > mx) mx = e.val; }
         }
         if (isFinite(mn) && isFinite(mx))
-          return `<b>${i18n.t('Elem')} #${id}</b> · ${t}<br>${i18n.t('mín')} <b>${_fmt(mn)}</b> · ${i18n.t('máx')} <b>${_fmt(mx)}</b> ${unitFor(t)}`;
+          return `<b>${i18n.t('Elem')} #${id}</b> · ${t}<br>${i18n.t('mín')} <b>${_fmt(toDisp(mn, kindFor(t)))}</b> · ${i18n.t('máx')} <b>${_fmt(toDisp(mx, kindFor(t)))}</b> ${ulbl(kindFor(t))}`;
       }
       // Deformada / tensiones: rango de δ entre los extremos del elemento.
       const elem = model.elements.get(id);
@@ -1820,7 +1823,7 @@ export class Viewport {
       const isSup = node && node.restraints && Object.values(node.restraints).some(Boolean);
       if (isSup && typeof this._results.getReaction === 'function') {
         const r = this._results.getReaction(id) || [0, 0, 0, 0, 0, 0];
-        html += `<br>R = <b>${_fmt(Math.hypot(r[0], r[1], r[2]))}</b> ${fU}`;
+        html += `<br>R = <b>${_fmt(toDisp(Math.hypot(r[0], r[1], r[2]), 'F'))}</b> ${ulbl('F')}`;
       }
       return html;
     }
@@ -1830,7 +1833,7 @@ export class Viewport {
       if (!area) return '';
       let mn = Infinity, mx = -Infinity;
       for (const nid of area.nodes) { const v = this._areaVMnodal.get(nid); if (v == null) continue; if (v < mn) mn = v; if (v > mx) mx = v; }
-      if (isFinite(mn)) return `<b>${i18n.t('Área')} #${id}</b> · σVM<br>${i18n.t('mín')} <b>${_fmt(mn)}</b> · ${i18n.t('máx')} <b>${_fmt(mx)}</b> ${fU}/${lU}²`;
+      if (isFinite(mn)) return `<b>${i18n.t('Área')} #${id}</b> · σVM<br>${i18n.t('mín')} <b>${_fmt(toDisp(mn, 'Q'))}</b> · ${i18n.t('máx')} <b>${_fmt(toDisp(mx, 'Q'))}</b> ${ulbl('Q')}`;
     }
     return '';
   }
@@ -3156,7 +3159,7 @@ export class Viewport {
     this.colorAreasByVM(results, 0);   // von Mises contour over real geometry
     const [mn, mx] = this._areaVMrange || [0, 0];
     this._showResultsUI(hasAreas
-      ? `${i18n.t('von Mises (áreas)')} | ${i18n.t('máx')} = ${_fmt(mx)}`
+      ? `${i18n.t('von Mises (áreas)')} | ${i18n.t('máx')} = ${_fmt(toDisp(mx, 'Q'))} ${ulbl('Q')}`
       : i18n.t('Tensiones: el modelo no tiene elementos de área'));
   }
 
@@ -3276,6 +3279,7 @@ export class Viewport {
 
     for (const [, line] of this._elemLines) line.material.color.set(0x222840);
     const useLocalZ = (type === 'My' || type === 'Vz');
+    const uk = (type === 'N' || type === 'Vy' || type === 'Vz') ? 'F' : 'M';   // display-unit kind of the labels
 
     // ── Pass 2: draw diagrams ──────────────────────────────────────────────
     for (const elem of this.app.model.elements.values()) {
@@ -3345,13 +3349,13 @@ export class Viewport {
         // Value label offset slightly beyond the peak
         const labelPos = tipP.clone().addScaledVector(
           perpDir, ext.val >= 0 ? 0.28 : -0.28);
-        const sp = this._makeDiagramLabel(_fmt(ext.val), labelPos);
+        const sp = this._makeDiagramLabel(_fmt(toDisp(ext.val, uk)), labelPos);
         this._scene.add(sp);
         this._resultObjects.push(sp);
       }
     }
-    this._showResultsUI(`${type} | ${i18n.t('máx')} = ${_fmt(maxVal)} (${i18n.t('factor')} ×${+f.toPrecision(3)})`);
-    this._drawColorbar(0, maxVal);
+    this._showResultsUI(`${type} | ${i18n.t('máx')} = ${_fmt(toDisp(maxVal, uk))} ${ulbl(uk)} (${i18n.t('factor')} ×${+f.toPrecision(3)})`);
+    this._drawColorbar(0, maxVal, uk);
   }
 
   _showResultsUI(summary) {
@@ -3539,8 +3543,8 @@ export class Viewport {
     this._inspPanel.querySelector('.insp-meta').textContent  = '';
 
     const vals = {
-      N: 'Rx: ' + _fmt(r[0]), Vy: 'Ry: ' + _fmt(r[1]), Vz: 'Rz: ' + _fmt(r[2]),
-      T: 'Rmx: '+ _fmt(r[3]), My: 'Rmy: '+ _fmt(r[4]), Mz: 'Rmz: '+ _fmt(r[5]),
+      N: 'Rx: ' + _fmt(toDisp(r[0], 'F')), Vy: 'Ry: ' + _fmt(toDisp(r[1], 'F')), Vz: 'Rz: ' + _fmt(toDisp(r[2], 'F')),
+      T: 'Rmx: '+ _fmt(toDisp(r[3], 'M')), My: 'Rmy: '+ _fmt(toDisp(r[4], 'M')), Mz: 'Rmz: '+ _fmt(toDisp(r[5], 'M')),
       ux: _fmt(d[0]), uy: _fmt(d[1]), uz: _fmt(d[2])
     };
     this._inspPanel.querySelectorAll('.ifv').forEach(el => {
@@ -3561,7 +3565,8 @@ export class Viewport {
     if (!r) return;
     this._inspPanel.querySelectorAll('.ifv').forEach(el => {
       const k = el.dataset.key;
-      el.textContent = r[k] !== undefined ? _fmt(r[k]) : '—';
+      const uk = (k === 'N' || k === 'Vy' || k === 'Vz') ? 'F' : (k === 'T' || k === 'My' || k === 'Mz') ? 'M' : null;
+      el.textContent = r[k] !== undefined ? _fmt(uk ? toDisp(r[k], uk) : r[k]) : '—';
     });
   }
 
@@ -3607,7 +3612,7 @@ export class Viewport {
     const atXi = this._results.getElemAtXi(this._inspElemId, this._inspXi);
     const vAtXi = atXi ? (type === 'N' ? atXi.N : type === 'Vy' ? atXi.Vy : type === 'Vz' ? atXi.Vz : type === 'T' ? atXi.T : type === 'My' ? atXi.My : atXi.Mz) : null;
     const labelY = vAtXi !== null ? yOf(vAtXi).toFixed(1) : baseline;
-    const labelTxt = vAtXi !== null ? _fmt(vAtXi) : '';
+    const labelTxt = vAtXi !== null ? _fmt(toDisp(vAtXi, (type === 'N' || type === 'Vy' || type === 'Vz') ? 'F' : 'M')) : '';
 
     svg.innerHTML = `
       <line x1="${pad}" y1="${baseline}" x2="${W-pad}" y2="${baseline}" stroke="#334" stroke-width="1"/>
@@ -3745,7 +3750,9 @@ export class Viewport {
   }
 
   // ── P2-4: Color legend bar ────────────────────────────────────────────────
-  _drawColorbar(minVal, maxVal) {
+  // kind: display-unit kind (units.js) of a force-bearing quantity → numbers converted + unit on the max;
+  // null = displacement (m), shown as is.
+  _drawColorbar(minVal, maxVal, kind = null) {
     const canvas = document.getElementById('colorbar-canvas');
     const wrap   = document.getElementById('colorbar-wrap');
     if (!canvas || !wrap) return;
@@ -3763,9 +3770,10 @@ export class Viewport {
     ctx.fillRect(0, 0, W, H);
 
     wrap.style.display = '';
-    document.getElementById('cb-min').textContent = _fmt(minVal);
-    document.getElementById('cb-mid').textContent = _fmt((minVal + maxVal) / 2);
-    document.getElementById('cb-max').textContent = _fmt(maxVal);
+    const cv = v => _fmt(kind ? toDisp(v, kind) : v);
+    document.getElementById('cb-min').textContent = cv(minVal);
+    document.getElementById('cb-mid').textContent = cv((minVal + maxVal) / 2);
+    document.getElementById('cb-max').textContent = cv(maxVal) + (kind ? ` ${ulbl(kind)}` : '');
   }
 
   // ── P2-6: Node / element ID sprites ──────────────────────────────────────
@@ -4081,7 +4089,7 @@ export class Viewport {
     const sel = this._selPanel ? this._selPanel.id : null;
     const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
     this._dashPanelMembers(model, span);
-    const fmt = (v) => (+v).toFixed(2).replace('.', ',');
+    const fmt = (v) => (+toDisp(v, 'Q')).toFixed(2).replace('.', ',');   // q stored in kN/m² → display units
     const sym = (d) => d === 'gravity' ? '↓' : d === 'against' ? i18n.t('vento →|') : d === 'normal' ? i18n.t('vento |→') : d === 'globalX' ? '→X' : d === 'globalY' ? '→Y' : '';
     for (const p of panels) {
       const ly = layerById(model, p.layer ?? 1);
