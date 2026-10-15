@@ -188,8 +188,11 @@ const LCANT = [
 // ERRATA: the printed r0 of 30 Z90 rows (150×60×20×2,65 onward) is wrong — a point-symmetric Z has the shear centre at
 // the centroid, so r0 = √(rx² + ry²) (the Z45 rows and the first Z90 rows agree with it); r0 is recomputed, the printed
 // value kept as r0Tab. Z45: the lip is inclined 45° OUTWARD with length D on the mid-line (the only reading that matches
-// A, Ix, Iy). Cartola: yg and y0 are measured from the top (outer) face of the flange of width bf; x is the horizontal
-// axis (bending of a hat purlin), y the vertical axis of symmetry.
+// A, Ix, Iy). Cartola: yg = centroid from the top (outer) face of the flange of width bf (checked by geometry); x is the
+// horizontal axis (bending of a hat purlin), y the vertical axis of symmetry. The printed y0 is NOT the shear-centre
+// offset: it equals xm, the distance from the centroid to the flange mid-line (steel specialist review); the shear centre
+// by NBR 14762:2010 E.2.1.2c lies ≈ 2× farther, outside the flange — and the printed r0 (and possibly Cw) were computed
+// with that y0. DO NOT use y0, r0, Cw of the hat rows in flexural-torsional checks until this is decided (Manoel).
 const Z90 = [
   ["Z90 50x25x10x1,20", 1.06, 50, 25, 10, 1.2, 1.35, 5.24, 2.09, 1.97, 2.25, 0.92, 1.29, 2.61, 6.75, 0.74, 30.09, 0.006, 9.83, 2.36, 29],
   ["Z90 50x25x10x1,50", 1.3, 50, 25, 10, 1.5, 1.65, 6.32, 2.53, 1.96, 2.66, 1.1, 1.27, 3.12, 8.11, 0.88, 29.83, 0.012, 11.66, 2.33, 29],
@@ -381,7 +384,7 @@ function buildCr(r) {
     shape: 'Cr', designacao: des, massa,
     dims: { bw: bw * mm, bf: bf * mm, D: D * mm, t: t * mm, ri: t * mm },
     A: A * cm2, Iz: Ix * cm4, Iy: Iy * cm4, Sz: Wx * cm3, Sy: Wy * cm3, rz: rx * cm, ry: ry * cm,
-    J: It * cm4, JTab: It * cm4, Cw: Cw * cm6, yg: yg * cm, y0: y0 * cm, x0: 0, r0: r0 * cm,   // yg, y0 from the top face
+    J: It * cm4, JTab: It * cm4, Cw: Cw * cm6, yg: yg * cm, y0Tab: y0 * cm, r0Tab: r0 * cm,   // y0/r0 as printed — suspect, see note
     fonte: `ABNT NBR 6355:2012 Tab. A.6 (doc p.${pg})`,
   }];
 }
