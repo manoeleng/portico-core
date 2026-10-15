@@ -2903,6 +2903,7 @@ export const EN = {
   "Color": "Colour",
   "Favoritos": "Favourites",
   "Favorito": "Favourite",
+  "Arrastrar para mover · doble clic = volver a la esquina": "Drag to move · double click = back to the corner",
 };
 
 export default EN;

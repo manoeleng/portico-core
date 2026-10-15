@@ -2646,6 +2646,7 @@ export const PT = {
   "Color": "Cor",
   "Favoritos": "Favoritos",
   "Favorito": "Favorito",
+  "Arrastrar para mover · doble clic = volver a la esquina": "Arraste para mover · duplo clique = volta ao canto",
 };
 
 export default PT;

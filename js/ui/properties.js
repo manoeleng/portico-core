@@ -168,6 +168,43 @@ export class PropertiesPanel {
       el._wired = true;
       el.querySelectorAll('.lib-tab').forEach(b => b.addEventListener('click', () => this.openLibrary(b.dataset.lib)));
       el.querySelector('#lib-close')?.addEventListener('click', () => { el.style.display = 'none'; this._libTab = null; });
+      // drag the window by its title bar (not by the tabs / close); position remembered; double click = back to the corner
+      const head = el.querySelector('.lib-head');
+      const place = (x, y) => {
+        const w = el.offsetWidth, h = el.offsetHeight;
+        x = Math.max(0, Math.min(window.innerWidth - Math.min(w, 120), x)); y = Math.max(0, Math.min(window.innerHeight - 40, y));
+        Object.assign(el.style, { left: x + 'px', top: y + 'px', right: 'auto' });
+        void h;
+      };
+      try { const p = JSON.parse(localStorage.getItem('portico.libPos') || 'null'); if (p) place(p.x, p.y); } catch { /* no stored position */ }
+      if (head) {
+        head.style.cursor = 'move';
+        head.title = i18n.t('Arrastrar para mover · doble clic = volver a la esquina');
+        // anywhere on the bar but the ✕; a press that moves > 4 px is a drag (the tab click is then swallowed)
+        head.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0 || e.target.closest('#lib-close')) return;
+          const r = el.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top, x0 = e.clientX, y0 = e.clientY;
+          let dragging = false;
+          const mv = (ev) => {
+            if (!dragging && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 4) { dragging = true; head.setPointerCapture(ev.pointerId); }
+            if (dragging) place(ev.clientX - dx, ev.clientY - dy);
+          };
+          const up = () => {
+            head.removeEventListener('pointermove', mv); head.removeEventListener('pointerup', up);
+            if (!dragging) return;
+            el._justDragged = true; setTimeout(() => { el._justDragged = false; }, 0);
+            const q = el.getBoundingClientRect();
+            try { localStorage.setItem('portico.libPos', JSON.stringify({ x: q.left, y: q.top })); } catch { /* storage blocked */ }
+          };
+          head.addEventListener('pointermove', mv); head.addEventListener('pointerup', up);
+        });
+        head.addEventListener('click', (e) => { if (el._justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+        head.addEventListener('dblclick', (e) => {
+          if (e.target.closest('#lib-close')) return;
+          Object.assign(el.style, { left: '', top: '', right: '' });
+          try { localStorage.removeItem('portico.libPos'); } catch { /* storage blocked */ }
+        });
+      }
     }
   }
 
