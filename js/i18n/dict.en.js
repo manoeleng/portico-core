@@ -2495,6 +2495,9 @@ export const EN = {
   "NBR 15421: informe Cd en el diálogo del espectro — los desplazamientos deben multiplicarse por Cd/I (9.5).": "NBR 15421: enter Cd in the spectrum dialog — displacements must be multiplied by Cd/I (9.5).",
   "zona": "zone",
   "Espectro de diseño NBR 15421:2023 (6.3) × I/R (sección 10).": "NBR 15421:2023 design spectrum (6.3) × I/R (section 10).",
+  "Normas y bibliotecas del asistente": "Assistant codes and libraries",
+  "Brasil — NBR 6120/6123/15421/8681, perfiles Gerdau": "Brazil — NBR 6120/6123/15421/8681, Gerdau profiles",
+  "Genérico — ejemplos del núcleo (sustituir por las normas locales)": "Generic — core examples (replace with local codes)",
 };
 
 export default EN;

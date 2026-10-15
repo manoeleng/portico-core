@@ -13,6 +13,14 @@ Revisão de especialista FECHADA nas fases 5, 6, 7, 8 e nos itens cantoneira (88
 3. Comparação com software comercial (SAP2000 / CYPE 3D / TQS-Eberick, tolerância 3 %) — não feita.
 4. Revisão humana da tradução (`Desktop\REVISAO_TRADUCAO_PT.csv`).
 
+**Assistente com o preset Brasil (15/10/2026):** o diálogo do assistente tem seletor de normas (Brasil por padrão
+em PT) e carrega `presets/brasil/` com leitor CSV que respeita aspas (`js/utils/csv.js`); o gerador aplica, em todas
+as tipologias, as combinações NBR 8681 (`nbrCombinations`; CV → Qcob em galpão/treliça) e o espectro NBR 15421 no
+edifício. Teste `assistant/test_assistente_brasil.mjs`; conferido no navegador. **Limites do gerador (não são da
+norma):** o galpão não gera vento nem sismo, não tem contraventamento e as terças são barras rígidas de ligação
+entre pórticos — proposta de "galpão completo" aguardando o Manoel. O endpoint de LLM não existe (backend privado
+do autor; "traga o seu serviço") — decisão do Manoel.
+
 **Pendências técnicas abertas** (detalhes nas notas de cada fase): ligar o limite H/1 700 / H/400 (vento, ELS) à interface; alma esbelta (Anexo H) e ruptura da seção líquida na 8800;
 cantoneira de abas desiguais ligada pela aba menor; seção não retangular e torção de perfis abertos (17.5.2) na
 6118; ELS de madeira; Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da

@@ -34,6 +34,7 @@ import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
 import { driftLimit, driftLimit15421 } from './design/serviceability.js?v=7';
 import { parseNum } from './utils/num.js?v=7';
+import { parseCSV } from './utils/csv.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
 import { designCurve15421 } from './design/spectra/nbr15421.js?v=7';
 const buildSpectrum = (o) => getSpectrum('NCh433').build(o);   // spectra registry (PLANO_BRASIL 5.5)
@@ -6904,6 +6905,13 @@ class App {
     }, null, 2);
 
     document.getElementById('modal-body').innerHTML = `
+<div class="prop-field" style="margin-bottom:8px">
+  <label>${i18n.t('Normas y bibliotecas del asistente')}</label>
+  <select id="asis-preset">
+    <option value="brasil" ${this._assistantPreset() === 'brasil' ? 'selected' : ''}>${i18n.t('Brasil — NBR 6120/6123/15421/8681, perfiles Gerdau')}</option>
+    <option value="generico" ${this._assistantPreset() === 'generico' ? 'selected' : ''}>${i18n.t('Genérico — ejemplos del núcleo (sustituir por las normas locales)')}</option>
+  </select>
+</div>
 <div class="prop-field">
   <label>Describe el modelo en palabras (el asistente arma la ficha)</label>
   <textarea id="asis-nl" rows="4" class="sp-textarea" placeholder="Ej.: edificio de 4 niveles de 3 m, planta con 3 vanos de 6 m en X y 2 de 5 m en Y, hormigón G30, vigas 25x50, pilares 35x35, salas de clases, en Valdivia, con sismo zona 2 suelo D"></textarea>
@@ -6926,6 +6934,7 @@ class App {
 
     // Keyboard-runnable example: Tab fills it, Enter requests the spec from the assistant.
     this._wireAsisExample('asis-nl', () => document.getElementById('btn-asis-llm')?.click());
+    document.getElementById('asis-preset')?.addEventListener('change', e => { this._asisPreset = e.target.value; });
 
     document.getElementById('btn-asis-llm')?.addEventListener('click', async () => {
       const url = document.getElementById('asis-endpoint').value.trim();
@@ -7577,24 +7586,21 @@ class App {
     }
   }
 
+  // Assistant preset: 'brasil' (presets/brasil — NBR 6120/6123/15421/8681, Gerdau and NBR materials) or
+  // 'generico' (assistant/ — the core's code-agnostic examples). Default: Brasil when the UI is in PT.
+  _assistantPreset() { return this._asisPreset || (i18n.getLocale?.() === 'pt' ? 'brasil' : 'generico'); }
   async _loadAssistantLibraries() {
-    if (this._asisLibs) return this._asisLibs;
-    const parseCSV = (txt) => {
-      const lines = txt.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
-      const head = lines[0].split(',').map(s => s.trim());
-      return lines.slice(1).map(l => {
-        const c = l.split(',').map(s => s.trim());
-        return Object.fromEntries(head.map((h, i) => [h, c[i]]));
-      });
-    };
-    const base = 'assistant/';
+    const preset = this._assistantPreset();
+    if (this._asisLibs && this._asisLibs.preset === preset) return this._asisLibs;
+    const base = preset === 'brasil' ? 'presets/brasil/' : 'assistant/';
     const [reglas, pTxt, mTxt, sTxt] = await Promise.all([
       fetch(base + 'rules.json').then(r => r.json()),
       fetch(base + 'profiles.csv').then(r => r.text()),
       fetch(base + 'materials.csv').then(r => r.text()),
       fetch(base + 'live_loads.csv').then(r => r.text()),
     ]);
-    this._asisLibs = { reglas, perfiles: parseCSV(pTxt), materiales: parseCSV(mTxt), sobrecargas: parseCSV(sTxt) };
+    // quote-aware CSV (the Brazil libraries have commas inside quoted fields)
+    this._asisLibs = { preset, reglas, perfiles: parseCSV(pTxt), materiales: parseCSV(mTxt), sobrecargas: parseCSV(sTxt) };
     return this._asisLibs;
   }
 

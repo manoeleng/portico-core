@@ -9,6 +9,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { snowLoad, windLoad, responseSpectrum } from './loads.js';
+import { nbrCombinations } from '../js/design/combinations_nbr.js';
 
 const G_GRAV = 9.80665;          // kN per tonne-force (weight→mass)
 const CM2_M2 = 1e-4;             // cm² → m²
@@ -225,7 +226,40 @@ function tributario(ejes, j) {
  *                           perfiles/materiales = arrays of objects (CSV rows)
  * @returns {object}        .s3d model (ready for JSON.stringify and to open in PORTICO)
  */
+// Brazil preset (rules with NBR6123 wind or NBR15421 seismic): every typology leaves the generator with
+// NBR combinations (NBR 8681:2025; γ of NBR 6118:2026 for concrete, NBR 8800:2024 = NBR 8681 for steel
+// and timber) instead of the NCh3171 templates written by each typology.
+const isBrasil = (reglas) => reglas?.loads?.wind?.metodo === 'NBR6123' || reglas?.loads?.seismic?.metodo === 'NBR15421';
+function applyNbrCombinations(model, spec) {
+  const warn = (t, m) => (model._warnings = model._warnings || []).push({ type: t, msg: m });
+  const roofOnly = /galp|nave|industrial|shed|hangar|warehouse|cercha|celos|warren|truss/.test(String(spec.typology || '').toLowerCase());
+  const sym = new Map(), used = new Set();
+  for (const lc of model.loadCases || []) {
+    let k = null;
+    if (lc.type === 'spectrum') k = lc.specDir === 'Y' ? 'E90' : lc.specDir === 'Z' ? null : 'E0';
+    else if (lc.selfWeight || /^CM\b/.test(lc.name)) k = 'G';
+    else if (/^CV\b/.test(lc.name)) k = roofOnly ? 'Qcob' : 'Q';
+    else if (/^Viento/.test(lc.name)) k = /Y\b/.test(lc.name) ? 'V90' : 'V0';
+    if (!k || used.has(k)) { warn('omitted', `Caso "${lc.name}" fora das combinações NBR (sem ação correspondente na NBR 8681/6120/6123/15421).`); continue; }
+    used.add(k); sym.set(k, lc.id);
+  }
+  if (!sym.has('G')) { warn('omitted', 'Sem caso permanente: combinações NBR não geradas.'); model.combinations = []; return model; }
+  const E = (model.materials || []).map(m => +m.E || 0);
+  const family = E.length && E.every(e => e > 1e7 && e < 6e7) ? 'concrete' : 'steel';
+  const r = nbrCombinations({ family, cases: [...sym.keys()], uso: spec.loads?.uso_nbr || 'residencial' });
+  model.combinations = r.lista.map((c, i) => ({ id: i + 1, name: c.nombre,
+    factors: Object.entries(c.factores).map(([k, f]) => ({ lcId: sym.get(k), factor: f })) }));
+  if (model._counters) model._counters.combinations = model.combinations.length;
+  warn('info', `Combinações NBR 8681:2025 (${r.code}; ψ de uso "${spec.loads?.uso_nbr || 'residencial'}"): ${model.combinations.length} geradas.`);
+  return model;
+}
+
 export function generateModel(spec, libs) {
+  const m = generateModelByTypology(spec, libs);
+  return isBrasil(libs?.reglas) ? applyNbrCombinations(m, spec) : m;
+}
+
+function generateModelByTypology(spec, libs) {
   // Dispatch by typology: timber and truss have their own geometry.
   const tip = String(spec.typology || 'frame').toLowerCase();
   // PARAMETRIC transmission tower (#53): spec.tower with dimensions → 3D lattice.
@@ -546,7 +580,7 @@ export function generateModel(spec, libs) {
   if (cargas.wind) {
     // Wind in +X: net wall pressure (zone 1 windward − zone 4 leeward) as a
     // horizontal line load (globalX) on the columns of the x=min face.
-    if (ub.latitude_deg == null && !ub.city) addWarning('omitted', 'Wind enabled without location (latitude/city): used the default basic speed.');
+    if (ub.latitude_deg == null && !ub.city && !(spec.wind?.V0_m_s > 0)) addWarning('omitted', 'Wind enabled without location (latitude/city): used the default basic speed.');
     const vi = windLoad(spec, reglas, h_techo);
     const pNet_kNm2 = ((vi.presiones['1'] || 0) - (vi.presiones['4'] || 0)) / 1000; // N/m²→kN/m²
     const lcW = { id: ++cnt.loadCases, name: 'Viento X', loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _presion_neta_muro_kNm2: +pNet_kNm2.toFixed(4) };
@@ -558,7 +592,14 @@ export function generateModel(spec, libs) {
     }
     loadCases.push(lcW); lcWId = lcW.id;
   }
-  if (cargas.seismic) {
+  if (cargas.seismic && reglas.loads?.seismic?.metodo === 'NBR15421') {
+    // NBR 15421:2023 spectrum (preset Brasil): ag, ground class, occupancy category and R from the spec.
+    let esp = null;
+    try { esp = responseSpectrum(spec, reglas); }
+    catch (e) { esp = { _error: e.message }; addWarning('omitted', `Espectro NBR 15421 não gerado (${e.message}); o caso sísmico fica sem curva.`); }
+    loadCases.push({ id: ++cnt.loadCases, name: 'Sismo X', loads: [], selfWeight: false, type: 'spectrum', specDir: 'X', _espectro_NBR15421: esp }); lcSxId = cnt.loadCases;
+    if (!is2D) { loadCases.push({ id: ++cnt.loadCases, name: 'Sismo Y', loads: [], selfWeight: false, type: 'spectrum', specDir: 'Y', _espectro_NBR15421: esp }); lcSyId = cnt.loadCases; }
+  } else if (cargas.seismic) {
     // NCh433 elastic spectrum. Sanitizes parameters (zone/soil/category) with
     // reasonable defaults if missing or invalid, recording the substitution.
     const s = reglas.loads?.seismic || {};
