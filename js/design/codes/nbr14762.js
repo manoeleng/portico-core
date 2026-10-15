@@ -320,7 +320,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   const Lx = (member.Lx ?? (member.Kz ?? member.K ?? 1) * (member.L || 1)) * 100;     // buckling about the strong axis
   const Ly = (member.Ly ?? (member.Ky ?? member.K ?? 1) * (member.L || 1)) * 100;     // about the weak axis
   const Lt = (member.Lz ?? (member.Kt ?? 1) * (member.L || 1)) * 100;                 // torsion (KzLz)
-  const Lby = member.Lb != null ? member.Lb * 100 : Ly, Lbz = member.Lb != null ? member.Lb * 100 : Lt;   // unbraced lengths for FLT (9.8.2.2)
+  const LbIn = member.Lb != null && !member.LbDefault;                               // Lb injected by design.js is not a user value
+  const Lby = LbIn ? member.Lb * 100 : Ly, Lbz = LbIn ? member.Lb * 100 : Lt;   // unbraced lengths for FLT (9.8.2.2)
   const Cb = member.Cb ?? 1.0, Cm = member.Cm ?? 1.0;
   if ((member.Cb == null || member.CbDefault) && Mz > 0) avisos.push('Cb = 1,0 (a favor da segurança, 9.8.2.2): informe member.Cb (helper cbMoments) para o diagrama real.');
   if (member.L != null && !member.Ldefault && member.Lx == null && (member.K == null || member.Kdefault) && member.Kz == null && member.Ky == null && (N < 0))

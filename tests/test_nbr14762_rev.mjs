@@ -31,6 +31,13 @@ const r5 = run({ N: 10, L: 12 });
 assert('I3. tração L/r > 300 → aviso 9.6.3', r5.avisos.some(a => /9\.6\.3/.test(a)));
 const r6 = run({ N: 10, L: 3 });
 assert('I3b. tração L/r ≤ 300 → sem aviso', !r6.avisos.some(a => /9\.6\.3/.test(a)));
+// re-revisão: member.L sem forces.L deve dar a mesma FLT que forces.L (antes: Lb = 1 m injetado)
+const secB = profileToSection('Ue 100x50x17x1,20');
+const fl = (forces, member) => checkElement({ forces, sec: secB, mat, codeId: 'NBR14762:2010', member }).flexaoX.ratio;
+const a6 = fl({ Mz: 0.5, L: 6 }), b6 = fl({ Mz: 0.5 }, { L: 6 }), c6 = fl({ Mz: 0.5 }, { Lb: 6 });
+ok('R1. member.L = 6 ≡ forces.L = 6 (FLT)', b6, a6, 1e-9);
+ok('R2. member.Lb = 6 sem L ≡ forces.L = 6 (FLT)', c6, a6, 1e-9);
+assert('R3. member.Lb sem L: compressão não verificada', run({ N: -20 }, { Lb: 6 }).axial.verificado === false);
 const L80 = cfSection('L 80x4,25');
 ok('I4. L 80x4,25 Iz = 41,26 cm⁴', L80.Iz * 1e8, 41.26, 1e-3);
 const nanList = cfNames().filter(n => { const c = cfSection(n); return !(c.Iz > 0 && c.Iy > 0 && c.A > 0); });
