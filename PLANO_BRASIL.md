@@ -306,8 +306,14 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       da 2005:** tem alturas 200/225 (tw 5) e VS 1500 que a 2005 não tem; faltam os VS 150–350 da 2005.
       Corrigido VS 750 x 320 tf 12,3 → 12,5 (Tab. B.3). Massa da biblioteca não usada (CS 400x400 (19/16)
       constava com 65 kg/m).
-- [ ] Tubos circulares e retangulares — `pipe` / `box`.
-- [ ] U laminado e cantoneiras — `channel` / `angle`.
+- [~] Tubos circulares e retangulares — `pipe` / `box`. **Circulares feitos** (15/10/2026): 850 da biblioteca
+      (`js/design/profiles_lib.js`, família "Tubo circular"), TC 168,3×16 conferido no Fakury/Vallourec.
+      **Retangulares pendentes:** a biblioteca tem 406, mas o `box` nominal ignora os raios de canto
+      (A ~4 % acima em 100×100×6,3) — implementar raios pelo livro de perfis tubulares (re/ri por
+      espessura, eq. 1.18) antes de catalogar.
+- [~] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
+      (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
+      **U laminado:** a biblioteca não tem; fonte = Gerdau (`_referencias/Catalogos_Tabelas`).
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
   (88 W/HP com Zx, It, Cw) e `formados-frio-6355.csv` (150 perfis, NBR 6355:2012 Tab. A, com
   página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884:2005 no acervo (ver Fontes).

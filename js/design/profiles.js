@@ -15,6 +15,7 @@
 import { fromShape } from './section_props.js?v=7';
 import { cfNames, cfSection } from './profiles_cf.js?v=7';
 import { VS, CVS, CS } from './profiles_nbr5884.js?v=7';
+import { L as L_LIB, TUBO_RED } from './profiles_lib.js?v=7';
 
 // [h, b, tw, tf] en mm.
 const IPE = {
@@ -179,6 +180,10 @@ for (const [fam, table] of [['VS', VS], ['CVS', CVS], ['CS', CS]]) {
   CATALOG[fam] = buildFamily(table, 'I', ['d', 'bf', 'tw', 'tf']);
   for (const p of Object.values(CATALOG[fam])) p.fabricacao = 'soldado';
 }
+
+// Angles and circular tubes from the user's library (profiles_lib.js), nominal geometry → fromShape.
+CATALOG['L (cantoneira)'] = buildFamily(L_LIB, 'angle', ['d', 'b', 't']);
+CATALOG['Tubo circular'] = buildFamily(TUBO_RED, 'pipe', ['D', 't']);
 
 // Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
 CATALOG['Ue (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('Ue')).map(n => [n, { shape: 'Ue', cf: true }]));
