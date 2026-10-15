@@ -255,6 +255,9 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 - **Oráculos:** Pfeil 9ª ed. (base 2008) via fixtures do StructPro-Pro; teste usa propriedades de catálogo (`laminados-gerdau.csv`), não a geometria recalculada (o `section_props.js` não considera o raio de concordância).
 - **Contrato:** `resolveSectionProps` passa a repassar `dims` e `fabricacao` (aditivo; AISC/EC3 inalterados).
 
+> **Fase 3 (NBR 8800:2024) implementada em 14/10/2026** — `js/design/codes/nbr8800.js` (I/H duplamente simétrico: tração 5.2.2-a, compressão por área efetiva com Ne = mín(Nex, Ney, Nez), flexão Anexo D com Cb em λr/Mcr, FLM laminado/soldado, FLA, cortante 5.4.3.1 e 5.4.3.5, interação 5.5.1.2; demais formas simplificadas com aviso) — commits `aade4cd`, `edf352f`, `3465b86`; perfis W/HP Gerdau `226f3b2`; materiais NBR `2784af7`. Testes `tests/test_nbr8800.mjs` BR-8800-01..08 (Pfeil 9ª ed.; V3 com Cb = 1,67 e BR-8800-07 por cálculo manual na 2024). Revisão do especialista: 1 rodada de achados corrigida (`edf352f`); **fechamento formal não registrado**.
+> Pendências: alma esbelta (Anexo H) e ruptura da seção líquida não calculadas (aviso); equivalência 2008↔2024 fora da flexão conferida só nos itens dos casos BR-8800.
+
 ### 7.2 NBR 6118 — concreto (`js/design/codes/nbr6118.js`)
 - id `NBR6118:2026`, family `concrete`.
 - Reaproveitar `rebarLayers` de `concrete.js`.
@@ -274,8 +277,8 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 > Pendências: torção (17.5) e seções não retangulares → "não verificado"; sentido do momento não verificado (aviso); pilar exige papel "pilar" na seção ou ν ≥ 0,10 (critério adotado, sinalizado).
 
 ### 7.3 NBR 7190 — madeira (`js/design/codes/nbr7190.js`)
-- **[LACUNA]** a NBR 7190 não está no acervo. Obter a edição vigente (2022, em partes) antes da
-  fase 7; até lá, nada abaixo pode ser codificado.
+- ~~**[LACUNA]** a NBR 7190 não está no acervo.~~ Resolvido: NBR 7190-1:2022 obtida em
+  14/10/2026; os itens [CONFIRMAR] abaixo foram conferidos na fase 7 (ver nota de conclusão).
 - id `NBR7190:2022` **[CONFIRMAR edição e partes]**, family `timber`.
 - kmod = kmod1·kmod2 (·kmod3 se aplicável); γw = 1,4 (compressão), 1,8 (tração e
   cisalhamento) — valores da edição 1997, **[CONFIRMAR na 2022]**.
@@ -294,13 +297,13 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 ## 8. Fases 4 e 5 — Perfis, materiais e preset Brasil
 
 ### 8.1 Perfis (`profiles.js` + `profiles.csv`)
-- [ ] W laminados (W150×13 … W610×174) e HP (HP200×53 … HP310×125) — forma `I`.
-- [ ] Soldados VS, CVS, CS (NBR 5884) — forma `I`.
+- [x] W laminados (W150×13 … W610×174) e HP (HP200×53 … HP310×125) — forma `I` (81 W + 7 HP Gerdau, propriedades tabeladas — `226f3b2`).
+- [ ] Soldados VS, CVS, CS (NBR 5884) — forma `I`. A NBR 5884:2005 já está no acervo (Tab. B.1–B.4 escaneadas): transcrever e conferir linha a linha.
 - [ ] Tubos circulares e retangulares — `pipe` / `box`.
 - [ ] U laminado e cantoneiras — `channel` / `angle`.
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
   (88 W/HP com Zx, It, Cw) e `formados-frio-6355.csv` (150 perfis, NBR 6355:2012 Tab. A, com
-  página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884 **[LACUNA]**.
+  página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884:2005 no acervo (ver Fontes).
 - Dados: catálogos de fabricante (Gerdau) e tabelas da NBR 5884. **Antes de publicar,
   confirmar com o usuário se a licença dessas tabelas permite redistribuição AGPL.** Se não,
   gerar propriedades a partir da geometria nominal (como `profiles.js` já faz).
@@ -344,19 +347,20 @@ presets/brasil/
 - [x] **5.3** Preset define os padrões: `steel → NBR8800:2024`, `concrete → NBR6118:2026`,
       `timber → NBR7190:2022` (via `designSettings.codeByFamily` ou equivalente; definir com
       o usuário onde o preset aplica isso).
-- [ ] **5.4 Vento (NBR 6123:2023):** as chaves atuais seguem ASCE 7 (`Kz_formula`,
+- [x] **5.4 Vento (NBR 6123:2023):** (feito na fase 6 — `341630b`, `9144288`) as chaves atuais seguem ASCE 7 (`Kz_formula`,
       `gcpf_external_pressure`). Criar `wind.method = "NBR6123"` e um ramo em
       `assistant/loads.js`:
       Vk = V0·S1·S2·S3; q = 0,613·Vk² (N/m²); S2 = bm·Fr·(z/10)^p por categoria I–V e classe
       A–C. Tabela 1 (bm, p) e Fr da edição 2023 já transcritas em
       `C:\projetos\StructPro-Pro\docs\fichas\P2.2-vento-NBR6123-2023.md` — conferir contra o PDF
       ao portar. Cpe/Cpi (Tab. 7–12) ainda não transcritos. O ramo ASCE existente não pode mudar.
-- [ ] **5.5 Sismo — refatoração do núcleo (PR separado):**
+- [x] **5.5 Sismo — refatoração do núcleo (PR separado):** (feito — `669cc47`, NCh433 idêntico em 270 combinações)
       criar `js/design/spectra/` com registro de espectros (mesma ideia de `registry.js`);
       mover NCh433 para lá **sem mudar resultados**; trocar os imports diretos em `app.js` e
       `api/portico.js` pelo registro.
-- [ ] **5.6 Sismo — `nbr15421_spectrum.js`** **[CONFIRMAR na NBR 15421:2023 (acervo) — os valores
-      abaixo são da edição 2006, de memória]**:
+- [x] **5.6 Sismo — `nbr15421_spectrum.js`** (feito como `js/design/spectra/nbr15421.js` pela
+      edição 2023 — `729a62e`; o esboço abaixo, da edição 2006 de memória, está **superado**:
+      na 2023 ags1 = Cv·0,75·ag e há o ramo 1/T²):
       zonas 0–4 (ag 0,025g … 0,15g); terreno A–F (Ca, Cv); categorias I–III (I = 1,0; 1,25; 1,5).
       ags0 = Ca·ag; ags1 = Cv·ag
       Sa(T) = ags0·(18,75·T·Ca/Cv + 1,0)   para 0 ≤ T ≤ 0,08·Cv/Ca
@@ -416,11 +420,11 @@ com a edição adotada; onde mudou, o esperado vem de cálculo manual na ediçã
 | BR-8800-01 | Pilar W comprimido: χ, Nc,Rd | Pfeil & Pfeil 9ª ed. 2022, Ex. 5.8.2 (`Aco\`) | SAP2000 / CYPE 3D (`Software\cype-3d-*`) |
 | BR-8800-02 | Viga com FLT/FLM/FLA e Cb | Pfeil 9ª ed. 6.2.4, V3, 7.6.5; Fakury, Silva e Caldas 2017 (raiz) | SAP2000 / CYPE 3D |
 | BR-8800-03 | Flexo-compressão | Fakury, Silva e Caldas 2017; Pfeil 9ª ed. | Idem |
-| BR-6118-01 | Viga retangular, As de flexão | Carvalho & Figueiredo Filho Vol. 1 **[LACUNA]**; apoio: Leonhardt (`Concreto\`) | TQS / Eberick |
-| BR-6118-02 | Cortante, modelos I e II | Idem **[LACUNA]** | Idem |
+| BR-6118-01 | Viga retangular, As de flexão | Carvalho & Figueiredo Filho Vol. 1, 4ª ed. (raiz); apoio: Leonhardt (`Concreto\`) | TQS / Eberick |
+| BR-6118-02 | Cortante, modelos I e II | Idem | Idem |
 | BR-6118-03 | Pilar com M1d,mín e 2ª ordem local | Kimura 2018 (raiz, base 6118:2014); Carvalho & Pinheiro Vol. 2 (raiz) | Idem |
-| BR-6118-04 | Flecha imediata e diferida | Carvalho & Figueiredo Filho Vol. 1 **[LACUNA]** | Idem |
-| BR-7190-01 | Tração, compressão, flexão | Calil Junior et al. **[LACUNA]** | Planilha |
+| BR-6118-04 | Flecha imediata e diferida | Carvalho & Figueiredo Filho Vol. 1, 4ª ed. (raiz) | Idem |
+| BR-7190-01 | Tração, compressão, flexão | Calil Jr. et al. (`Madeira\`); Martins (2019) | Planilha |
 | BR-8681-01 | Combinações geradas para G+Q+V | Cálculo manual com as tabelas da seção 6 | — |
 | BR-6123-01 | Vk e q, cidade/categoria definidas | *Ação do Vento nas Edificações – Teoria e Exemplos* (`Acoes\`); Manual CBCA Galpões (`Aco\01_Manual_Galpoes_web.pdf`) | CYPE |
 | BR-15421-01 | Sa em T = 0; 0,5; 1,0; 2,0 s | Cálculo manual pela NBR 15421:2023 | — |
