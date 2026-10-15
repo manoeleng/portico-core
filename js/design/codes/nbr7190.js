@@ -97,6 +97,9 @@ function checkNBR7190({ demands, mat, sec, member = {}, options = {} }) {
   if (options.kM != null && options.kM !== 0.7) avisos.push(`kM = ${options.kM} informado (a NBR 7190-1:2022 6.3.5 dá 0,7 para seção retangular).`);
 
   const N = demands.N || 0;
+  if ((member.Ldefault || member.L == null) && member.Lz0 == null && member.Ly0 == null && (N !== 0 || (demands.Mz || 0) !== 0)) {
+    naoVerificado = true; avisos.push('Comprimento da barra não informado: estabilidade/esbeltez NÃO verificadas.');
+  }
   const sN = Math.abs(N) / A;
   const sMx = Math.abs(demands.Mz || 0) / Sz, sMy = Math.abs(demands.My || 0) / Sy;
   const tau = 1.5 * Math.hypot(demands.Vy || 0, demands.Vz || 0) / A;   // resultant (6.4.2 silent on biaxial)

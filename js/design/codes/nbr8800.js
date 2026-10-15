@@ -62,6 +62,8 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   const Cb = member.Cb ?? 1.0;
 
   const N = demands.N || 0, Nabs = Math.abs(N);
+  const semL = (member.Ldefault || member.L == null) && member.Lx == null && member.Ly == null && member.Lb == null;
+  if (semL && (N < 0 || (demands.Mz || 0) !== 0)) avisos.push('Comprimento da barra não informado: flambagem/FLT NÃO verificadas.');
   const Vy = Math.abs(demands.Vy || 0), Vz = Math.abs(demands.Vz || 0);
   const My = Math.abs(demands.My || 0), Mz = Math.abs(demands.Mz || 0);
 
@@ -182,6 +184,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     formula: nr >= 0.2 ? 'NSd/NRd + 8/9·(Mx,Sd/Mx,Rd + My,Sd/My,Rd) (5.5.1.2-a)' : 'NSd/2NRd + (Mx,Sd/Mx,Rd + My,Sd/My,Rd) (5.5.1.2-b)' });
 
   if (Nabs > 0 && N < 0) avisos.push('Esforços devem vir de análise de 2ª ordem com imperfeições (NBR 8800:2024 4.10.6.2/4.10.7).');
+  if (semL) { if (N < 0) { axial.ratio = Infinity; interaction.ratio = Infinity; } if ((demands.Mz || 0) !== 0) flexaoX.ratio = Infinity; }
   const bending = flexaoX.ratio >= flexaoY.ratio ? flexaoX : flexaoY;
   const shear = corteY.ratio >= corteZ.ratio ? corteY : corteZ;
   return finalize({ material: 'aço', metodo: 'ABNT NBR 8800:2024', axial, bending, shear, interaction,

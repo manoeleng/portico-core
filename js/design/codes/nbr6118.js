@@ -247,6 +247,9 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   if (Nc > 0 && !roleCol && !roleBeam && !isCol) avisos.push(`Compressão sem papel definido e ν = ${nuD.toFixed(3)} < 0,10: verificado como VIGA (sem M1d,mín/2ª ordem) — marque a seção como pilar se for o caso.`);
   if (isCol && !roleCol) avisos.push(`Compressão preponderante adotada por ν = ${nuD.toFixed(3)} ≥ 0,10 (14.4.1.2 não fixa limite): verificado como pilar.`);
   if (isCol) {
+    if (!(member.le > 0 || member.lez > 0 || member.ley > 0) && (member.Ldefault || member.L == null)) {
+      naoVerificado = true; avisos.push('Pilar sem le e sem comprimento da barra: 2ª ordem NÃO verificada.');
+    }
     if (!(member.le > 0 || member.lez > 0 || member.ley > 0)) {
       avisos.push(`Pilar sem comprimento equivalente (member.le): adotado le = L = ${(member.L || 1).toFixed(2)} m${member.L ? '' : ' (L não informado: valor padrão)'} e αb = 1,0 — NÃO conservador para balanço (le = 2L) ou nós móveis; informe le (15.6).`);
     }

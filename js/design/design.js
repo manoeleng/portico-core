@@ -70,7 +70,9 @@ export function checkElement({ forces, sec, mat, matName, params = {}, codeId, d
     My: forces.My || 0, Mz: forces.Mz || 0, T: forces.T || 0,
   };
   const mem = { L: forces.L || 1, Lb: (member?.Lb ?? forces.L ?? 1), K: member?.K ?? 1,
-    Cb: member?.Cb ?? 1.0, ho: P.ho, role: sec.role, ...(member || {}) };
+    Cb: member?.Cb ?? 1.0, ho: P.ho, role: sec.role,
+    Ldefault: !(forces.L > 0) && member?.L == null,   // length not supplied: codes must not pass silently
+    ...(member || {}) };
 
   // warning/fail limits from the legacy JSON or defaults
   const lim = params.limits || {};
