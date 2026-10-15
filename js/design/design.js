@@ -73,6 +73,7 @@ export function checkElement({ forces, sec, mat, matName, params = {}, codeId, d
   const mem = { L: forces.L || 1, Lb: (member?.Lb ?? forces.L ?? 1), K: member?.K ?? 1,
     Cb: member?.Cb ?? 1.0, ho: P.ho, role: sec.role,
     Ldefault: !(forces.L > 0) && member?.L == null,   // length not supplied: codes must not pass silently
+    LbDefault: member?.Lb == null, Kdefault: member?.K == null, CbDefault: member?.Cb == null,   // defaults injected above
     ...(member || {}) };
 
   // warning/fail limits from the legacy JSON or defaults

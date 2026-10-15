@@ -231,7 +231,7 @@ function solveEff(g, E, cfg) {
         const rl = effAL(lip.b, lip.t, la, lb, E);
         if (rl.unverified) { bad = `${lip.id}: ${rl.unverified}`; break; }
         if (uni) {
-          const rf = effFlangeStiff(el.b, el.t, el.Dn, lip.b, sa, E);
+          const rf = sa > 0 ? effFlangeStiff(el.b, el.t, el.Dn, lip.b, sa, E) : { R: 1, gaps: [] };   // tensioned flange: fully effective
           if (rf.unverified) { bad = `${el.id}: ${rf.unverified}`; break; }
           notes[el.id] = rf; notes[lip.id] = rl;
           if (sa > 0) for (const gp of rf.gaps) addGap(el, gp[0], gp[1]);
@@ -314,14 +314,16 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
 
   // member lengths (cm). L alone ⇒ K = 1,0 (flagged); K from NBR 8800 (14762 8.2).
   const L = (member.L || 1) * 100;
-  const semL = (member.Ldefault || member.L == null) && member.Lx == null && member.Ly == null && member.Lb == null && member.Lz == null;
+  const semLbar = member.Ldefault || member.L == null;                                // no bar length (design.js fills Lb/K/Cb by default)
+  const semLc = semLbar && member.Lx == null && member.Ly == null && member.Lz == null;                 // global buckling
+  const semLf = semLbar && (member.Lb == null || member.LbDefault) && member.Ly == null && member.Lz == null;   // FLT
   const Lx = (member.Lx ?? (member.Kz ?? member.K ?? 1) * (member.L || 1)) * 100;     // buckling about the strong axis
   const Ly = (member.Ly ?? (member.Ky ?? member.K ?? 1) * (member.L || 1)) * 100;     // about the weak axis
   const Lt = (member.Lz ?? (member.Kt ?? 1) * (member.L || 1)) * 100;                 // torsion (KzLz)
   const Lby = member.Lb != null ? member.Lb * 100 : Ly, Lbz = member.Lb != null ? member.Lb * 100 : Lt;   // unbraced lengths for FLT (9.8.2.2)
   const Cb = member.Cb ?? 1.0, Cm = member.Cm ?? 1.0;
-  if (member.Cb == null && Mz > 0) avisos.push('Cb = 1,0 (a favor da segurança, 9.8.2.2): informe member.Cb (helper cbMoments) para o diagrama real.');
-  if (member.L != null && !member.Ldefault && member.Lx == null && member.K == null && member.Kz == null && member.Ky == null && (N < 0))
+  if ((member.Cb == null || member.CbDefault) && Mz > 0) avisos.push('Cb = 1,0 (a favor da segurança, 9.8.2.2): informe member.Cb (helper cbMoments) para o diagrama real.');
+  if (member.L != null && !member.Ldefault && member.Lx == null && (member.K == null || member.Kdefault) && member.Kz == null && member.Ky == null && (N < 0))
     avisos.push('K = 1,0 adotado (comprimento destravado = L); informe Lx/Ly/Lz com K da NBR 8800 se aplicável (14762:2010 8.2).');
 
   // geometry (cm) ----------------------------------------------------------------
@@ -376,6 +378,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     return { Nex, Ney, Nez, Nexz, Ne, modo: Ne === Ney ? 'flexão em y' : 'flexo-torção' };
   };
 
+  const solve = (gg, EE, cfg) => { const r = solveEff(gg, EE, cfg); if (r.naoConvergiu) avisos.push(`Seção efetiva (${cfg.axis}, ${cfg.mode || 'N'}): iteração do centroide efetivo não convergiu — resultado aproximado.`); return r; };
+
   // ── 9.6 tension / 9.7 compression ───────────────────────────────────────────────
   let axial, NRd = 0;
   const lamHard = isCh && g ? Math.max(Lx / g.rx, Ly / g.ry) : 0;
@@ -384,13 +388,14 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     axial = ratObj(Nabs, NRd, { modo: 'tração', formula: 'Nt,Rd = A·fy/1,10 (9.6.2 a)' });
     if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (9.6.2 b/c, Ct) não verificada — o modelo não tem área líquida/ligação.');
     if (!isCh) avisos.push(`Seção "${shape}": tração só por escoamento da seção bruta.`);
+    if (Nabs > 0 && !semLc && lamHard > 300) avisos.push(`Tração: L/r = ${lamHard.toFixed(0)} > 300 — recomenda-se L/r ≤ 300 (NBR 14762:2010 9.6.3).`);
   } else {
     let why = whyC, det = {};
-    if (!why && semL) why = 'comprimento da barra não informado (flambagem global).';
+    if (!why && semLc) why = 'comprimento da barra não informado (flambagem global).';
     if (!why) {
       const gb = glob(g);
       const lambda0 = Math.sqrt(A * fy / gb.Ne), chi = chiComp(lambda0);
-      const ef = solveEff(g, E, { axis: 'N', sigma: chi * fy });
+      const ef = solve(g, E, { axis: 'N', sigma: chi * fy });
       det = { ...gb, lambda0, chi, sigmaChiFy: chi * fy };
       if (ef.unverified) why = ef.unverified;
       else {
@@ -431,16 +436,16 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   // ── 9.8.2 bending, strong axis (z; NBR x) ──────────────────────────────────────────
   const flexX = () => {
     if (whyF) return { why: whyF };
-    if (semL) return { why: 'comprimento da barra não informado (FLT).' };
+    if (semLf) return { why: 'comprimento da barra não informado (FLT).' };
     const out = {};
-    const ye = solveEff(g, E, { axis: 'x', mode: 'yield', fy });
+    const ye = solve(g, E, { axis: 'x', mode: 'yield', fy });
     if (ye.unverified) return { why: ye.unverified };
     out.Wef = ye.I / Math.max(ye.dc, ye.dt); out.Ief = ye.I; out.MRdEsc = out.Wef * fy / gamF;
     // FLT 9.8.2.2: Me = Cb·r0·√(Ney·Nez), KyLy = Ly, KzLz = Lz → unbraced lengths
     const Ney = PI2 * E * g.Iy / (Lby * Lby), Nez = (PI2 * E * g.Cw / (Lbz * Lbz) + G * g.J) / (g.r0 * g.r0);
     const Me = Cb * g.r0 * Math.sqrt(Ney * Nez);
     const lam0 = Math.sqrt(g.Wx * fy / Me), chi = chiFLT(lam0);
-    const se = solveEff(g, E, { axis: 'x', mode: 'stab', sigma: chi * fy });
+    const se = solve(g, E, { axis: 'x', mode: 'stab', sigma: chi * fy });
     if (se.unverified) return { why: se.unverified };
     out.Me = Me; out.lambda0 = lam0; out.chiFLT = chi; out.WcEf = se.I / se.dc; out.MRdFLT = chi * out.WcEf * fy / gamF;
     // distorcional 9.8.2.3
@@ -468,7 +473,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   // ── weak axis (y): one sense ('alma' | 'mesas'), Anexo E ────────────────────────────
   const flexYsense = (comp) => {
     const out = { comp };
-    const ye = solveEff(g, E, { axis: 'y', comp, mode: 'yield', fy });
+    const ye = solve(g, E, { axis: 'y', comp, mode: 'yield', fy });
     if (ye.unverified) return { ...out, why: `sentido ${comp}: ${ye.unverified}` };
     out.Wef = ye.I / Math.max(ye.dc, ye.dt); out.Ief = ye.I; out.MRdEsc = out.Wef * fy / gamF;
     const Wc = g.Iy / (comp === 'alma' ? g.xg : g.bf - g.xg);
@@ -479,7 +484,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     out.j = ae.j; out.Cs = Cs; out.Cm = Cm; out.Me = Me; out.Wc = Wc;
     if (!(Me > 0)) return { ...out, why: `sentido ${comp}: Me do Anexo E ≤ 0 (${fix(Me)}).` };
     const lam0 = Math.sqrt(Wc * fy / Me), chi = chiFLT(lam0);
-    const se = solveEff(g, E, { axis: 'y', comp, mode: 'stab', sigma: chi * fy });
+    const se = solve(g, E, { axis: 'y', comp, mode: 'stab', sigma: chi * fy });
     if (se.unverified) return { ...out, why: `sentido ${comp}: ${se.unverified}` };
     out.lambda0 = lam0; out.chiFLT = chi; out.WcEf = se.I / se.dc; out.MRdFLT = chi * out.WcEf * fy / gamF;
     let MRd = Math.min(out.MRdEsc, out.MRdFLT);
@@ -496,7 +501,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   const flexY = () => {
     if (whyF) return { why: whyF };
     if (g.xg == null) return { why: 'xg (centroide a partir da face da alma) não informado: flexão em torno de y NÃO verificada.' };
-    if (semL) return { why: 'comprimento da barra não informado (FLT).' };
+    if (semLf) return { why: 'comprimento da barra não informado (FLT).' };
     const senses = options.sentidoMy ? [options.sentidoMy] : ['alma', 'mesas'];
     const rs = senses.map(flexYsense), bad = rs.find(r => r.why);
     if (bad) return { ...bad, why: bad.why + (options.sentidoMy ? '' : ' (sentido de My desconhecido: informe options.sentidoMy)') };
@@ -558,8 +563,13 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   if (shape === 'U' && Mz > 0) avisos.push('U simples: distorcional dispensada (9.3), exceto viga com painel ligado à mesa tracionada e mesa comprimida livre (Anexo F/bibliografia).');
   if (shape === 'Ue' && My > 0 && !options.sentidoMy) avisos.push('My: sentido (alma/mesas comprimidas) não informado — adotado o mínimo entre os dois.');
 
+  if ((Mz > 0 || My > 0) && isCh) avisos.push('FLT (9.8.2.2): carga suposta no centro de torção ou em posição estabilizante; carga na mesa superior/alma de U/Ue (excêntrica ao centro de torção, torção induzida — Anexo F) NÃO coberta.');
   const bending = flexaoX.ratio >= flexaoY.ratio ? flexaoX : flexaoY;
-  const shear = corteY.ratio >= corteZ.ratio ? corteY : corteZ;
+  let shear = corteY.ratio >= corteZ.ratio ? corteY : corteZ;
+  if (Math.abs(demands.T || 0) > 1e-6) {
+    avisos.push('Momento torçor ≠ 0: a NBR 14762:2010 não traz verificação de torção para seção aberta (LACUNA) — resultado NÃO verificado.');
+    shear = { ratio: Infinity, demand: Math.abs(demands.T), capacity: 0, verificado: false, modo: 'torção', motivo: 'torção não coberta pela NBR 14762:2010 (LACUNA).' };
+  }
   return finalize({ material: 'aço formado a frio', metodo: 'ABNT NBR 14762:2010 (MLE)', axial, bending, shear, interaction,
     interaction99, interactionMV, flexaoX, flexaoY, corteY, corteZ, avisos }, options);
 }
