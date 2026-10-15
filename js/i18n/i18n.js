@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────────
-// i18n.js — internationalization (ES/EN) of portico-core. Vanilla, no build.
+// i18n.js — internationalization (ES/EN/PT) of portico-core. Vanilla, no build.
 //
 // APPROACH (low-risk retrofit): SOURCE-STRING translation (gettext-style).
 // The engine walks the DOM TEXT NODES and translates only those that EXACTLY match
@@ -15,9 +15,11 @@
 // on the freshly created subtree if needed.
 // ──────────────────────────────────────────────────────────────────────────────
 import { EN } from './dict.en.js?v=7';
+import { PT } from './dict.pt.js?v=7';
 
 const LS_KEY = 'portico_lang';
-const SUPPORTED = ['es', 'en'];
+const SUPPORTED = ['es', 'en', 'pt'];
+const DICTS = { en: EN, pt: PT };   // Spanish is the source: no dictionary
 const SKIP_TAGS = new Set(['KBD', 'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'CODE']);
 // UI attributes with visible text (tooltips, accessible labels, placeholders).
 // The base engine only translates text nodes; these attributes are translated apart.
@@ -29,7 +31,7 @@ const _origAttr = new WeakMap(); // element → { attr: original Spanish value }
 function _initialLocale() {
   try { const s = localStorage.getItem(LS_KEY); if (SUPPORTED.includes(s)) return s; } catch (e) {}
   const nav = (typeof navigator !== 'undefined' && navigator.language || 'es').slice(0, 2);
-  return nav === 'en' ? 'en' : 'es';   // Spanish by default
+  return (nav === 'en' || nav === 'pt') ? nav : 'es';   // Spanish by default
 }
 
 let _locale = _initialLocale();
@@ -43,13 +45,14 @@ let _locale = _initialLocale();
 //        (&nbsp;) is intentionally NOT collapsed so keys relying on it still match.
 function _lookup(original) {
   const trimmed = original.trim();
-  let tr = EN[trimmed];
+  const dict = DICTS[_locale] || {};
+  let tr = dict[trimmed];
   if (tr != null) return original.replace(trimmed, tr);
   const lead = (original.match(/^[ \t\r\n]*/) || [''])[0];
   const trail = (original.match(/[ \t\r\n]*$/) || [''])[0];
   const core = original.slice(lead.length, original.length - trail.length);
   const norm = core.replace(/[ \t\r\n]+/g, ' ');
-  if (norm !== trimmed) { tr = EN[norm]; if (tr != null) return lead + tr + trail; }
+  if (norm !== trimmed) { tr = dict[norm]; if (tr != null) return lead + tr + trail; }
   return null;
 }
 
