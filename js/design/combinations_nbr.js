@@ -79,7 +79,14 @@ export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo =
   };
 
   const elu = [], exc = [], qp = [], freq = [], rara = [];
-  const push = (arr, prefix, f) => { const c = {}; for (const [s, v] of Object.entries(f)) if (r4(v) !== 0) c[s] = r4(v); arr.push({ nombre: name(prefix, c), factores: c }); };
+  // identical factor sets are emitted once (e.g. ELS frequente with Q principal: ψ2 of wind = 0, so
+  // G + ψ1·Q would repeat once per wind direction)
+  const push = (arr, prefix, f) => {
+    const c = {}; for (const [s, v] of Object.entries(f)) if (r4(v) !== 0) c[s] = r4(v);
+    const nombre = name(prefix, c);
+    const key = o => JSON.stringify(Object.entries(o).sort());
+    if (!arr.some(x => key(x.factores) === key(c))) arr.push({ nombre, factores: c });
+  };
 
   // ELU normal
   for (const p of vars) {

@@ -81,5 +81,17 @@ const show = (list) => list.map(c => c.nombre).join(' | ');
   assert('8d. sin G lanza error', e2);
 }
 
+// (9) Sem duplicatas: G + Q + V0 + V90 — com Q principal, ψ2 do vento = 0 e o G + 0,4Q (ψ1 residencial)
+//     sairia uma vez por direção de vento (achado da ficha BR-8681, 15/10/2026)
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'V0', 'V90'] });
+  const key = o => JSON.stringify(Object.entries(o).sort());
+  for (const grp of ['elu', 'exc', 'qp', 'freq', 'rara']) {
+    const ks = r[grp].map(c => key(c.factores));
+    assert(`9. ${grp} sem combinações repetidas`, new Set(ks).size === ks.length, show(r[grp]));
+  }
+  assert('9b. G + 0,4Q presente uma vez no frequente', r.freq.filter(c => key(c.factores) === key({ G: 1, Q: 0.4 })).length === 1);
+}
+
 console.log(fails ? `\n${fails} FALLA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

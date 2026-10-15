@@ -210,6 +210,7 @@ inalterados.
 - Combinação direcional do sismo (NBR 15421 8.5) não aplicada no gerador.
 - ~~Deslocamento do topo H/1 700 (NBR 6118) não existe no módulo de ELS~~ — feito 15/10/2026: `checkTopDrift`/`topDriftLimit` em `serviceability.js` (NBR 6118 H/1 700; NBR 8800 H/400 e H/300 galpão), exposto na API; teste `tests/test_serviceability_topo.mjs`. Falta ligar à UI (o painel de deriva usa só NCh433).
 - Balanço na NBR 6118: mantida a regra atual do código (vão efetivo 2·L), por decisão do usuário.
+- ~~ELS frequente repetia `G + ψ1·Q` uma vez por direção de vento~~ — corrigido 15/10/2026 (combinações idênticas emitidas uma vez; teste 9 em `tests/test_nbr8681.mjs`).
 - 3.4 em escopo reduzido: memorial e CSV exportados; os demais `toFixed` da interface e campos de entrada com vírgula ficam para depois.
 
 Unidades: kN–m já atende. Ativar t–m (hoje desabilitado) é opcional e fica para depois.
