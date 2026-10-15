@@ -30,6 +30,37 @@ const ratObj = (D, C, extra = {}) => ({
 const chiOf = (l0) => l0 <= 1.5 ? Math.pow(0.658, l0 * l0) : 0.877 / (l0 * l0);   // 5.3.3.1
 const clamp = (x, a, b) => Math.min(Math.max(x, a), b);
 
+// Single angle (legs H vertical, B horizontal, thickness t; outer corner at the origin): Ne about the
+// PRINCIPAL axes with flexural-torsional buckling — smallest root of the 5.3.5.3 cubic
+// (Nu−N)(Nv−N)(Nz−N) − N²(Nu−N)(v0/r0)² − N²(Nv−N)(u0/r0)² = 0, which reduces to 5.3.5.2 for equal legs
+// (u0 = 0). Shear centre at the leg mid-line intersection (t/2, t/2); Cw = 0. Thin legs, no fillet.
+function angleBuckling(dims, sec, E, G, L, Lt) {
+  const H = dims.d, B = dims.b, t = dims.t;
+  if (!(H > 0 && B > 0 && t > 0)) return null;
+  const R = [{ x0: 0, x1: t, y0: 0, y1: H }, { x0: t, x1: B, y0: 0, y1: t }];
+  let A = 0, Sx = 0, Sy = 0;
+  for (const r of R) { const a = (r.x1 - r.x0) * (r.y1 - r.y0); A += a; Sx += a * (r.x0 + r.x1) / 2; Sy += a * (r.y0 + r.y1) / 2; }
+  const cx = Sx / A, cy = Sy / A;
+  let Ixx = 0, Iyy = 0, Ixy = 0;
+  for (const r of R) {
+    const w = r.x1 - r.x0, h = r.y1 - r.y0, a = w * h, dx = (r.x0 + r.x1) / 2 - cx, dy = (r.y0 + r.y1) / 2 - cy;
+    Ixx += w * h ** 3 / 12 + a * dy * dy; Iyy += h * w ** 3 / 12 + a * dx * dx; Ixy += a * dx * dy;
+  }
+  const m = (Ixx + Iyy) / 2, q = Math.sqrt(((Ixx - Iyy) / 2) ** 2 + Ixy ** 2);
+  const Iu = m + q, Iv = m - q;                                   // major / minor principal
+  const th = 0.5 * Math.atan2(-2 * Ixy, Ixx - Iyy);               // angle of the u axis
+  const sx = t / 2 - cx, sy = t / 2 - cy;                          // shear centre − centroid
+  const u0 = sx * Math.cos(th) + sy * Math.sin(th), v0 = -sx * Math.sin(th) + sy * Math.cos(th);
+  const r02 = (Iu + Iv) / A + u0 * u0 + v0 * v0;
+  const J = sec.J > 0 ? sec.J : (H + B - t) * t ** 3 / 3;
+  const Nu = Math.PI ** 2 * E * Iu / (L * L), Nv = Math.PI ** 2 * E * Iv / (L * L);
+  const Nz = G * J / r02;
+  const f = N => (Nu - N) * (Nv - N) * (Nz - N) - N * N * (Nu - N) * v0 * v0 / r02 - N * N * (Nv - N) * u0 * u0 / r02;
+  let lo = 0, hi = Math.min(Nu, Nv, Nz);
+  for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; (f(mid) > 0 ? lo = mid : hi = mid); }
+  return { Ne: (lo + hi) / 2, Iu, Iv, rmin: Math.sqrt(Iv / A), u0, v0, r02, Nu, Nv, Nz };
+}
+
 function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   // cold-formed sections (NBR 6355 catalogue or flagged) are checked by NBR 14762:2010
   if (sec.coldFormed || sec.shape === 'Ue') {
@@ -87,18 +118,30 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     const Ney = Math.PI ** 2 * E * Iy / (Ly * Ly);
     let Nez = Infinity;
     if (isI && J > 0) Nez = (Math.PI ** 2 * E * Cw / (Lt * Lt) + G * J) / (rz * rz + ry * ry);   // x0 = y0 = 0
-    const Ne = Math.min(Nex, Ney, Nez);
+    let Ne = Math.min(Nex, Ney, Nez);
+    const ang = shape === 'angle' ? angleBuckling(dims, sec, E, G, Math.max(Lx, Ly), Lt) : null;
+    if (ang) {
+      Ne = ang.Ne;
+      avisos.push(`Cantoneira simples: Ne pelos eixos principais (rmín = ${(ang.rmin * 100).toFixed(2)} cm) com flexo-torção (5.3.5.2/5.3.5.3), comprimento max(Lx, Ly). Excentricidade da ligação por uma aba (5.3.5.4) NÃO considerada.`);
+    } else if (shape === 'angle') {
+      avisos.push('Cantoneira sem dimensões (d, b, t): eixos principais e flexo-torção NÃO verificados (5.3.5.2/5.3.5.3).');
+    }
     const lambda0 = Math.sqrt(A * fy / Ne);
     const chi = chiOf(lambda0);
     // effective area (5.3.4.1/5.3.4.2): Aef = Ag − Σ(b − bef)·t  [sum over elements: interpretation,
     // the text says "with them, the effective area of the section"]
     let Aef = A, localOk = true;
-    if (isI) {
+    if (isI || ang) {
       const elems = [];
-      const limF = welded ? 0.64 * Math.sqrt(E / (fy / kc)) : 0.56 * Math.sqrt(E / fy);   // Tab. 4 grupos 5 / 4
-      const limW = 1.49 * Math.sqrt(E / fy);                                            // Tab. 4 grupo 2
-      if (lamF > 0) elems.push({ bt: lamF, lim: limF, c1: 0.22, c2: 1.49, n: 4, t: tf, b: bf / 2 });   // AL, Tab. 5
-      if (lamW > 0) elems.push({ bt: lamW, lim: limW, c1: 0.18, c2: 1.31, n: 1, t: tw, b: hWeb });     // AA
+      if (ang) {                                                   // Tab. 4 grupo 3 (aba de cantoneira simples, b = largura total)
+        const limL = 0.45 * Math.sqrt(E / fy);
+        for (const b of [dims.d, dims.b]) elems.push({ bt: b / dims.t, lim: limL, c1: 0.22, c2: 1.49, n: 1, t: dims.t, b });   // AL
+      } else {
+        const limF = welded ? 0.64 * Math.sqrt(E / (fy / kc)) : 0.56 * Math.sqrt(E / fy);   // Tab. 4 grupos 5 / 4
+        const limW = 1.49 * Math.sqrt(E / fy);                                            // Tab. 4 grupo 2
+        if (lamF > 0) elems.push({ bt: lamF, lim: limF, c1: 0.22, c2: 1.49, n: 4, t: tf, b: bf / 2 });   // AL, Tab. 5
+        if (lamW > 0) elems.push({ bt: lamW, lim: limW, c1: 0.18, c2: 1.31, n: 1, t: tw, b: hWeb });     // AA
+      }
       for (const e of elems) {
         if (e.bt <= e.lim / Math.sqrt(chi)) continue;
         const sel = (e.c2 * e.lim / e.bt) ** 2 * fy;
@@ -114,7 +157,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     NRd = chi * Aef * fy / ga1;
     axial = ratObj(Nabs, NRd, { modo: 'compressão', chi: +chi.toFixed(4), lambda0: +lambda0.toFixed(4),
       Ne: +Ne.toFixed(2), Aef, formula: 'Nc,Rd = χ·Aef·fy/γa1 (5.3.2); λ0 = √(Ag·fy/Ne)' });
-    const slend = Math.max(Lx / rz, Ly / ry);
+    const slend = ang ? Math.max(Lx, Ly) / ang.rmin : Math.max(Lx / rz, Ly / ry);   // cantoneira: rmín (eixo principal)
     if (slend > 200) avisos.push(`Esbeltez ${slend.toFixed(0)} > 200 (5.3.7.1).`);
   }
 
