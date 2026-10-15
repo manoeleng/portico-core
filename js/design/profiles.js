@@ -15,7 +15,8 @@
 import { fromShape } from './section_props.js?v=7';
 import { cfNames, cfSection } from './profiles_cf.js?v=7';
 import { VS, CVS, CS } from './profiles_nbr5884.js?v=7';
-import { L as L_LIB, TUBO_RED } from './profiles_lib.js?v=7';
+import { L as L_LIB, TUBO_RED, TUBO_RET } from './profiles_lib.js?v=7';
+import { rhsEN10219 } from './rhs_en10219.js?v=7';
 
 // [h, b, tw, tf] en mm.
 const IPE = {
@@ -209,6 +210,10 @@ for (const [fam, table] of [['VS', VS], ['CVS', CVS], ['CS', CS]]) {
 CATALOG['L (cantoneira)'] = buildFamily(L_LIB, 'angle', ['d', 'b', 't']);
 CATALOG['U (Gerdau)'] = buildChannels(U_GERDAU);
 CATALOG['Tubo circular'] = buildFamily(TUBO_RED, 'pipe', ['D', 't']);
+// Rectangular/square tubes: properties WITH corner radii (EN 10219-2 A.3) — the plain 'box' geometry
+// overestimates A by ~4 % at 100 × 100 × 6,3. h = longer side (strong axis z).
+CATALOG['Tubo retangular'] = Object.fromEntries(Object.entries(TUBO_RET).map(([n, [a, b, t]]) =>
+  [n, { shape: 'box', rhs: [a, b, t], dims: { h: Math.max(a, b) / 1000, b: Math.min(a, b) / 1000, t: t / 1000 } }]));
 
 // Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
 CATALOG['Ue (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('Ue')).map(n => [n, { shape: 'Ue', cf: true }]));
@@ -233,6 +238,13 @@ export function profileToSection(name) {
   }
   const g = fromShape(p.shape, p.dims);
   if (!g) return null;
+  if (p.rhs) {
+    const r = rhsEN10219(...p.rhs);
+    return { A: r.A, Iz: r.Iyy, Iy: r.Izz, J: r.It, Avy: 2 * r.H * r.T, Avz: 2 * r.B * r.T,
+      design: { shape: 'box', dims: { ...p.dims }, profile: name, Sz: r.Welyy, Sy: r.Welzz, Zz: r.Wplyy, Zy: r.Wplzz,
+        rz: Math.sqrt(r.Iyy / r.A), ry: Math.sqrt(r.Izz / r.A),
+        lambdaWeb: (r.H - 2 * r.ro) / r.T, lambdaFlange: (r.B - 2 * r.ro) / r.T, fabricacao: 'conformado a frio' } };
+  }
   if (p.tab && p.shape === 'channel') {
     const t = p.tab;
     return { A: t.A, Iz: t.Iz, Iy: t.Iy, J: g.J, Avy: g.Avz_web, Avz: g.Avy_flange,

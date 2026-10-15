@@ -7,6 +7,7 @@
 // não tem raio de concordância nem de borda (L 50 × 5: Ix +2,3 % sobre o catálogo).
 import { catalogNames, profileToSection } from '../js/design/profiles.js';
 import { resolveSectionProps } from '../js/design/section_props.js';
+import { rhsEN10219 } from '../js/design/rhs_en10219.js';
 
 let fails = 0;
 const ok = (name, got, exp, tol) => { const e = Math.abs(got - exp) / (Math.abs(exp) || 1); const p = e <= tol; if (!p) fails++; console.log(`${p ? '✓' : '✗'} ${name}: got=${got} exp=${exp}`); };
@@ -45,6 +46,21 @@ for (const [n, A, Ix, Iy, Wx, Wy] of [['U 4" x 8,04', 10.1, 159.5, 13.1, 31.4, 4
   assert(`${n} forma channel, laminado`, p.shape === 'channel' && p.fabricacao === 'laminado');
   ok(`${n} rx = √(Ix/A) (coerência da fonte)`, Math.sqrt(Ix / A), s.design.rz * 100, 0.01);
 }
+
+// Tubos retangulares (biblioteca, 406) com raios de canto — EN 10219-2:2019 A.3, conferido contra a Tab. B.3
+// (pág. 36 do PDF do acervo) e contra o exemplo 3.7.10 do livro de perfis tubulares (TR 200 × 150 × 8:
+// Ix 2829, Iy 1816, J 3665 — fecham com os raios de conformação a frio 2,5T / 1,5T).
+assert('r1. 406 tubos retangulares', catalogNames('Tubo retangular').length === 406);
+for (const [H, B, T, A, Iyy, Izz, Wpl, It] of [[200, 100, 6, 33.6, 1703, 577, 213, 1417], [200, 100, 10, 52.6, 2444, 818, 318, 2154],
+  [200, 120, 8, 46.4, 2386, 1079, 298, 2507], [180, 100, 4, 21.3, 926, 374, 126, 854], [160, 80, 12.5, 47.0, 1185, 396, 208, 1129]]) {
+  const r = rhsEN10219(H, B, T), n = `RHS ${H}×${B}×${T} (EN 10219-2 Tab. B.3)`;
+  ok(`${n} A`, r.A * 1e4, A, 0.005); ok(`${n} Iyy`, r.Iyy * 1e8, Iyy, 0.005); ok(`${n} Izz`, r.Izz * 1e8, Izz, 0.005);
+  ok(`${n} Wpl,yy`, r.Wplyy * 1e6, Wpl, 0.005); ok(`${n} It`, r.It * 1e8, It, 0.005);
+}
+{ const r = rhsEN10219(200, 150, 8);
+  ok('TR 200×150×8 Ix — livro 3.7.10', r.Iyy * 1e8, 2829, 0.002); ok('TR 200×150×8 Iy — livro', r.Izz * 1e8, 1816, 0.002); ok('TR 200×150×8 J — livro', r.It * 1e8, 3665, 0.002); }
+{ const s = profileToSection('TUBO 100 x 100 x 6.3'), p = resolveSectionProps(s), r = rhsEN10219(100, 100, 6.3);
+  assert('r2. tubo do catálogo usa as propriedades com raios', !!s && Math.abs(s.A - r.A) < 1e-12 && Math.abs(p.Zz - r.Wplyy) < 1e-12, s ? String(s.A) : 'sem perfil'); }
 
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

@@ -307,16 +307,13 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       da 2005:** tem alturas 200/225 (tw 5) e VS 1500 que a 2005 não tem; faltam os VS 150–350 da 2005.
       Corrigido VS 750 x 320 tf 12,3 → 12,5 (Tab. B.3). Massa da biblioteca não usada (CS 400x400 (19/16)
       constava com 65 kg/m).
-- [~] Tubos circulares e retangulares — `pipe` / `box`. **Circulares feitos** (15/10/2026): 850 da biblioteca
-      (`js/design/profiles_lib.js`, família "Tubo circular"), TC 168,3×16 conferido no Fakury/Vallourec.
-      **Retangulares pendentes:** a biblioteca tem 406, mas o `box` nominal ignora os raios de canto
-      (A ~4 % acima em 100×100×6,3) — implementar raios pelo livro de perfis tubulares (re/ri por
-      espessura, eq. 1.18) antes de catalogar.
-      **Bloqueado (15/10/2026) — fonte conflitante:** o exemplo 3.7.10 do livro (TR 200×150×8: Ag 53,1;
-      Ix 2829; Iy 1816; J 3665) não fecha com as eq. 1.18–1.29 do próprio livro (re = 1,5t, ri = t:
-      A 52,75 (−0,7 %), Ix 2971 (+5 %), Iy 1894 (+4 %), J 3643) — Ix/Iy do exemplo ficam abaixo até da seção
-      nominal sem raio (3044/1936), o que é impossível. O Apêndice A (tabelas Vallourec) não está no texto
-      extraído. Obter a tabela do fabricante (Vallourec/EN 10219-2) para servir de oráculo.
+- [x] Tubos circulares e retangulares — `pipe` / `box`. Circulares: 850 da biblioteca (`js/design/profiles_lib.js`),
+      TC 168,3×16 conferido no Fakury/Vallourec. **Retangulares (15/10/2026):** 406 da biblioteca com propriedades
+      COM raios de canto pela EN 10219-2:2019 A.3 (`js/design/rhs_en10219.js`; ro/ri = 2T/1T, 2,5T/1,5T, 3T/2T),
+      conferidas contra a Tab. B.3 (≤ 0,23 %). O "conflito" do livro (exemplo 3.7.10) era leitura minha: os
+      valores do livro (Ix 2829, Iy 1816, J 3665) fecham com os raios de conformação a frio — a área 53,1 é que
+      não fecha (51,2 pela EN). Fontes acrescentadas ao acervo: `Aco/EN-10219-2-2019.pdf`,
+      `Aco/BR-Catalogo-de-Acos-Estruturais.pdf` (Vallourec, só massas).
 - [~] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
       (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
       **U laminado (15/10/2026):** 7 bitolas Gerdau (3", 4", 6", 10" leve) com A, I, W, r TABELADOS (a geometria de
