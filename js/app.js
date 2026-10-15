@@ -55,6 +55,8 @@ import { StagedSolver }      from './solver/staged.js?v=7';
 import { solveNonlinear, solveNonlinearDC } from './solver/nl_lite.js?v=7';
 import { formFind }          from './solver/formfind.js?v=7';
 import { i18n } from './i18n/i18n.js?v=7';
+// BCP-47 tag of the active UI language for dates (es → es-CL keeps the historic format).
+const _localeTag = () => ({ pt: 'pt-BR', en: 'en-US' })[i18n.getLocale()] || 'es-CL';
 import { reportHTML, reportDocx, reportDocxCover, reportDocxBody } from './report/report.js?v=7';
 
 // Load categories (#106) — for automatic combinations and design.
@@ -4725,7 +4727,7 @@ class App {
       catch { return null; }
     };
     const code = this.model.designSettings?.codeByFamily ? JSON.stringify(this.model.designSettings.codeByFamily) : 'default';
-    let csv = `# Reporte de diseño PORTICO · ${new Date().toLocaleString('es-CL')}\n`;
+    let csv = `# Reporte de diseño PORTICO · ${new Date().toLocaleString(_localeTag())}\n`;
     csv += `# Caso/combo: ${dis.caso || 'activo'} · codigo por familia: ${code}\n`;
     csv += `# D/C = demanda/capacidad <= 1 (cumple). |delta| = desplazamiento nodal max del elemento.\n`;
     csv += `elem,seccion,gobierna,N[kN],Vy[kN],Vz[kN],My[kNm],Mz[kNm],DC_flexion,DC_corte,DC_axial,DC_interaccion,DC_max,cumple,delta_mm\n`;
@@ -8138,7 +8140,7 @@ class App {
   _autosaveRecoveryDialog(list) {
     return new Promise(resolve => {
       document.getElementById('autosave-recover')?.remove();
-      const fmt = ts => ts ? new Date(ts).toLocaleString('es-CL') : '—';
+      const fmt = ts => ts ? new Date(ts).toLocaleString(_localeTag()) : '—';
       const el = document.createElement('div');
       el.id = 'autosave-recover';
       el.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;background:rgba(6,10,18,.74);backdrop-filter:blur(2px)';
@@ -8210,7 +8212,7 @@ class App {
     const paint = () => {
       const list = this._autosaveList();
       const cur = 'portico_autosave_' + this._sessionId;
-      const fmt = ts => ts ? new Date(ts).toLocaleString('es-CL') : '—';
+      const fmt = ts => ts ? new Date(ts).toLocaleString(_localeTag()) : '—';
       const esc = s => (s || 'Sin título').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
       const rows = list.map((x, i) => `
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border,#334);border-radius:7px;margin-bottom:6px">
@@ -8272,7 +8274,7 @@ class App {
     if (!box) return;
     const list = this._autosaveList();
     const cur = 'portico_autosave_' + this._sessionId;
-    const fmt = ts => ts ? new Date(ts).toLocaleString('es-CL') : '—';
+    const fmt = ts => ts ? new Date(ts).toLocaleString(_localeTag()) : '—';
     const esc = s => (s || 'Sin título').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     box.innerHTML = list.map((x, i) => `
       <div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border:1px solid var(--border,#334);border-radius:7px;margin-bottom:6px">
