@@ -25,6 +25,20 @@ do autor; "traga o seu serviço") — decisão do Manoel.
 6118 (ELS de madeira FEITO 15/10/2026); Ca de edifícios (NBR 6123 6.1.2, Fig. 4/5) FEITO (15/10/2026, revisão FECHADA): curvas digitalizadas da imagem (eixos log calibrados, cada curva rastreada e conferida com o rótulo impresso, ±0,02) e tabela RATIFICADA pelo Manoel (`LEITURA_CA_NBR6123_preenchida.xlsx`, sem alterações) em `rules.json` → `loads.wind.ca_paralelepipedica`; `caEdificio` em `assistant/loads.js` (bilinear em log×log, h/ℓ1 < 0,5 usa a linha 0,5, sem extrapolação; alta turbulência só com ℓ1/ℓ2 < 3); o vento global de EDIFÍCIO no preset Brasil passa a ser Ca·q (antes Cpe_A − Cpe_B), Ca pela direção real (X: ℓ1 = Ly; Y: ℓ1 = Lx), com caso Viento Y novo em 3D; teste `assistant/test_ca_edificio.mjs`. Pendentes: excentricidade 6.1.4 (só aviso), q(z) por altura (hoje q do topo, a favor da segurança), aba Notus da planilha como oráculo externo (rodar no Notus/Ciclone); textos com número embutido e título da aba FEITOS (15/10/2026, `i18n.tf`; restam ramos AISC/ACI e avisos do gerador em inglês); campos `type="number"` com vírgula (decisão de produto). Fora do plano: o caminho AISC 360 tem a mesma
 limitação da cantoneira que foi corrigida na NBR 8800.
 
+
+**Fila de interface e modelagem** (pedidos do Manoel, 15/10/2026 — fora das fases normativas):
+1. Deslocamento (excentricidade) do perfil em relação ao eixo da barra — terça apoiada no banzo, viga alinhada pela
+   face do pilar; entra no cálculo (revisão de especialista). EM ANDAMENTO.
+2. 3D realista: materiais por tipo (aço/concreto/madeira) e telhas/fechamento sobre os panos.
+3. Camadas: o nome de referência da camada **padrão** não pode ser modificado; o das camadas criadas só fica
+   editável com **duplo clique** (evita renomear sem querer).
+4. Cartola (NBR 6355 Tab. A.6): decisão do Manoel pendente — (a) recalcular x0/r0/Cw pelo E.2.1.2c da NBR 14762 com
+   errata da tabela, ou (b) deixar sem verificação à flexo-torção.
+5. Dimensionamento de Z e cartola pela NBR 14762 (especificação pronta pelo engenheiro-aco; hoje "NÃO verificada").
+6. Pano de carga bidirecional (exige carga parcial na barra).
+7. Espelhar seção monossimétrica (Ue/U/L): o desenho mantém a abertura do lado original (esforços exatos, Iyz = 0).
+8. Dividir barra não copia `cable` nem `layer` (bug anterior, só reportado).
+
 ---
 
 > Instruções de trabalho para o Claude Code neste repositório (`portico-core`).
