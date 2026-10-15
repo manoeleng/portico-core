@@ -237,6 +237,29 @@ Fonte: revisão do especialista. Oráculo: regra de projeto do módulo e cálcul
 | 05h viga com N = −0,01 kN | continua reprovando por ductilidade, não vira pilar | ∞; pilar = não |
 | 05i role "viga" com compressão pequena | não vira pilar | pilar = não |
 
+### BR-6118-T1..T11 — Torção uniforme, 17.5.1 / 17.7.2 (acrescentado em 15/10/2026)
+
+Teste: `tests/test_nbr6118_torcao.mjs` · commits `80b24d8`, `1bb4fbe` · oráculo: cálculo manual na 2026 (**não há
+exemplo resolvido de torção no acervo**; IBRACON Comentários = LACUNA), conferido pelo revisor (rodada 2: FECHADO).
+Viga 20 × 50 cm, c1 = 4 cm, C25, CA-50, estribo φ8 c/10, modelo I (θ = 45°).
+
+| Grandeza | Esperado | PORTICO | dif. | Tol. |
+| --- | --- | --- | --- | --- |
+| he (A/u < 2c1) | 0,071429 m | 0,071429 | 0,00 % | 0,01 % |
+| Ae / ue | 0,0504 m² / 1,08 m | 0,0504 / 1,08 | 0,00 % | 1e-6 |
+| TRd2 | 28,9286 kN·m | 28,9286 | 0,00 % | 0,01 % |
+| A90/s por ramo (TSd = 10) | 2,2817 cm²/m | 2,2817 | 0,00 % | 0,01 % |
+| As,l | 2,4643 cm² | 2,4643 | 0,00 % | 0,01 % |
+| Interação V/VRd2 + T/TRd2 (V = 60 / 150 kN) | 0,49597 / 0,72142 | 0,4960 / 0,7214 | 0,01 % | 0,1 % |
+| Estribos V + T por ramo (V = 150 kN) | 0,89165 | 0,8917 | 0,01 % | 0,1 % |
+| Taxa mínima: estribo / As,l (T = 1 kN·m) | 0,20411 / 0,26382 | 0,2041 / 0,2638 | 0,01 % | 0,1 % |
+| Estribo de 4 ramos (ramo periférico) | 0,67278 | 0,6728 | 0,00 % | 0,1 % |
+| Ramo he ≥ 2c1 (40 × 80): he / Ae | 0,13333 / 0,17778 | 0,13333 / 0,17778 | 0,00 % | 0,01 % |
+
+Casos qualitativos: sem `rebar.Asl_torcao_cm2` → não verificado com a área necessária; torção de compatibilidade
+desprezada só por opção, com aviso de VSd ≤ 0,7·VRd2; TSd > TRd2 reprova; b ou h ≤ 2c1 → seção equivalente inválida.
+Não implementado: 17.5.2 (perfis abertos), 17.7.1.3 (redução no banzo comprimido), seção não retangular.
+
 ## Conclusão
 
 12 casos com oráculo numérico (01a–01d, 02a–02c, 03, 03b, 04a–04c) e um bloco de robustez (05a–05i); todos dentro da tolerância dos testes (`test_nbr6118.mjs` e `test_nbr6118_els.mjs` passam, 15/10/2026).
