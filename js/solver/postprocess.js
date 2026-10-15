@@ -117,14 +117,18 @@ export function diagramFromForces(f, n1, n2, type, nPts = 20) {
   const N   = Math.max(nPts, 20);
   const pts = [];
   let maxVal = -Infinity, minVal = Infinity;
+  const sM = isMy ? -1 : 1;                // sign of the shear/load terms of M(x): Mz → +1, My → −1
 
   for (let i = 0; i <= N; i++) {
     const xi  = i / N;
     const x   = xi * L;
     let v;
     if (isMoment) {
-      // M(x) = M₀ − V₀·x − ½q₁x² − (Δq)x³/(6L)    (FEM sign: M' = −V)
-      v = val1 - V1*x - 0.5*q1*x*x - dq*x*x*x/(6*L);
+      // Mz(x) = Mz₀ − Vy₀·x − ½qy₁x² − (Δq)x³/(6L)   (dMz/dx = −Vy)
+      // My(x) = My₀ + Vz₀·x + ½qz₁x² + (Δq)x³/(6L)   (dMy/dx = +Vz: moment of the end shear about local y,
+      //   (r × F)y = +x·Vz with r = (−x, 0, 0) — the opposite sign of (r × F)z = −x·Vy). Fixed 15/10/2026: the My
+      //   diagram used the Mz sign and was wrong wherever Vz ≠ 0 (also the design My, taken from this diagram).
+      v = val1 - sM*(V1*x + 0.5*q1*x*x + dq*x*x*x/(6*L));
     } else if (isShear) {
       // V(x) = V₀ + q₁·x + (Δq)x²/(2L)
       v = V1 + q1*x + dq*x*x/(2*L);
@@ -144,7 +148,7 @@ export function diagramFromForces(f, n1, n2, type, nPts = 20) {
   // Inner extreme for moments: x* where V(x*)=0.
   //   uniform: V1 + q1·x = 0 → x* = −V1/q1
   //   trapezoidal: (Δq/2L)x² + q1·x + V1 = 0  (quadratic)
-  const Mx = (xS) => val1 - V1*xS - 0.5*q1*xS*xS - dq*xS*xS*xS/(6*L);
+  const Mx = (xS) => val1 - sM*(V1*xS + 0.5*q1*xS*xS + dq*xS*xS*xS/(6*L));
   const extremes = [];
   const roots = [];
   if (isMoment) {
@@ -201,7 +205,7 @@ export function elemAtXiFromForces(f, xi) {
   const Vy_val = f.Vy1 + qy1*x + dqy*x*x/(2*L);                       // V(x)
   const Vz_val = f.Vz1 + qz1*x + dqz*x*x/(2*L);
   const Mz_val = f.Mz1 - f.Vy1*x - 0.5*qy1*x*x - dqy*x*x*x/(6*L);     // M(x)
-  const My_val = f.My1 - f.Vz1*x - 0.5*qz1*x*x - dqz*x*x*x/(6*L);
+  const My_val = f.My1 + f.Vz1*x + 0.5*qz1*x*x + dqz*x*x*x/(6*L);     // dMy/dx = +Vz (see diagramFromForces)
 
   // ── Displacements by Hermite interpolation ────────────────────────────
   const ue = f._ue;   // local DOFs stored by _computeElemForces

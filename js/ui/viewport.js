@@ -3314,7 +3314,9 @@ export class Viewport {
     // checked on a simply supported beam and a cantilever column) — "Inverter DMF" draws them on the compression side;
     // value labels: 'global' = only the overall max and min, 'barra' = the extreme of each member, 'nenhum'
     const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
-    const side = (type === 'My' || type === 'Mz') && pref('portico.flipBMD', '0') === '1' ? -1 : 1;
+    // tension side: Mz is drawn along +y·Mz; My along −z·My (dMy/dx = +Vz: a positive My compresses the +z fibres —
+    // checked on a cantilever with a tip load along ±z and on a fixed–fixed beam, 15/10/2026)
+    const side = (type === 'My' ? -1 : 1) * ((type === 'My' || type === 'Mz') && pref('portico.flipBMD', '0') === '1' ? -1 : 1);
     const labelMode = pref('portico.diagLabels', 'global');
     const cand = [];                                     // label candidates { val, pos (three), dir (three), elemMax }
 

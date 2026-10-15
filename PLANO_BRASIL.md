@@ -60,6 +60,9 @@ limitação da cantoneira que foi corrigida na NBR 8800.
     Materiais por norma (filtro tipo/norma, madeira NBR 7190-1 Tab. 3 no catálogo, selo Usuário) FEITO 15/10/2026.
     Cor por seção (paleta estável, vista colorida por seção) e favoritos do catálogo FEITOS 15/10/2026.
     Rotação padrão na seção (sec.beta) com β próprio por barra (betaOwn) e janela da biblioteca arrastável FEITOS 15/10/2026.
+    **CORREÇÃO 15/10/2026 — diagrama de My(x):** usava dM/dx = −V (lei do Mz); o certo é dMy/dx = +Vz. Toda barra com
+    Vz ≠ 0 tinha o My de cálculo (maior |My| do diagrama) errado, para mais ou para menos: REFAZER dimensionamentos
+    anteriores. DMF de My desenhado do lado tracionado. Revisão FECHADA; tests/test_my_diagram.mjs.
     Fila do /loop: (8) NBR 14762
     sentido de My do U/Ue pelo diagrama; (9) compostas: esbeltez entre presilhas e verificação.
 
