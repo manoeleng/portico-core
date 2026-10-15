@@ -1,0 +1,908 @@
+{
+ "_meta": {
+  "proposito": "Regras de engenharia do assistente do PORTICO para o Brasil (PLANO_BRASIL 8.3). O assistente só extrai a ficha; este arquivo e as bibliotecas CSV trazem os dados que ele NÃO deve inventar.",
+  "version": "1.0",
+  "fontes": [
+   "Perfis: Gerdau W/HP (tabela de bitolas; propriedades tabeladas)",
+   "Cargas de uso: ABNT NBR 6120:2019 (Tabela 10) | Vento: ABNT NBR 6123:2023 | Sismo: ABNT NBR 15421:2023",
+   "Combinações: ABNT NBR 8681:2025 com γ da NBR 6118:2026 (concreto) / NBR 8800:2024 (aço)"
+  ]
+ },
+ "libraries": {
+  "profiles_csv": "profiles.csv",
+  "materials_csv": "materials.csv",
+  "live_loads_csv": "live_loads.csv",
+  "_nota_perfiles": "Perfis laminados Gerdau W e HP (88). Colunas no formato do assistente (mm, cm², cm⁴, cm⁶). Avy/Avz derivados da geometria (alma d·tw; mesas 2·bf·tf) — r = 0 (raio não tabelado no CSV de origem)."
+ },
+ "modeling_rules": {
+  "base_support": "empotrado",
+  "_apoyo_base_opciones": [
+   "empotrado",
+   "rotulado"
+  ],
+  "columns": "uma em cada interseção de eixos",
+  "beams": "uma por vão entre eixos, em cada nível",
+  "max_span_m": 6,
+  "rigid_diaphragm_per_level": true,
+  "analysis_subdivision": 10,
+  "plan_transition": "interpolar linearmente as dimensões entre níveis",
+  "default_beam": "W 310 x 32,7",
+  "default_column": "W 250 x 32,7",
+  "_nota": "Padrões em perfil W (PLANO_BRASIL 5.7). Para concreto, usar material Concreto C25/C30 e seções retangulares com armadura explícita."
+ },
+ "loads": {
+  "_modelo": "Ações conforme normas brasileiras; combinações pelo botão \"Criar casos e combinações NBR 8681\" do app (js/design/combinations_nbr.js).",
+  "seismic_mass": {
+   "live_load_fraction": 0.25,
+   "_fuente": "Massa sísmica: NBR 15421:2023 (peso efetivo, 8.7.2) — confirmar a fração de carga variável do projeto."
+  },
+  "live_load_use": {
+   "_fuente": "NBR 6120:2019 — Tabela 10 completa em live_loads.csv (190 usos, conferida contra as imagens).",
+   "_csv": "live_loads.csv"
+  },
+  "snow": null,
+  "wind": {
+   "metodo": "NBR6123",
+   "_fuente": "ABNT NBR 6123:2023 — tabelas lidas na imagem (Tab. 1, 2, 4, 6, 7; Cpi 6.3.2.1).",
+   "S2": {
+    "I": {
+     "zg": 250,
+     "A": {
+      "bm": 1.1,
+      "p": 0.06
+     },
+     "B": {
+      "bm": 1.11,
+      "p": 0.065
+     },
+     "C": {
+      "bm": 1.12,
+      "p": 0.07
+     }
+    },
+    "II": {
+     "zg": 300,
+     "A": {
+      "bm": 1,
+      "p": 0.085
+     },
+     "B": {
+      "bm": 1,
+      "p": 0.09
+     },
+     "C": {
+      "bm": 1,
+      "p": 0.1
+     }
+    },
+    "III": {
+     "zg": 350,
+     "A": {
+      "bm": 0.94,
+      "p": 0.1
+     },
+     "B": {
+      "bm": 0.94,
+      "p": 0.105
+     },
+     "C": {
+      "bm": 0.93,
+      "p": 0.115
+     }
+    },
+    "IV": {
+     "zg": 420,
+     "A": {
+      "bm": 0.86,
+      "p": 0.12
+     },
+     "B": {
+      "bm": 0.85,
+      "p": 0.125
+     },
+     "C": {
+      "bm": 0.84,
+      "p": 0.135
+     }
+    },
+    "V": {
+     "zg": 500,
+     "A": {
+      "bm": 0.74,
+      "p": 0.15
+     },
+     "B": {
+      "bm": 0.73,
+      "p": 0.16
+     },
+     "C": {
+      "bm": 0.71,
+      "p": 0.175
+     }
+    }
+   },
+   "Fr": {
+    "pagina": 15,
+    "pagina_pdf": 27,
+    "A": 1,
+    "B": 0.98,
+    "C": 0.95
+   },
+   "S3": {
+    "1": {
+     "S3": 1.11,
+     "Tp_anos": 100
+    },
+    "2": {
+     "S3": 1.06,
+     "Tp_anos": 75
+    },
+    "3": {
+     "S3": 1,
+     "Tp_anos": 50
+    },
+    "4": {
+     "S3": 0.95,
+     "Tp_anos": 37
+    },
+    "5": {
+     "S3": 0.83,
+     "Tp_anos": 15
+    }
+   },
+   "cpe_paredes": [
+    {
+     "A1B1": -0.8,
+     "A2B2": -0.5,
+     "C": 0.7,
+     "D": -0.4,
+     "A": 0.7,
+     "B": -0.4,
+     "C1D1": -0.8,
+     "C2D2": -0.4,
+     "cpe_medio": -0.9,
+     "h_b": "<=1/2",
+     "a_b": "1<=a/b<=3/2"
+    },
+    {
+     "A1B1": -0.8,
+     "A2B2": -0.4,
+     "C": 0.7,
+     "D": -0.3,
+     "A": 0.7,
+     "B": -0.5,
+     "C1D1": -0.9,
+     "C2D2": -0.5,
+     "cpe_medio": -1,
+     "h_b": "<=1/2",
+     "a_b": "2<=a/b<=4"
+    },
+    {
+     "A1B1": -0.9,
+     "A2B2": -0.5,
+     "C": 0.7,
+     "D": -0.5,
+     "A": 0.7,
+     "B": -0.5,
+     "C1D1": -0.9,
+     "C2D2": -0.5,
+     "cpe_medio": -1.1,
+     "h_b": "1/2<h/b<=3/2",
+     "a_b": "1<=a/b<=3/2"
+    },
+    {
+     "A1B1": -0.9,
+     "A2B2": -0.4,
+     "C": 0.7,
+     "D": -0.3,
+     "A": 0.7,
+     "B": -0.6,
+     "C1D1": -0.9,
+     "C2D2": -0.5,
+     "cpe_medio": -1.1,
+     "h_b": "1/2<h/b<=3/2",
+     "a_b": "2<=a/b<=4"
+    },
+    {
+     "A1B1": -1,
+     "A2B2": -0.6,
+     "C": 0.8,
+     "D": -0.6,
+     "A": 0.8,
+     "B": -0.6,
+     "C1D1": -1,
+     "C2D2": -0.6,
+     "cpe_medio": -1.2,
+     "h_b": "3/2<h/b<=6",
+     "a_b": "1<=a/b<=3/2"
+    },
+    {
+     "A1B1": -1,
+     "A2B2": -0.5,
+     "C": 0.8,
+     "D": -0.3,
+     "A": 0.8,
+     "B": -0.6,
+     "C1D1": -1,
+     "C2D2": -0.6,
+     "cpe_medio": -1.2,
+     "h_b": "3/2<h/b<=6",
+     "a_b": "2<=a/b<=4"
+    }
+   ],
+   "cpe_telhado_2aguas": [
+    {
+     "h_b": "<=1/2",
+     "theta": 0,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.4
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -2,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 5,
+     "a90": {
+      "EFI": -0.9,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.4
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.4,
+      "cantos_x_por_y_hachura_\\": -1.2,
+      "beiral_central_y_linhas": -1.2,
+      "cumeeira_2y_pontilhado": -1
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 10,
+     "a90": {
+      "EFI": -1.2,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.4,
+      "cantos_x_por_y_hachura_\\": -1.4,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 15,
+     "a90": {
+      "EFI": -1,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.4,
+      "cantos_x_por_y_hachura_\\": -1.2,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 20,
+     "a90": {
+      "EFI": -0.4,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.7,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 30,
+     "a90": {
+      "EFI": 0,
+      "GHJ": -0.4
+     },
+     "a0": {
+      "EG": -0.7,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -0.8,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.1
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 45,
+     "a90": {
+      "EFI": 0.3,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.7,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.1
+     }
+    },
+    {
+     "h_b": "<=1/2",
+     "theta": 60,
+     "a90": {
+      "EFI": 0.7,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.7,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1.1
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 0,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -1,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -2,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 5,
+     "a90": {
+      "EFI": -0.9,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.9,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 10,
+     "a90": {
+      "EFI": -1.1,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 15,
+     "a90": {
+      "EFI": -1,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.8,
+      "cantos_x_por_y_hachura_\\": -1.5,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 20,
+     "a90": {
+      "EFI": -0.7,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.6
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.5,
+      "cantos_x_por_y_hachura_\\": -1.5,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 30,
+     "a90": {
+      "EFI": -0.2,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": -1
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 45,
+     "a90": {
+      "EFI": 0.2,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "1/2<h/b<=3/2",
+     "theta": 60,
+     "a90": {
+      "EFI": 0.6,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 0,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.9,
+      "FH": -0.7
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -2,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 5,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 10,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -2,
+      "cantos_x_por_y_hachura_\\": -2,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 15,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.8,
+      "cantos_x_por_y_hachura_\\": -1.8,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 20,
+     "a90": {
+      "EFI": -0.8,
+      "GHJ": -0.6
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.8
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.5,
+      "cantos_x_por_y_hachura_\\": -1.5,
+      "beiral_central_y_linhas": -1.5,
+      "cumeeira_2y_pontilhado": -1.2
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 30,
+     "a90": {
+      "EFI": -1,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.7
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1.5,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 40,
+     "a90": {
+      "EFI": -0.2,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.7
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": -1,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 50,
+     "a90": {
+      "EFI": 0.2,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.7
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    },
+    {
+     "h_b": "3/2<h/b<=6",
+     "theta": 60,
+     "a90": {
+      "EFI": 0.5,
+      "GHJ": -0.5
+     },
+     "a0": {
+      "EG": -0.8,
+      "FH": -0.7
+     },
+     "cpe_medio": {
+      "empena_y_hachura_/": null,
+      "cantos_x_por_y_hachura_\\": null,
+      "beiral_central_y_linhas": null,
+      "cumeeira_2y_pontilhado": null
+     }
+    }
+   ],
+   "cpi_padrao": [
+    -0.3,
+    0
+   ],
+   "_cpi_nota": "Padrão: quatro faces igualmente permeáveis (−0,3 ou 0). Para duas faces opostas permeáveis use [0,2, −0,3]; abertura dominante: 6.3.2.1-c."
+  },
+  "seismic": {
+   "metodo": "NBR15421",
+   "_fuente": "ABNT NBR 15421:2023 — Tab. 1, 3, 4 e 6.3 lidas na imagem.",
+   "zonas_ag_g": {
+    "0": 0.025,
+    "1": "0,025–0,05",
+    "2": "0,05–0,10",
+    "3": "0,10–0,15",
+    "4": 0.15
+   },
+   "ca_cv": {
+    "A": {
+     "Ca": [
+      0.8,
+      0.8
+     ],
+     "Cv": [
+      0.8,
+      0.8
+     ]
+    },
+    "B": {
+     "Ca": [
+      1,
+      1
+     ],
+     "Cv": [
+      1,
+      1
+     ]
+    },
+    "C": {
+     "Ca": [
+      1.2,
+      1.2
+     ],
+     "Cv": [
+      1.7,
+      1.7
+     ]
+    },
+    "D": {
+     "Ca": [
+      1.6,
+      1.5
+     ],
+     "Cv": [
+      2.4,
+      2.2
+     ]
+    },
+    "E": {
+     "Ca": [
+      2.5,
+      2.1
+     ],
+     "Cv": [
+      3.5,
+      3.4
+     ]
+    }
+   },
+   "importance": {
+    "I": 1,
+    "II": 1.25,
+    "III": 1.5
+   },
+   "default_params": {
+    "soil": "D",
+    "R": 3
+   },
+   "_R_nota": "R/Ω0/Cd (Tab. 6, detalhamento usual): pórtico de concreto 3/3/2,5; pórtico de aço momento-resistente 3,5/3/3; aço contraventado em treliça 3,25/2/3,25."
+  }
+ },
+ "combinations": {
+  "_fuente": "NBR 8681:2025 / NBR 6118:2026 (γ concreto) — lista gerada por combinations_nbr.js para os casos G, Q, V1, V2, E1 (referência; o app gera a partir dos casos do modelo).",
+  "_mapa_cargas_a_casos": {
+   "G": "permanente (inclui peso próprio)",
+   "Q": "variável de uso (NBR 6120)",
+   "Qcob": "variável de cobertura",
+   "V": "vento (um caso por direção)",
+   "T": "temperatura",
+   "E": "sismo (NBR 15421)"
+  },
+  "lista": [
+   {
+    "nombre": "ELU: 1.4G + 1.4Q + 0.84V1",
+    "factores": {
+     "G": 1.4,
+     "Q": 1.4,
+     "V1": 0.84
+    }
+   },
+   {
+    "nombre": "ELU: 1.4G + 1.4Q + 0.84V2",
+    "factores": {
+     "G": 1.4,
+     "Q": 1.4,
+     "V2": 0.84
+    }
+   },
+   {
+    "nombre": "ELU: 1.4G + 1.4V1 + 0.7Q",
+    "factores": {
+     "G": 1.4,
+     "V1": 1.4,
+     "Q": 0.7
+    }
+   },
+   {
+    "nombre": "ELU: G + 1.4V1",
+    "factores": {
+     "G": 1,
+     "V1": 1.4
+    }
+   },
+   {
+    "nombre": "ELU: 1.4G + 1.4V2 + 0.7Q",
+    "factores": {
+     "G": 1.4,
+     "V2": 1.4,
+     "Q": 0.7
+    }
+   },
+   {
+    "nombre": "ELU: G + 1.4V2",
+    "factores": {
+     "G": 1,
+     "V2": 1.4
+    }
+   },
+   {
+    "nombre": "ELU-EXC: 1.2G + E1 + 0.5Q",
+    "factores": {
+     "G": 1.2,
+     "E1": 1,
+     "Q": 0.5
+    }
+   },
+   {
+    "nombre": "ELU-EXC: G + E1",
+    "factores": {
+     "G": 1,
+     "E1": 1
+    }
+   },
+   {
+    "nombre": "ELS-QP: G + 0.3Q",
+    "factores": {
+     "G": 1,
+     "Q": 0.3
+    }
+   },
+   {
+    "nombre": "ELS-FREQ: G + 0.4Q",
+    "factores": {
+     "G": 1,
+     "Q": 0.4
+    }
+   },
+   {
+    "nombre": "ELS-FREQ: G + 0.4Q",
+    "factores": {
+     "G": 1,
+     "Q": 0.4
+    }
+   },
+   {
+    "nombre": "ELS-FREQ: G + 0.3V1 + 0.3Q",
+    "factores": {
+     "G": 1,
+     "V1": 0.3,
+     "Q": 0.3
+    }
+   },
+   {
+    "nombre": "ELS-FREQ: G + 0.3V2 + 0.3Q",
+    "factores": {
+     "G": 1,
+     "V2": 0.3,
+     "Q": 0.3
+    }
+   },
+   {
+    "nombre": "ELS-RARA: G + Q + 0.3V1",
+    "factores": {
+     "G": 1,
+     "Q": 1,
+     "V1": 0.3
+    }
+   },
+   {
+    "nombre": "ELS-RARA: G + Q + 0.3V2",
+    "factores": {
+     "G": 1,
+     "Q": 1,
+     "V2": 0.3
+    }
+   },
+   {
+    "nombre": "ELS-RARA: G + V1 + 0.4Q",
+    "factores": {
+     "G": 1,
+     "V1": 1,
+     "Q": 0.4
+    }
+   },
+   {
+    "nombre": "ELS-RARA: G + V2 + 0.4Q",
+    "factores": {
+     "G": 1,
+     "V2": 1,
+     "Q": 0.4
+    }
+   }
+  ]
+ }
+}

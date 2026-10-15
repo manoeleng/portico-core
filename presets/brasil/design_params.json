@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "RESPALDO legado do dimensionamento para o preset Brasil (PLANO_BRASIL 8.3). As resistências vêm do MATERIAL (mat.design) e os códigos NBR são módulos conectáveis (NBR8800:2024, NBR6118:2026, NBR7190-1:2022). Este JSON só é usado como FALLBACK para materiais sem design.family e para os limites de aviso/falha. Resistências em MPa.",
+    "codes": {
+      "steel": "ABNT NBR 8800:2024",
+      "concrete": "ABNT NBR 6118:2026",
+      "timber": "ABNT NBR 7190-1:2022"
+    }
+  },
+
+  "steel": {
+    "method": "Estados-limites (NBR 8800:2024)",
+    "Fy_MPa": 250,
+    "Fu_MPa": 400,
+    "E_MPa": 200000,
+    "_nota": "MR 250 (NBR 7007, NBR 8800:2024 Tab. A.1): fy 250 / fu 400 MPa; E = 200 000 MPa (4.6.2.9). γa1 = 1,10 e γa2 = 1,35 ficam no módulo NBR8800:2024."
+  },
+
+  "concrete": {
+    "method": "Estados-limites (NBR 6118:2026)",
+    "fc_MPa": 25,
+    "fy_rebar_MPa": 500,
+    "E_MPa": 24150,
+    "cover_mm": 40,
+    "_nota": "C25 com Ecs = αi·αE·5600·√fck = 0,8625·5600·5 = 24 150 MPa (NBR 6118:2026 8.2.8, αE = 1). CA-50 (fyk 500 MPa). cover_mm é a distância da face ao CENTROIDE da barra usada quando a armadura vem por nTop/nBot — não é o cobrimento nominal da Tab. 7.2. O módulo NBR6118:2026 exige barras explícitas (sem taxa ρ)."
+  },
+
+  "timber": {
+    "method": "Estados-limites (NBR 7190-1:2022)",
+    "_nota": "Informe a classe de resistência no material (mat.design.classe7190: C14–C50, D18–D70 da Tab. 3, ou 'Tab2:D20'–'Tab2:D60') e kmod1/kmod2 do projeto. Sem classe, o módulo NBR7190-1:2022 devolve 'não verificado'."
+  },
+
+  "deflection_limits": {
+    "beam_total_load_L_over": 250,
+    "beam_live_load_L_over": 350,
+    "cantilever_L_over": 125,
+    "_nota": "NBR 6118:2026 Tab. 13.3: flecha total L/250 (aceitabilidade visual) e vibração por cargas acidentais L/350; balanço com vão efetivo 2·L → L/125. Para aço, ver NBR 8800:2024 Tab. B.1 (piso L/350, cobertura L/250) em js/design/serviceability.js."
+  },
+
+  "limits": {
+    "ratio_warning": 0.90,
+    "ratio_fail": 1.0,
+    "_nota": "Razão demanda/capacidade: acima de ratio_warning é sinalizada; acima de ratio_fail, NÃO ATENDE."
+  }
+}

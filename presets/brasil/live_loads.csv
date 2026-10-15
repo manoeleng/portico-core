@@ -1,0 +1,191 @@
+id,building_type,descripcion,Lo_kNm2,Qk_kN
+aeroportos_acesso_publico,Aeroportos,"Áreas de acesso público, circulações, sanitários",5,0
+aeroportos_lojas,Aeroportos,"Lojas, duty free",5,0
+aeroportos_controle,Aeroportos,"Controle de passaportes, segurança, raios X",5,0
+aeroportos_bagagens_restituicao,Aeroportos,Restituição de bagagens (não inclui peso próprio dos equipamentos),5,0
+aeroportos_administrativas,Aeroportos,Áreas administrativas,5,0
+aeroportos_bagagens_manipulacao,Aeroportos,Manipulação de bagagens (não inclui peso próprio dos equipamentos),10,0
+arquibancadas_fixos,Arquibancadas e tribunas,"Com assentos fixos [nota a,b: sem redução; forças horizontais 6.3; efeitos dinâmicos]",4,0
+arquibancadas_moveis,Arquibancadas e tribunas,"Com assentos móveis [nota a,b]",5,0
+tecnicas_barrilete,Áreas técnicas,Barrilete [nota d: prever tanques/bombas na projeção],1.5,0
+tecnicas_geral,Áreas técnicas,"Áreas técnicas em geral (fora da projeção dos equipamentos), exceto barrilete",3,0
+tecnicas_ventiladores,Áreas técnicas,"Sala de ventiladores, pressurização, exaustores",3,0
+tecnicas_fancoil,Áreas técnicas,Sala de ar-condicionado (fan coil),4,0
+tecnicas_paineis,Áreas técnicas,Sala de painéis elétricos de baixa tensão,4,0
+tecnicas_gerador_leiaute,Áreas técnicas,Sala de gerador e transformador (com leiaute),3,0
+tecnicas_gerador_sem_leiaute,Áreas técnicas,Sala de gerador e transformador (sem leiaute),10,0
+tecnicas_nobreaks,Áreas técnicas,Sala de no-breaks,7.5,0
+tecnicas_baterias,Áreas técnicas,Sala de baterias,10,0
+tecnicas_cpd,Áreas técnicas,CPD (centro de processamento de dados),5,0
+tecnicas_elevador_v_le_1,Áreas técnicas,"Casa de máquinas de elevador de passageiros (v <= 1,0 m/s) [nota e,f,g]",30,0
+tecnicas_elevador_v_gt_1,Áreas técnicas,"Casa de máquinas de elevador de passageiros (v > 1,0 m/s) [nota e,f,g]",50,0
+tecnicas_poco_elevador,Áreas técnicas,Poço de elevador de passageiros [nota f],50,0
+tecnicas_poco_plataforma_pmr,Áreas técnicas,Poço de plataforma de elevação motorizada para pessoas com mobilidade reduzida [nota h],2.5,0
+balcoes_residencial,"Balcões, sacadas, varandas e terraços","Residencial [nota i,j: guarda-corpo 2 kN/m na borda]",2.5,0
+balcoes_comercial,"Balcões, sacadas, varandas e terraços","Comercial, corporativos e escritórios [nota i,j]",3,0
+balcoes_acesso_publico,"Balcões, sacadas, varandas e terraços","Com acesso público (hotéis, hospitais, escolas, teatros etc.) [nota i,j]",4,0
+bancos_escritorios,Bancos e instituições financeiras,Escritórios [nota a],2.5,0
+bancos_sanitarios,Bancos e instituições financeiras,Sanitários [nota a],2,0
+bancos_diretoria,Bancos e instituições financeiras,Salas de diretoria e de gerência [nota a],2.5,0
+bancos_cofre,Bancos e instituições financeiras,"Cofre (validar caso a caso, respeitado o mínimo) [nota a]",30,0
+bancos_agencia,Bancos e instituições financeiras,Agência (área de atendimento ao público) [nota a],3,0
+bancos_arquivos_deslizantes,Bancos e instituições financeiras,Regiões de arquivos deslizantes [nota a],5,0
+bancos_autoatendimento,Bancos e instituições financeiras,"Região de terminais de autoatendimento, caixas eletrônicos [nota a,k: 18,5 kN/m2 em 0,9x0,6 m]",12,0
+biblioteca_leitura_sem_estantes,Bibliotecas,Sala de leitura (sem estantes) [nota a],3,0
+biblioteca_leitura_com_estantes,Bibliotecas,Sala de leitura (com estantes) [nota a],4,0
+biblioteca_estantes_livros,Bibliotecas,"Sala com estantes de livros: 6 kN/m2 para estantes até 2,2 m + 2 kN/m2 por metro excedente a 2,2 m (valor base 6) [nota a,l]",6,0
+biblioteca_arquivos_deslizantes,Bibliotecas,Regiões de arquivos deslizantes [nota a],5,0
+biblioteca_administrativas,Bibliotecas,Salas administrativas [nota a],2.5,0
+biblioteca_sanitarios,Bibliotecas,Sanitários [nota a],2,0
+biblioteca_corredores,Bibliotecas,Corredores [nota a],3,0
+convencoes_plateia_fixos,"Centros de convenções, teatros, igrejas",Plateia com assentos fixos [nota a],4,0
+convencoes_plateia_moveis,"Centros de convenções, teatros, igrejas",Plateia com assentos móveis [nota a],5,0
+convencoes_sanitarios,"Centros de convenções, teatros, igrejas",Sanitários [nota a],2,0
+convencoes_acessos,"Centros de convenções, teatros, igrejas","Acessos, corredores [nota a]",5,0
+convencoes_plataformas,"Centros de convenções, teatros, igrejas",Plataformas (assembleia) [nota a],5,0
+convencoes_palco,"Centros de convenções, teatros, igrejas",Palco (área de apresentação) [nota a],5,0
+exposicao_acesso_pessoas,Centros de exposição,Acesso exclusivo de pessoas [nota a],5,0
+exposicao_estandes,Centros de exposição,"Área de estandes de exposição [nota a,m: mínimo]",10,0
+exposicao_veiculos_equipamentos,Centros de exposição,"Área de exposição de veículos e equipamentos [nota a,m: mínimo]",30,0
+cinemas_plateia,Cinemas,Plateia com assentos fixos [nota a],4,0
+cinemas_sanitarios,Cinemas,Sanitários [nota a],2,0
+cinemas_acessos,Cinemas,"Acessos, corredores [nota a]",4,0
+clubes_refeitorios,Clubes,Refeitórios [nota a],3,0
+clubes_assembleia_fixos,Clubes,Sala de assembleia com assentos fixos [nota a],4,0
+clubes_assembleia_moveis,Clubes,Sala de assembleia com assentos móveis [nota a],5,0
+clubes_academia,Clubes,Academia [nota a],5,0
+clubes_salao_esportes,Clubes,Salão de esportes [nota a],5,0
+clubes_salao_dancas,Clubes,Salão de danças [nota a],5,0
+clubes_bilhar_jogos,Clubes,"Salão de bilhar, sala de jogos [nota a]",3,0
+clubes_boliche,Clubes,Pista de boliche [nota a],4,0
+clubes_sanitarios_vestiarios,Clubes,"Sanitários, vestiários [nota a]",2,0
+clubes_cozinhas,Clubes,Cozinhas [nota a],3,0
+clubes_depositos,Clubes,Depósitos [nota a],5,0
+clubes_administrativas,Clubes,Salas administrativas [nota a],2.5,0
+clubes_corredores,Clubes,Corredores [nota a],3,0
+clubes_quadras,Clubes,Quadras esportivas [nota a],5,0
+coberturas_manutencao,Coberturas,"Com acesso apenas para manutenção ou inspeção [nota a,g,n,o]",1,0
+coberturas_placas_solares,Coberturas,"Com placas de aquecimento solar ou fotovoltaicas [nota a,g,n,o]",1.5,0
+cozinhas_nao_res,Cozinhas não residenciais,"Cozinhas não residenciais (validar caso a caso, respeitado o mínimo) [nota a]",3,0
+cozinhas_camara_fria,Cozinhas não residenciais,Câmara fria [nota a],5,0
+depositos_geral_estoque,Depósitos de uso geral,"Validar caso a caso, respeitado o mínimo: 7,5 kN/m2 até 2,5 m de estoque + 3 kN/m2 por metro excedente (valor base 7,5) [nota a,p,q]",7.5,0
+depositos_geral_acumulo,Depósitos de uso geral,"Locais sujeitos ao acúmulo de mercadorias, incluindo zonas de acesso [nota a,q]",7.5,0
+residencial_dormitorios,Edifícios residenciais,Dormitórios,1.5,0
+residencial_sala_copa_cozinha,Edifícios residenciais,"Sala, copa, cozinha",1.5,0
+residencial_sanitarios,Edifícios residenciais,Sanitários,1.5,0
+residencial_despensa_servico,Edifícios residenciais,"Despensa, área de serviço e lavanderia",2,0
+residencial_quadras,Edifícios residenciais,Quadras esportivas [nota a],5,0
+residencial_festas_jogos,Edifícios residenciais,"Salão de festas, salão de jogos [nota a]",3,0
+residencial_uso_comum,Edifícios residenciais,Áreas de uso comum [nota a],3,0
+residencial_academia,Edifícios residenciais,Academia [nota a],3,0
+residencial_forro,Edifícios residenciais,"Forro acessível apenas para manutenção e sem estoque de materiais [nota a,r]",0.1,0
+residencial_sotao,Edifícios residenciais,Sótão [nota a],2,0
+residencial_corredor_unidade,Edifícios residenciais,Corredores dentro de unidades autônomas,1.5,0
+residencial_corredor_comum,Edifícios residenciais,Corredores de uso comum,3,0
+residencial_depositos,Edifícios residenciais,Depósitos,3,0
+comercial_salas_sanitarios,"Edifícios comerciais, corporativos e de escritórios",Salas de uso geral e sanitários,2.5,0
+comercial_arquivos_deslizantes,"Edifícios comerciais, corporativos e de escritórios",Regiões de arquivos deslizantes,5,0
+comercial_call_center,"Edifícios comerciais, corporativos e de escritórios",Call center,3,0
+comercial_corredor_unidade,"Edifícios comerciais, corporativos e de escritórios",Corredores dentro de unidades autônomas,2.5,0
+comercial_corredor_comum,"Edifícios comerciais, corporativos e de escritórios",Corredores de uso comum,3,0
+industrial_refeitorios,Edificações industriais,"Refeitórios [nota a,s]",3,0
+industrial_sanitarios,Edificações industriais,"Sanitários, vestiários [nota a,s]",2,0
+industrial_cozinhas,Edificações industriais,"Cozinhas [nota a,s]",3,0
+industrial_administrativas,Edificações industriais,"Salas administrativas [nota a,s]",2.5,0
+industrial_corredores,Edificações industriais,"Corredores [nota a,s]",3,0
+escadas_hospitais,Escadas e passarelas,Hospitais [nota t],3,0
+escadas_res_hoteis_unidade,Escadas e passarelas,"Residenciais, hotéis (dentro de unidades autônomas) [nota t]",2.5,0
+escadas_res_hoteis_comum,Escadas e passarelas,"Residenciais, hotéis (uso comum) [nota t]",3,0
+escadas_comerciais_clubes_escritorios_bibliotecas,Escadas e passarelas,"Edifícios comerciais, clubes, escritórios, bibliotecas [nota t]",3,0
+escadas_exposicao,Escadas e passarelas,Centros de exposição [nota t],5,0
+escadas_convencoes,Escadas e passarelas,"Centros de convenções e locais de reunião de pessoas, teatros, igrejas [nota t]",5,0
+escadas_escolas,Escadas e passarelas,Escolas [nota t],3,0
+escadas_cinemas_shopping,Escadas e passarelas,"Cinemas, centros comerciais, shopping centers [nota t]",4,0
+escadas_arquibancadas,Escadas e passarelas,Servindo arquibancadas [nota t],5,0
+escadas_acesso_publico,Escadas e passarelas,Com acesso público [nota t],3,0
+escadas_sem_acesso_publico,Escadas e passarelas,Sem acesso público [nota t],2.5,0
+escolas_auditorio_fixos,Escolas e instituições de ensino,Auditório com assentos fixos [nota a],4,0
+escolas_auditorio_moveis,Escolas e instituições de ensino,Auditório com assentos móveis [nota a],5,0
+escolas_corredor,Escolas e instituições de ensino,Corredor [nota a],3,0
+escolas_sala_aula,Escolas e instituições de ensino,Sala de aula [nota a],3,0
+escolas_administrativas,Escolas e instituições de ensino,Salas administrativas [nota a],2.5,0
+escolas_dormitorios,Escolas e instituições de ensino,Dormitórios [nota a],2.5,0
+escolas_cafes_restaurantes,Escolas e instituições de ensino,"Cafés, restaurantes [nota a]",3,0
+escolas_salao_esportes_academia,Escolas e instituições de ensino,"Salão de esportes, academia [nota a]",5,0
+escolas_salao_dancas,Escolas e instituições de ensino,Salão de dança [nota a],5,0
+escolas_sanitarios_vestiarios,Escolas e instituições de ensino,"Sanitários, vestiários [nota a]",2,0
+escolas_cozinhas,Escolas e instituições de ensino,Cozinhas [nota a],3,0
+escolas_depositos,Escolas e instituições de ensino,Depósitos [nota a],5,0
+escolas_laboratorios,Escolas e instituições de ensino,Laboratórios [nota a],3,0
+escolas_arquivos_deslizantes,Escolas e instituições de ensino,Regiões de arquivos deslizantes [nota a],5,0
+escolas_quadras,Escolas e instituições de ensino,Quadras esportivas [nota a],5,0
+estacoes_acessos,Estações de passageiros,"Acessos, escadas, corredores e plataformas (estações de trens, metrôs, ônibus, portos) [nota a,q]",5,0
+forros_manutencao,Forros,"Acessíveis apenas para manutenção e sem estoque de materiais [nota a,r]",0.1,0
+ginasios,Ginásios de esportes,Ginásios de esportes [nota a],5,0
+hospitais_dormitorios,Hospitais,"Dormitórios, enfermaria, sala de recuperação, sanitários",2,0
+hospitais_raiosx_cirurgia,Hospitais,"Sala de raios X, sala de cirurgia [nota a]",3,0
+hospitais_laboratorio,Hospitais,Laboratório [nota a],3,0
+hospitais_corredores,Hospitais,Corredores,3,0
+hospitais_refeicoes,Hospitais,"Sala de refeições, café, restaurante [nota a]",3,0
+hospitais_depositos,Hospitais,"Depósitos: 20 kN/m2 até 3 m de estoque + 5 kN/m2 por metro excedente (valor base 20) [nota a,p]",20,0
+hospitais_administrativas,Hospitais,Salas administrativas,2.5,0
+hoteis_dormitorios,Hotéis,Dormitórios,1.5,0
+hoteis_sanitarios_unidade,Hotéis,Sanitários dentro de unidades autônomas,1.5,0
+hoteis_sanitarios_demais,Hotéis,"Demais sanitários, vestiários",2,0
+hoteis_salao_esportes_academia,Hotéis,"Salão de esportes, academia [nota a]",5,0
+hoteis_festas_jogos,Hotéis,"Salão de festas, salão de jogos [nota a]",3,0
+hoteis_uso_comum,Hotéis,Áreas de uso comum [nota a],3,0
+hoteis_corredor_unidade,Hotéis,Corredores de unidades autônomas,1.5,0
+hoteis_corredor_comum,Hotéis,Corredores de uso comum,3,0
+hoteis_restaurante,Hotéis,Restaurante [nota a],3,0
+hoteis_assembleia_fixos,Hotéis,Sala de assembleia com assentos fixos [nota a],4,0
+hoteis_assembleia_moveis,Hotéis,Sala de assembleia com assentos móveis [nota a],5,0
+hoteis_cozinhas,Hotéis,Cozinhas [nota a],3,0
+hoteis_depositos,Hotéis,Depósitos [nota a],5,0
+hoteis_administrativas,Hotéis,Salas administrativas,2.5,0
+penais_celas,Instituições penais,Celas [nota a],3,0
+penais_corredores,Instituições penais,Corredores [nota a],3,0
+penais_sanitarios,Instituições penais,Sanitários [nota a],2,0
+penais_administrativas,Instituições penais,Salas administrativas [nota a],2.5,0
+jardins_acesso_pessoas,Jardins,"Com possibilidade de acesso de pessoas [nota a,u: além de permanentes]",3,0
+jardins_so_manutencao,Jardins,"Sem possibilidade de acesso de pessoas (somente manutenção) [nota a,u]",1,0
+laboratorios,Laboratórios,"Incluindo equipamentos; validar caso a caso, respeitado o mínimo [nota a]",3,0
+lavanderias_nao_res,Lavanderias não residenciais,"Incluindo equipamentos; validar caso a caso, respeitado o mínimo [nota a]",3,0
+lojas_circulacoes,Lojas e shopping centers,Circulações e lojas em geral [nota a],4,0
+lojas_mezanino_metalico_total,Lojas e shopping centers,"Lojas com mezanino metálico (inclui peso próprio do mezanino e sua carga de uso) [nota a,v]",7.5,20
+lojas_mezanino_so_uso,Lojas e shopping centers,Mezanino metálico (apenas carga de uso) [nota a],2,0
+lojas_praca_publico,Lojas e shopping centers,Praça de alimentação - área de público [nota a],5,0
+lojas_praca_cozinhas,Lojas e shopping centers,Praça de alimentação - área de cozinhas e serviços [nota a],7.5,0
+lojas_cine_plateia,Lojas e shopping centers,"Cinema e teatro (apenas carga de uso, plateia com assentos fixos) [nota a]",4,0
+lojas_cine_acessos,Lojas e shopping centers,Cinema e teatro (acessos e corredores) [nota a],4,0
+lojas_cine_piso_suporta,Lojas e shopping centers,"Cinema e teatro (piso que o suporta) [nota a,v,w]",12.5,50
+lojas_sanitarios,Lojas e shopping centers,Sanitários [nota a],2,0
+lojas_depositos,Lojas e shopping centers,Depósitos [nota a],5,0
+lojas_administrativas,Lojas e shopping centers,Salas administrativas [nota a],2.5,0
+lojas_autoatendimento,Lojas e shopping centers,"Região de terminais de autoatendimento, caixas eletrônicos [nota a,k: 18,5 kN/m2 em 0,9x0,6 m]",12,0
+museus_exposicao,Museus e galerias de arte,Áreas de exposição [nota a],3,0
+museus_sanitarios,Museus e galerias de arte,Sanitários [nota a],2,0
+museus_depositos,Museus e galerias de arte,Depósitos [nota a],5,0
+museus_administrativas,Museus e galerias de arte,Salas administrativas [nota a],2.5,0
+museus_acessos,Museus e galerias de arte,"Acessos, corredores [nota a]",5,0
+restaurantes_salao,Restaurantes,Salão [nota a],3,0
+restaurantes_sanitarios,Restaurantes,Sanitários [nota a],2,0
+restaurantes_depositos,Restaurantes,Depósitos [nota a],5,0
+restaurantes_administrativas,Restaurantes,Salas administrativas [nota a],2.5,0
+super_salao_gondolas,Supermercados,"Salão de vendas com gôndolas, balcões com ou sem refrigeração [nota a,y,q]",8,0
+super_salao_portapaletes,Supermercados,"Salão de vendas com porta-paletes: 20 kN/m2 até 3 m de estoque + 3 kN/m2 por metro excedente (valor base 20) [nota a,y,p,q,z]",20,0
+super_depositos,Supermercados,"Depósitos (com ou sem porta-paletes): 20 kN/m2 até 3 m + 5 kN/m2 por metro excedente (valor base 20) [nota a,y,p,q,z]",20,0
+super_manipulacao_alimentos,Supermercados,"Padaria, açougue, peixaria, frios e demais áreas de manipulação de alimentos [nota a,y,q]",8,0
+super_caixas,Supermercados,"Área de caixas (check outs) [nota a,y,q]",4,0
+super_sanitarios,Supermercados,"Sanitários [nota a,y]",2,0
+super_administrativas,Supermercados,"Salas administrativas [nota a,y]",2.5,0
+super_autoatendimento,Supermercados,"Região de terminais de autoatendimento, caixas eletrônicos [nota a,y,k]",12,0
+super_salas_cofre,Supermercados,"Salas-cofre, salas-forte [nota a,y,x: 2,5 se detalhadas em projeto]",10,0
+vestibulos_sem_acesso_publico,Vestíbulos (acessos),"Sem acesso público [nota a; valor impresso na norma: 11,5]",11.5,0
+vestibulos_com_acesso_publico,Vestíbulos (acessos),Com acesso público [nota a],3,0
+vestibulos_res_hoteis_hospitais,Vestíbulos (acessos),"Residenciais, hotéis, hospitais (uso comum) [nota a]",3,0
+vestibulos_comerciais,Vestíbulos (acessos),"Edifícios comerciais, corporativos e de escritórios [nota a]",3,0
+vestibulos_clubes_escolas_bibliotecas,Vestíbulos (acessos),"Clubes, escolas, bibliotecas [nota a]",3,0
+vestibulos_convencoes,Vestíbulos (acessos),"Centros de convenções e locais de reunião de pessoas, teatros, igrejas [nota a]",5,0
+vestibulos_cinemas_shopping,Vestíbulos (acessos),"Cinemas, centros comerciais, shopping centers [nota a]",4,0
+vestibulos_arquibancadas,Vestíbulos (acessos),Servindo arquibancadas [nota a],5,0

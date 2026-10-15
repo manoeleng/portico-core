@@ -1,0 +1,12 @@
+nombre,tipo,descripcion,E_kN_m2,G_kN_m2,nu,rho_ton_m3,fy_MPa,fc_MPa
+MR250,acero,Aço estrutural NBR 7007 MR250,2.0e8,7.7e7,0.3,7.85,250,
+AR350,acero,Aço estrutural NBR 7007 AR350,2.0e8,7.7e7,0.3,7.85,350,
+AR350 COR,acero,Aço estrutural NBR 7007 AR350 COR,2.0e8,7.7e7,0.3,7.85,350,
+AR415,acero,Aço estrutural NBR 7007 AR415,2.0e8,7.7e7,0.3,7.85,415,
+C20,hormigon,Concreto C20 (NBR 6118:2026; Ecs = αi·5600·√fck),2.1287e+7,8.8697e+6,0.2,2.5,,20
+C25,hormigon,Concreto C25 (NBR 6118:2026; Ecs = αi·5600·√fck),2.4150e+7,1.0063e+7,0.2,2.5,,25
+C30,hormigon,Concreto C30 (NBR 6118:2026; Ecs = αi·5600·√fck),2.6838e+7,1.1183e+7,0.2,2.5,,30
+C35,hormigon,Concreto C35 (NBR 6118:2026; Ecs = αi·5600·√fck),2.9403e+7,1.2251e+7,0.2,2.5,,35
+C40,hormigon,Concreto C40 (NBR 6118:2026; Ecs = αi·5600·√fck),3.1876e+7,1.3282e+7,0.2,2.5,,40
+C45,hormigon,Concreto C45 (NBR 6118:2026; Ecs = αi·5600·√fck),3.4279e+7,1.4283e+7,0.2,2.5,,45
+C50,hormigon,Concreto C50 (NBR 6118:2026; Ecs = αi·5600·√fck),3.6628e+7,1.5262e+7,0.2,2.5,,50

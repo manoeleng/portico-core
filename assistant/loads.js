@@ -99,6 +99,7 @@ function windSpeed(w, ub) {
  */
 export function windLoad(ficha, reglas, h_techo) {
   const w = reglas?.loads?.wind;
+  if (w?.metodo === 'NBR6123') return windLoadNBR6123(ficha, w, h_techo);   // Brazil preset (PLANO_BRASIL 5.4)
   // Graceful degradation with the example template (or without a wind table).
   if (!w || !w.exposure || !w.basic_speed_m_s || !w.gcpf_external_pressure) {
     return { V: null, q_Nm2: 0, presiones: {}, _notas: ['Sin tabla de viento en rules.json (plantilla de ejemplo): reemplázala con la de tu código para calcular la carga de viento.'] };
@@ -136,6 +137,94 @@ export function windLoad(ficha, reglas, h_techo) {
   };
 }
 
+// ── WIND (ABNT NBR 6123:2023) ─────────────────────────────────────────────────
+// Vk = V0·S1·S2·S3, q = 0,613·Vk² (4.2); S2 = bm·Fr·(z/10)^p (5.3.3, Tab. 1/2; category V constant up to
+// 10 m); S3 Tab. 4; walls Cpe Tab. 6 (a ≥ b, interpolation in a/b between 3/2 and 2 — Note 2); two-slope
+// roof Cpe Tab. 7 (linear interpolation in θ: practice, not a clause); Cpi 6.3.2.1. p = q·(Cpe − Cpi).
+// Wind perpendicular to the LONG side a (α = 90°): A windward, B leeward → presiones '1' (A) and '4' (B),
+// the keys the generator uses for the frame. Tables come from rules.loads.wind (preset Brasil).
+const _band = (v, edges) => edges.findIndex(e => v <= e);
+function windLoadNBR6123(ficha, w, h_techo) {
+  const notas = [];
+  const ub = ficha.location || {}, g = ficha.geometry || {}, wf = ficha.wind || {};
+  const V0 = wf.V0_m_s ?? ub.V0_m_s;
+  if (!(V0 > 0)) return { V: null, q_Nm2: 0, presiones: {}, _notas: ['NBR 6123: V0 (isopletas, Figura 1) não informado (ficha.wind.V0_m_s) — vento não calculado.'] };
+  const cat = String(wf.categoria ?? 'IV').toUpperCase();
+  const S1 = wf.S1 ?? 1.0;
+  const grupo = String(wf.grupoS3 ?? '3');
+  const S3 = w.S3[grupo]?.S3 ?? w.S3[grupo];
+  let b = wf.b_m ?? g.width_m, a = wf.a_m ?? g.length_m;
+  if (!(a > 0 && b > 0)) { notas.push('Dimensões em planta não informadas (ficha.wind.a_m/b_m): adotado a = b (planta quadrada).'); a = b = a > 0 ? a : (b > 0 ? b : 10); }
+  if (a < b) [a, b] = [b, a];
+  const h = h_techo;
+  const maxDim = Math.max(a, h);
+  const classe = maxDim <= 20 ? 'A' : maxDim <= 50 ? 'B' : 'C';
+  const t1 = w.S2[cat]; if (!t1) throw new Error(`NBR 6123: categoria "${cat}" fora da Tabela 1`);
+  const z = cat === 'V' ? Math.max(h, 10) : h;
+  const S2 = t1[classe].bm * w.Fr[classe] * Math.pow(z / 10, t1[classe].p);
+  const Vk = V0 * S1 * S2 * S3;
+  const q = 0.613 * Vk * Vk;                                      // N/m²
+  // walls (Tab. 6)
+  const hb = h / b, ab = a / b;
+  const rowsH = w.cpe_paredes.filter(r => (hb <= 0.5 && r.h_b === '<=1/2') || (hb > 0.5 && hb <= 1.5 && r.h_b === '1/2<h/b<=3/2') || (hb > 1.5 && r.h_b === '3/2<h/b<=6'));
+  if (hb > 6) notas.push('h/b > 6: fora da Tabela 6.');
+  if (ab > 4) notas.push('a/b > 4: fora da Tabela 6 (adotada a linha 2 ≤ a/b ≤ 4).');
+  const r1 = rowsH.find(r => r.a_b === '1<=a/b<=3/2'), r2 = rowsH.find(r => r.a_b === '2<=a/b<=4');
+  const t = ab <= 1.5 ? 0 : ab >= 2 ? 1 : (ab - 1.5) / 0.5;
+  const cpeW = {};
+  for (const k of ['A1B1', 'A2B2', 'C', 'D', 'A', 'B', 'C1D1', 'C2D2', 'cpe_medio']) cpeW[k] = +(r1[k] + (r2[k] - r1[k]) * t).toFixed(3);
+  // roof (Tab. 7), two slopes
+  const theta = g.roof_slope_deg ?? 0;
+  const rowsR = w.cpe_telhado_2aguas.filter(r => (hb <= 0.5 && r.h_b === '<=1/2') || (hb > 0.5 && hb <= 1.5 && r.h_b === '1/2<h/b<=3/2') || (hb > 1.5 && r.h_b !== '<=1/2' && r.h_b !== '1/2<h/b<=3/2'));
+  const ths = rowsR.map(r => r.theta);
+  const i = Math.max(0, Math.min(ths.length - 2, _band(theta, ths) - 1));
+  const lo = rowsR[i], hi = rowsR[i + 1];
+  const u = theta <= lo.theta ? 0 : theta >= hi.theta ? 1 : (theta - lo.theta) / (hi.theta - lo.theta);
+  const lin = (x, y) => +(x + (y - x) * u).toFixed(3);
+  const cpeR = { EFI: lin(lo.a90.EFI, hi.a90.EFI), GHJ: lin(lo.a90.GHJ, hi.a90.GHJ), EG: lin(lo.a0.EG, hi.a0.EG), FH: lin(lo.a0.FH, hi.a0.FH) };
+  if (u > 0 && u < 1) notas.push(`Cpe do telhado interpolado em θ = ${theta}° (prática; a Tabela 7 não prescreve interpolação).`);
+  // internal pressure (6.3.2.1): default four permeable faces → −0,3 or 0 (both, the worse governs)
+  const cpiSet = wf.cpi != null ? [].concat(wf.cpi) : w.cpi_padrao ?? [-0.3, 0];
+  // one internal pressure acts on ALL faces at once (it cancels in the net horizontal wall load): a full
+  // set per Cpi; 'presiones' is the set with the larger roof suction (governs the roof/uplift)
+  const set = (ci) => { const f = (cpe) => +(q * (cpe - ci)).toFixed(2);
+    return { '1': f(cpeW.A), '4': f(cpeW.B), C: f(cpeW.C), D: f(cpeW.D), EFI: f(cpeR.EFI), GHJ: f(cpeR.GHJ) }; };
+  const porCpi = cpiSet.map(ci => ({ cpi: ci, presiones: set(ci) }));
+  const presiones = porCpi.reduce((a, b) => Math.abs(b.presiones.EFI) > Math.abs(a.presiones.EFI) ? b : a).presiones;
+  return {
+    V: V0, V0, S1, S2: +S2.toFixed(4), S3, Vk: +Vk.toFixed(3), categoria: cat, classe, q_Nm2: +q.toFixed(2),
+    cpi: cpiSet, cpe_paredes: cpeW, cpe_telhado: cpeR, presiones, presiones_por_cpi: porCpi,
+    _formula: 'Vk = V0·S1·S2·S3; q = 0,613·Vk² [N/m²]; p = q·(Cpe − Cpi) (NBR 6123:2023)',
+    _notas: notas,
+  };
+}
+
+// ── SEISMIC (ABNT NBR 15421:2023) ─────────────────────────────────────────────
+// Same formulas as js/design/spectra/nbr15421.js (kept standalone like the NCh433 copy; a test pins the
+// two together): ags0 = Ca·ag, ags1 = Cv·0,75·ag; four period ranges (6.3); Ca/Cv Tab. 3 with linear
+// interpolation 0,10–0,15 g; I Tab. 4. Not divided by R/I: forces × I/R, displacements × Cd/R (10).
+function responseSpectrumNBR15421(ficha, s, { Tmax = 3.0, dT = 0.02 } = {}) {
+  const p = ficha.seismic || {};
+  const ag = p.ag ?? s.default_params?.ag;
+  if (!(ag > 0)) throw new Error('NBR 15421: ag (g) não informado (ficha.seismic.ag).');
+  const cls = String(p.soil ?? s.default_params?.soil ?? 'D').toUpperCase();
+  if (cls === 'F') throw new Error('NBR 15421: terreno F exige estudo específico (6.2).');
+  const row = s.ca_cv[cls]; if (!row) throw new Error(`NBR 15421: classe de terreno inválida "${cls}"`);
+  const it = (v) => ag <= 0.10 ? v[0] : ag >= 0.15 ? v[1] : v[0] + (v[1] - v[0]) * (ag - 0.10) / 0.05;
+  const Ca = it(row.Ca), Cv = it(row.Cv), r = Cv / Ca;
+  const ags0 = Ca * ag, ags1 = Cv * 0.75 * ag;
+  const I = s.importance[p.category || 'II'] ?? 1.0;
+  const sa = (T) => T <= 0.04 * r ? ags0 * (37.5 * T * Ca / Cv + 1) : T <= 0.3 * r ? 2.5 * ags0 : T <= 2 * r ? ags1 / T : 2 * r * ags1 / (T * T);
+  const curva = [];
+  for (let T = 0; T <= Tmax + 1e-9; T += dT) { const Tr = +T.toFixed(4); curva.push({ T: Tr, Sa: +sa(Tr).toFixed(6) }); }
+  const R = p.R ?? s.default_params?.R ?? 3.0;
+  return {
+    curva, texto: curva.map((q) => `${q.T}\t${q.Sa}`).join('\n'),
+    params: { ag, classe: cls, Ca, Cv, ags0, ags1, I, R },
+    saFactor_nota: `Colar a curva em F7; saFactor = ${G_GRAV.toFixed(5)}·I/R = ${(G_GRAV * I / R).toFixed(5)} (NBR 15421:2023 seção 10: forças × I/R; deslocamentos × Cd/R).`,
+  };
+}
+
 // ── SEISMIC (NCh433/DS61) ─────────────────────────────────────────────────────
 
 /** R* = 1 + T* / (0.10·To + T* / Ro), with T* from the modal analysis. */
@@ -155,6 +244,7 @@ export function Rstar(Tstar, To, Ro = 11.0) {
  */
 export function responseSpectrum(ficha, reglas, { Tmax = 3.0, dT = 0.02 } = {}) {
   const s = reglas?.loads?.seismic;
+  if (s?.metodo === 'NBR15421') return responseSpectrumNBR15421(ficha, s, { Tmax, dT });   // Brazil preset (5.6)
   if (!s || !s.soil_table || !s.zone_table_Ao_g) {
     throw new Error('Sin tabla sísmica en rules.json (plantilla de ejemplo): reemplázala con la de tu código para generar el espectro.');
   }
