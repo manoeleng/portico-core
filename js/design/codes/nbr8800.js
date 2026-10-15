@@ -157,7 +157,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   const hWeb = (sec.lambdaWeb > 0 && tw > 0) ? sec.lambdaWeb * tw : (d > 0 && tf > 0 ? d - 2 * tf : 0);
   const lamF = sec.lambdaFlange > 0 ? sec.lambdaFlange : (bf > 0 && tf > 0 ? bf / (2 * tf) : NaN);
   const lamW = sec.lambdaWeb > 0 ? sec.lambdaWeb : (hWeb > 0 && tw > 0 ? hWeb / tw : NaN);
-  const welded = sec.fabricacao === 'soldado';
+  const welded = sec.fabricacao !== 'laminado';                   // not given → welded (conservative, as the warning says)
   if (shape === 'I' && !isI) avisos.push('Perfil I sem Cw/J: verificação simplificada (sem FLT nem flambagem por torção).');
   if (isI && !(isFinite(lamF) && isFinite(lamW))) avisos.push('Faltam λ da mesa/alma e dimensões da chapa: flambagem local, FLM e FLA NÃO verificadas.');
   if (isI && !(sec.lambdaWeb > 0) && isFinite(lamW) && !welded) avisos.push('h/tw derivado de d − 2·tf: em laminado a norma desconta os raios de concordância (D.3) — informe λ de catálogo.');

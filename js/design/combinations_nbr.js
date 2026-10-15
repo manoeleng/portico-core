@@ -30,7 +30,7 @@
 
 export const NBR_GAMMA = {
   concrete: { code: 'NBR6118:2026', gDes: 1.4, gFav: 1.0, gExc: 1.2, Q: 1.4, Qcob: 1.4, V: 1.4, T: 1.2 },
-  steel:    { code: 'NBR8800:2024', gDes: 1.35, gFav: 1.0, gExc: 1.2, Q: 1.5, Qcob: 1.5, V: 1.4, T: 1.2 },
+  steel:    { code: 'NBR8800:2024', gDes: 1.35, gFav: 1.0, gExc: 1.2, Q: 1.5, Qcob: 1.5, V: 1.4, T: 1.2 },   // gExc only in seismic combos: NBR 15421:2023 5.4 fixes γg = 1,2 (Q ≤ 5 kN/m²), not the 1,15 of NBR 8800 Tab. 1
 };
 
 // [ψ0, ψ1, ψ2]

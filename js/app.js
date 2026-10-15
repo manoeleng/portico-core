@@ -4848,7 +4848,7 @@ class App {
       document.getElementById('pd-q-box').style.display = isCol ? 'none' : '';
       document.getElementById('pd-N-box').style.display = isCol ? '' : 'none';
       document.getElementById('pd-fc-box').style.display = (isCol && isC) ? '' : 'none';
-      const p = predimensionar({ type: tipo(), material: matf(), L: +document.getElementById('pd-L').value || 6,
+      const p = predimensionar({ tipo: tipo() === 'column' ? 'columna' : 'viga', material: matf(), L: +document.getElementById('pd-L').value || 6,
         q: +document.getElementById('pd-q').value || 20, N: +document.getElementById('pd-N').value || 800, fc: +document.getElementById('pd-fc').value || 25,
         H: +document.getElementById('pd-L').value || 3 });
       this._predim = p;
@@ -8810,30 +8810,18 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     const res = byCase?.get(lcLive.id);
     if (!res || typeof res.getElemAtXi !== 'function') { out.note = `${i18n.t('Ejecute el análisis estático (F5) para tener resultados del caso')} «${lcLive.name}».`; return out; }
 
-    // Max deflection relative to the straight chord between the nodes (span sag).
-    const flechaMax = (el) => {
-      try {
-        const u1 = res.getNodeDisp(el.n1), u2 = res.getNodeDisp(el.n2);
-        if (!u1 || !u2) return 0;
-        let dmax = 0;
-        for (let k = 1; k < 10; k++) {
-          const xi = k / 10, d = res.getElemAtXi(el.id, xi); if (!d) continue;
-          const cx = u1[0] + xi * (u2[0] - u1[0]), cy = u1[1] + xi * (u2[1] - u1[1]), cz = u1[2] + xi * (u2[2] - u1[2]);
-          dmax = Math.max(dmax, Math.hypot(d.ux - cx, d.uy - cy, d.uz - cz));
-        }
-        return dmax;
-      } catch { return 0; }
-    };
-
-    for (const el of this.model.elements.values()) {
-      const n1 = this.model.nodes.get(el.n1), n2 = this.model.nodes.get(el.n2);
-      if (!n1 || !n2) continue;
-      const L = Math.hypot(n2.x - n1.x, n2.y - n1.y, n2.z - n1.z);
-      if (L < 1e-9) continue;
-      if (Math.abs(n2.z - n1.z) > 0.2 * L) continue;   // beams only (nearly horizontal)
-      const delta = flechaMax(el);
-      const lim = L / out.limSobre;
-      out.rows.push({ id: el.id, sec: this.model.sections.get(el.secId)?.name || '', L, delta, lim, ratio: lim > 1e-9 ? delta / lim : 0 });
+    // Max deflection of each SPAN relative to its supports (cantilever: to its root), js/design/beam_spans.js —
+    // a beam meshed in several elements or a cantilever would lose most of its deflection against the element chord.
+    // Cantilever: effective span 2·L (serviceability rule of the code layer).
+    const spans = beamSpans({ nodes: this.model.nodes, elements: [...this.model.elements.values()] });
+    const nd = (id) => { try { return res.getNodeDisp(id); } catch { return null; } };
+    const ed = (eid, xi) => { try { return res.getElemAtXi(eid, xi); } catch { return null; } };
+    for (const sp of spans) {
+      const delta = spanDeflection(sp, nd, ed);
+      const Lef = sp.kind === 'balanco' ? 2 * sp.L : sp.L;
+      const lim = Lef / out.limSobre;
+      out.rows.push({ id: sp.elements.join('+'), kind: sp.kind, sec: this.model.sections.get(this.model.elements.get(sp.elements[0])?.secId)?.name || '',
+        L: sp.L, delta, lim, ratio: lim > 1e-9 ? delta / lim : 0 });
     }
     out.rows.sort((a, b) => b.ratio - a.ratio);
     return out;
