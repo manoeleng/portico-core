@@ -2155,7 +2155,9 @@ export class PropertiesPanel {
           <div class="prop-field"><label title="${i18n.t('Giro de los ejes locales y, z alrededor del eje x de la barra (regla de la mano derecha, de n1 a n2). 0 = orientación por defecto.')}">${i18n.t('Ángulo β (°)')}</label>
             <div style="display:flex;gap:4px"><input type="number" id="e-beta" value="${+elem.beta || 0}" step="15" style="flex:1;min-width:0">
               <button class="btn-secondary" type="button" id="e-beta-90" title="+90°" style="font-size:11px;padding:2px 6px">↻90</button>
-              <button class="btn-secondary" type="button" id="e-beta-180" title="180°" style="font-size:11px;padding:2px 6px">⇅</button></div>
+              <button class="btn-secondary" type="button" id="e-beta-180" title="180°" style="font-size:11px;padding:2px 6px">⇅</button>
+              ${elem.betaOwn ? `<button class="btn-secondary" type="button" id="e-beta-inh" title="${esc(i18n.t('Volver a la rotación de la sección'))}" style="font-size:11px;padding:2px 6px">↺</button>` : ''}</div>
+            <span class="muted" style="font-size:10px">${elem.betaOwn ? i18n.t('propia de la barra') : `${i18n.t('de la sección')} (${+model.sections.get(elem.secId)?.beta || 0}°)`}</span>
           </div>
         </div>
         <div class="prop-row cols2" title="${i18n.t('Excentricidad: el eje de la sección (centroide) queda desplazado de la línea de los nodos, en los ejes locales y, z, igual en los dos extremos (brazo rígido). Ej.: correa apoyada sobre el cordón, viga a ras de la cara del pilar.')}">
@@ -2311,10 +2313,12 @@ export class PropertiesPanel {
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
       const foundation = { ky: fromDisp(parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, 'KW'), kz: fromDisp(parseFloat(sel.querySelector('#e-found-kz')?.value) || 0, 'KW') };
       const layer = +sel.querySelector('#e-layer')?.value || elem.layer || 1;
-      const beta = parseFloat(String(sel.querySelector('#e-beta')?.value ?? '0').replace(',', '.')) || 0;
+      const betaIn = parseFloat(String(sel.querySelector('#e-beta')?.value ?? '0').replace(',', '.')) || 0;
       const num = (id) => parseFloat(String(sel.querySelector(id)?.value ?? '0').replace(',', '.')) || 0;
       const offset = { y: num('#e-off-y'), z: num('#e-off-z') };
-      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, beta, offset });
+      // β is sent only when the user changed it (otherwise the member keeps following the section default)
+      const betaChg = Math.abs(betaIn - (+this.app.model.elements.get(elem.id)?.beta || 0)) > 1e-9 ? { beta: betaIn } : {};
+      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, offset, ...betaChg });
       // buckling lengths (el.design: user values win over the automatic unbraced lengths; empty = automatic)
       {
         const el2 = this.app.model.elements.get(elem.id), dsg = { ...(el2.design || {}) };
@@ -2332,6 +2336,11 @@ export class PropertiesPanel {
     };
 
     sel.querySelector('#e-fl-tors')?.addEventListener('change', () => { save(); this.showElement(this.app.model.elements.get(elem.id)); });
+    sel.querySelector('#e-beta-inh')?.addEventListener('click', () => {
+      this.app.snapshot(); this.app.model.updateElement(elem.id, { beta: null }); this.app.markDirty();
+      this.app.viewport.refreshElem(this.app.model.elements.get(elem.id)); this.app.viewport.refreshExtrusion?.();
+      this.showElement(this.app.model.elements.get(elem.id));
+    });
     for (const [bid, inc] of [['#e-beta-90', 90], ['#e-beta-180', 180]]) sel.querySelector(bid)?.addEventListener('click', () => {
       const inp = sel.querySelector('#e-beta'); let v = ((parseFloat(inp.value) || 0) + inc) % 360; if (v > 180) v -= 360;
       inp.value = +v.toFixed(4); save(); this.app.viewport.refreshExtrusion?.();
@@ -2961,6 +2970,10 @@ export class PropertiesPanel {
               <option value="viga" ${sec.role === 'viga' ? 'selected' : ''}>🟩 Viga</option>
             </select></div>
         </div>
+        <div class="prop-row" title="${esc(i18n.t('Rotación por defecto (β) de las barras con esta sección; una barra con β propio no cambia.'))}">
+          <div class="prop-field"><label>${i18n.t('Rotación β por defecto (°)')}</label>
+            <input type="number" class="sec-beta" value="${+sec.beta || 0}" step="15"></div>
+        </div>
         <div class="prop-row">
           ${fld('A (m²)', 'A')}
           ${fld('J (m⁴)', 'J')}
@@ -2995,6 +3008,12 @@ export class PropertiesPanel {
         </div>
       </div>
     `;
+    card.querySelector('.sec-beta')?.addEventListener('change', (e) => {
+      this.app.snapshot();
+      this.app.model.updateSection(sec.id, { beta: parseFloat(String(e.target.value).replace(',', '.')) || 0 });
+      this.app.markDirty(); this.app.viewport.renderModel(this.app.model); this.app.viewport.refreshExtrusion?.();
+      this.app.toast(i18n.t('Rotación aplicada a las barras de la sección sin β propio — recalcule el análisis (F5)'), 'ok');
+    });
     card.querySelector('.sec-color')?.addEventListener('change', (e) => {
       this.app.snapshot(); sec.color = e.target.value; this.app.markDirty();
       this.app.viewport.renderModel(this.app.model); this.app.viewport.refreshExtrusion?.(); this.renderSections();

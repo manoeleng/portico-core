@@ -84,6 +84,8 @@ export class Serializer {
       if (!d.releases) d.releases = Array(12).fill(0);
       m.elements.set(d.id, d);
     }
+    // files before the section default rotation: a member β set without a section default is the member's own β
+    for (const e of m.elements.values()) if (+e.beta && !e.betaOwn && !(+m.sections.get(e.secId)?.beta)) e.betaOwn = true;
     for (const d of arr(obj.areas, 'areas'))  {
       if (!d.kind) d.kind = (d.nodes || []).length === 3 ? 'CST' : 'QUAD';
       if (!d.behavior) d.behavior = 'membrane';

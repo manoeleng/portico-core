@@ -1919,7 +1919,7 @@ export function generateWarehouse(spec, libs) {
       if (isPurlin && secTerca && e.secId === secTerca.id) {
         const th = Math.atan(2 * hR / luz), sx = a.x < luz / 2 - 1e-6 ? -1 : a.x > luz / 2 + 1e-6 ? 1 : 0;
         const b0 = Math.atan2(sx * Math.sin(th) * Math.sign(b.y - a.y), Math.cos(th)) * 180 / Math.PI;
-        if (Math.abs(b0) > 1e-9) e.beta = +b0.toFixed(4);
+        if (Math.abs(b0) > 1e-9) { e.beta = +b0.toFixed(4); e.betaOwn = true; }   // own β (not the section default)
       }
     }
     // X bracing (tension-only rods, pinned) in the two end bays: roof plane (top chord) and both side walls

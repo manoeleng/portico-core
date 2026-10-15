@@ -181,6 +181,7 @@ export class Model {
       releases: Array(12).fill(0),
       layer: this.activeLayer || 1,
     };
+    { const b = +this.sections.get(elem.secId)?.beta || 0; if (b) elem.beta = b; }   // section default roll angle
     this.elements.set(id, elem);
     return elem;
   }
@@ -256,7 +257,10 @@ export class Model {
     if (props.n1     !== undefined) el.n1     = +props.n1;
     if (props.n2     !== undefined) el.n2     = +props.n2;
     if (props.matId  !== undefined) el.matId  = +props.matId;
-    if (props.secId  !== undefined) el.secId  = +props.secId;
+    if (props.secId  !== undefined) {
+      el.secId  = +props.secId;
+      if (!el.betaOwn && props.beta === undefined) { const b = +this.sections.get(el.secId)?.beta || 0; if (b) el.beta = b; else delete el.beta; }
+    }
     if (props.releases) el.releases = [...props.releases];
     // NL-lite (Phase 1): "tension-only" cable + prestress via natural length.
     // L0factor = natural length / geometric length (1 = no prestress, <1 = prestressed).
@@ -275,7 +279,11 @@ export class Model {
       if (y || z) el.offset = { y, z }; else delete el.offset;
     }
     // Roll angle β (degrees): rotation of the local y, z axes about x (localAxes in solver/timoshenko.js).  0 → removed.
-    if (props.beta !== undefined) { const b = +props.beta || 0; if (b) el.beta = b; else delete el.beta; }
+    // β of the member: a number = its own value (overrides the section default, even 0); null = follow the section
+    if (props.beta !== undefined) {
+      if (props.beta === null) { delete el.betaOwn; const b = +this.sections.get(el.secId)?.beta || 0; if (b) el.beta = b; else delete el.beta; }
+      else { const b = +props.beta || 0; el.betaOwn = true; if (b) el.beta = b; else delete el.beta; }
+    }
     // Rigid end zone / end offset (#87): lengths (m) per end.
     if (props.rigidEnd !== undefined) {
       const re = props.rigidEnd;
@@ -417,6 +425,11 @@ export class Model {
     if (!s) return null;
     if (props.mod) { s.mod = { ...(s.mod || { A:1, Iy:1, Iz:1, J:1 }), ...props.mod }; delete props.mod; }
     Object.assign(s, props);
+    // default roll angle of the section (RFEM "section rotation"): members without their own β (betaOwn) follow it
+    if (props.beta !== undefined) {
+      const b = +props.beta || 0; if (b) s.beta = b; else delete s.beta;
+      for (const el of this.elements.values()) if (el.secId === id && !el.betaOwn) { if (b) el.beta = b; else delete el.beta; }
+    }
     const nums = ['A','Iz','Iy','J','Avy','Avz','kappay','kappaz'];
     nums.forEach(k => { if (props[k] !== undefined) s[k] = +props[k]; });
     if (!s.mod) s.mod = { A:1, Iy:1, Iz:1, J:1 };

@@ -2647,6 +2647,12 @@ export const PT = {
   "Favoritos": "Favoritos",
   "Favorito": "Favorito",
   "Arrastrar para mover · doble clic = volver a la esquina": "Arraste para mover · duplo clique = volta ao canto",
+  "Volver a la rotación de la sección": "Voltar à rotação da seção",
+  "propia de la barra": "própria da barra",
+  "de la sección": "da seção",
+  "Rotación β por defecto (°)": "Rotação β padrão (°)",
+  "Rotación por defecto (β) de las barras con esta sección; una barra con β propio no cambia.": "Rotação padrão (β) das barras com esta seção; barra com β próprio não muda.",
+  "Rotación aplicada a las barras de la sección sin β propio — recalcule el análisis (F5)": "Rotação aplicada às barras da seção sem β próprio — recalcule a análise (F5)",
 };
 
 export default PT;

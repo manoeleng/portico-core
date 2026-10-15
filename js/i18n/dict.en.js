@@ -2904,6 +2904,12 @@ export const EN = {
   "Favoritos": "Favourites",
   "Favorito": "Favourite",
   "Arrastrar para mover · doble clic = volver a la esquina": "Drag to move · double click = back to the corner",
+  "Volver a la rotación de la sección": "Back to the section rotation",
+  "propia de la barra": "member's own",
+  "de la sección": "from the section",
+  "Rotación β por defecto (°)": "Default rotation β (°)",
+  "Rotación por defecto (β) de las barras con esta sección; una barra con β propio no cambia.": "Default rotation (β) of the members with this section; a member with its own β does not change.",
+  "Rotación aplicada a las barras de la sección sin β propio — recalcule el análisis (F5)": "Rotation applied to the section's members without their own β — re-run the analysis (F5)",
 };
 
 export default EN;
