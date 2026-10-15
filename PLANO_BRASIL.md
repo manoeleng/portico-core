@@ -316,11 +316,11 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       `Aco/BR-Catalogo-de-Acos-Estruturais.pdf` (Vallourec, só massas).
 - [x] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
       (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
-      **U laminado (15/10/2026):** 12 bitolas Gerdau (3" a 12") = perfis C da ASTM A6, com TODAS as propriedades
-      (A, I, W, Z, r, J, Cw, x) da AISC Shapes Database v16.0, bloco métrico (`_referencias/Aco/aisc-shapes-database-v160-2.xlsx`).
-      A AISC resolveu os problemas das tabelas Gerdau: U 8" com ry errado (1,42 em vez de 1,58/1,56) e linhas de
-      10"/12" misturadas na edição 01/23. Divergência registrada no teste: U 3" × 6,10 Iy AISC 7,95 × Gerdau 8,20 cm⁴
-      (−3 %; adotado AISC, conservador). A, Ix, Iy das demais conferem com a Gerdau em ≤ 1,5 %.
+      **U laminado (15/10/2026):** 12 bitolas Gerdau (3" a 12") com as propriedades do PRODUTO Gerdau (Tabela de
+      Bitolas 01/23 e Barras e Perfis 2009 — o perfil do fabricante pode diferir do perfil-padrão). Zx, Zy, J e Cw,
+      que a Gerdau não publica, vêm do perfil C equivalente da AISC Shapes Database v16.0 (`_referencias/Aco`),
+      conferidos célula a célula contra a planilha. U 8": a linha Gerdau traz ry = 1,42, que não fecha com o próprio
+      Iy/A — adotado ry = √(Iy/A) com Iy e A da Gerdau (1,58 / 1,55).
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
   (88 W/HP com Zx, It, Cw) e `formados-frio-6355.csv` (150 perfis, NBR 6355:2012 Tab. A, com
   página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884:2005 no acervo (ver Fontes).

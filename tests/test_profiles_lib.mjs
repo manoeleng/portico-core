@@ -36,27 +36,24 @@ for (const [n, ref, A, Ix, rx] of [
   assert('TC forma pipe', s.design.shape === 'pipe');
 }
 
-// U laminado Gerdau = perfis C (ASTM A6), propriedades da AISC Shapes Database v16.0 (bloco métrico,
-// _referencias/Aco). Oráculos: (a) a própria AISC — conversão de unidades; (b) o catálogo Gerdau "Tabela de
-// Bitolas" (A, Ix, Iy dentro de 1,5 %: a AISC métrica arredonda a 3 algarismos).
+// U laminado Gerdau — o PRODUTO Gerdau é a referência: "Tabela de Bitolas" 01/23 / "Barras e Perfis" 2009
+// (_referencias/Catalogos_Tabelas). Zx, Zy, J e Cw (não publicados pela Gerdau) vêm do perfil C equivalente da
+// AISC Shapes Database v16.0. U 8": ry = √(Iy/A) com Iy e A da Gerdau (a linha traz 1,42, que não fecha).
 assert('u1. 12 perfis U (3" a 12")', catalogNames('U (Gerdau)').length === 12);
-{ const s = profileToSection('U 8" x 17,10'), p = resolveSectionProps(s);       // AISC C200X17.1
-  ok('u2. C200X17.1 A (cm²)', s.A * 1e4, 21.7, 1e-9); ok('u2. Ix (cm⁴)', s.Iz * 1e8, 1350, 1e-9);
-  ok('u2. Iy (cm⁴)', s.Iy * 1e8, 54.5, 1e-9); ok('u2. J (cm⁴)', s.J * 1e8, 5.41, 1e-9);
-  ok('u2. Cw (cm⁶)', p.Cw * 1e12, 4430, 1e-9); ok('u2. Zx (cm³)', p.Zz * 1e6, 158, 1e-9); ok('u2. Zy (cm³)', p.Zy * 1e6, 25.7, 1e-9);
-  ok('u2. ry (cm) — AISC 1,58; o catálogo Gerdau traz 1,42 (erro, √(54,5/21,7) = 1,58)', p.ry * 100, 1.58, 1e-9);
-  assert('u2. forma channel, laminado', p.shape === 'channel' && p.fabricacao === 'laminado'); }
-// Gerdau (Tabela de Bitolas): [nome, A cm², Ix cm⁴, Iy cm⁴]
-for (const [n, A, Ix, Iy] of [['U 3" x 6,10', 7.78, 68.9, null], ['U 4" x 8,04', 10.1, 159.5, 13.1], ['U 6" x 15,60', 19.9, 632, 36],
-  ['U 8" x 17,10', 21.68, 1344.3, 54.1], ['U 10" x 22,77', 29, 2800, 95], ['U 10" x 29,76', 37.9, 3290, 117]]) {
-  const s = profileToSection(n);
-  ok(`${n} A vs Gerdau`, s.A * 1e4, A, 0.015); ok(`${n} Ix vs Gerdau`, s.Iz * 1e8, Ix, 0.015); if (Iy != null) ok(`${n} Iy vs Gerdau`, s.Iy * 1e8, Iy, 0.015);
+// [nome, A cm², Ix cm⁴, Iy cm⁴, Wx cm³, Wy cm³, rx cm, ry cm] — valores da Gerdau
+for (const [n, A, Ix, Iy, Wx, Wy, rx, ry] of [['U 3" x 6,10', 7.78, 68.9, 8.2, 18.1, 3.32, 2.98, 1.03], ['U 6" x 15,60', 19.9, 632, 36, 82.9, 9.24, 5.63, 1.34],
+  ['U 10" x 29,76', 37.9, 3290, 117, 259, 21.6, 9.31, 1.76], ['U 12" x 30,80', 39.3, 5370, 161, 352, 28.3, 11.7, 2.03]]) {
+  const s = profileToSection(n), p = resolveSectionProps(s);
+  ok(`${n} A (Gerdau)`, s.A * 1e4, A, 1e-9); ok(`${n} Ix`, s.Iz * 1e8, Ix, 1e-9); ok(`${n} Iy`, s.Iy * 1e8, Iy, 1e-9);
+  ok(`${n} Wx`, p.Sz * 1e6, Wx, 1e-9); ok(`${n} Wy`, p.Sy * 1e6, Wy, 1e-9); ok(`${n} rx`, p.rz * 100, rx, 1e-9); ok(`${n} ry`, p.ry * 100, ry, 1e-9);
+  assert(`${n} forma channel, laminado`, p.shape === 'channel' && p.fabricacao === 'laminado');
 }
-// Divergência entre fontes (registrada, não ajustada): U 3" × 6,10 — AISC C75X6.1 Iy = 7,95 cm⁴ (= C3x4.1, 0,191 in⁴);
-// Gerdau 8,20 (coerente com o seu ry 1,03). Adotado o da AISC, menor (conservador no eixo fraco).
-{ const s = profileToSection('U 3" x 6,10');
-  ok('u3. U 3" × 6,10 Iy = AISC 7,95 cm⁴', s.Iy * 1e8, 7.95, 1e-9);
-  assert('u3. AISC < Gerdau 8,20 (−3,0 %, lado conservador)', s.Iy * 1e8 < 8.2); }
+{ const s = profileToSection('U 8" x 17,10'), p = resolveSectionProps(s);
+  ok('u2. U 8" × 17,10 Iy (Gerdau)', s.Iy * 1e8, 54.1, 1e-9);
+  ok('u2. U 8" × 17,10 ry = √(54,10/21,68)', p.ry * 100, Math.sqrt(54.1 / 21.68), 1e-9);
+  // complemento AISC (C200X17.1): Zx 158 cm³, Zy 25,7 cm³, J 5,41 cm⁴, Cw 4 430 cm⁶
+  ok('u2. Zx (AISC)', p.Zz * 1e6, 158, 1e-9); ok('u2. Zy (AISC)', p.Zy * 1e6, 25.7, 1e-9);
+  ok('u2. J (AISC)', s.J * 1e8, 5.41, 1e-9); ok('u2. Cw (AISC 4,43·10⁹ mm⁶)', p.Cw * 1e12, 4430, 1e-9); }
 
 // Tubos retangulares (biblioteca, 406) com raios de canto — EN 10219-2:2019 A.3, conferido contra a Tab. B.3
 // (pág. 36 do PDF do acervo) e contra o exemplo 3.7.10 do livro de perfis tubulares (TR 200 × 150 × 8:
