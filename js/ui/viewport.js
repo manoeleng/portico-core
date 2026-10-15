@@ -32,10 +32,14 @@ const COL = {
 };
 const NODE_R      = 0.08;   // VISUAL node radius (the selection area is larger, see _pickNodes)
 // Node markers in the CYPE 3D style: small screen-space glyphs of constant pixel size, shape by the connection
-// of the bars that meet at the node — hollow square = rigid, hollow circle = articulated (bending rotation
-// released in every bar end), square with a tick = some bar ends released, small dot = mesh node, small diamond
-// = free node (no bar). Hidden in the extruded (solid) view, as in CYPE's "Modelo 3D".
-const NODE_PX = 9;          // marker size in screen pixels (designSettings.view.nodePx overrides)
+// of the bars that meet at the node (CYPE 3D, "Vinculação interior") — hollow square = rigid (default),
+// hollow circle = articulated node (bending rotation released in every bar end), double circle = partial
+// fixity (every end released or with a rotational end spring, at least one spring), small dot = mesh node,
+// small diamond = free node (no bar). A node with only SOME ends released stays a square and each released
+// end gets its own blue circle on the bar, next to the node (CYPE "extremos de barra articulados").
+// Hidden in the extruded (solid) view, as in CYPE's "Modelo 3D".
+const NODE_PX = 9;
+const HINGE_BLUE = '#3d9bff';   // CYPE uses blue for every internal-fixity symbol          // marker size in screen pixels (designSettings.view.nodePx overrides)
 const NODE_SEG    = 8;
 const SNAP_PX     = 22;   // screen-space snap radius in pixels
 
@@ -380,25 +384,34 @@ export class Viewport {
     const g = cv.getContext('2d'); g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 9;
     const m = 10;
     if (kind === 'hinge') { g.beginPath(); g.arc(N / 2, N / 2, N / 2 - m, 0, 2 * Math.PI); g.stroke(); }
+    else if (kind === 'partial') {
+      g.lineWidth = 6;
+      g.beginPath(); g.arc(N / 2, N / 2, N / 2 - 5, 0, 2 * Math.PI); g.stroke();
+      g.beginPath(); g.arc(N / 2, N / 2, N / 2 - 17, 0, 2 * Math.PI); g.stroke();
+    }
     else if (kind === 'mesh') { g.beginPath(); g.arc(N / 2, N / 2, N / 5, 0, 2 * Math.PI); g.fill(); }
     else if (kind === 'free') { g.beginPath(); g.moveTo(N / 2, m); g.lineTo(N - m, N / 2); g.lineTo(N / 2, N - m); g.lineTo(m, N / 2); g.closePath(); g.stroke(); }
-    else {
-      g.strokeRect(m, m, N - 2 * m, N - 2 * m);
-      if (kind === 'mixed') { g.beginPath(); g.moveTo(m, N - m); g.lineTo(N - m, m); g.stroke(); }
-    }
+    else g.strokeRect(m, m, N - 2 * m, N - 2 * m);
     const tex = new THREE.CanvasTexture(cv);
     this._nodeGlyphTex.set(kind, tex);
     return tex;
   }
 
-  // node → bar ends (bending rotation released or not), rebuilt with the model
+  // bar end state for the node glyph: 'rel' = bending rotation released, 'spr' = rotational end spring
+  // (partial fixity, elem.endSprings by dof 0..11), '' = continuous
+  _endState(e, end) {
+    const o = end === 1 ? 0 : 6, r = e.releases || [], k = e.endSprings || {};
+    if (k[o + 4] > 0 || k[o + 5] > 0) return 'spr';
+    return (r[o + 4] || r[o + 5]) ? 'rel' : '';
+  }
+
+  _countEnds(o, st) { o.n++; if (st === 'rel') o.rel++; else if (st === 'spr') o.spr++; }
+
+  // node → bar ends (released / spring / continuous), rebuilt with the model
   _recomputeNodeEnds(model) {
     const ends = new Map();
-    const add = (nid, rel) => { if (!ends.has(nid)) ends.set(nid, { n: 0, rel: 0 }); const o = ends.get(nid); o.n++; if (rel) o.rel++; };
-    for (const e of model.elements.values()) {
-      const r = e.releases || [];
-      add(e.n1, !!(r[4] || r[5])); add(e.n2, !!(r[10] || r[11]));
-    }
+    const add = (nid, st) => { if (!ends.has(nid)) ends.set(nid, { n: 0, rel: 0, spr: 0 }); this._countEnds(ends.get(nid), st); };
+    for (const e of model.elements.values()) { add(e.n1, this._endState(e, 1)); add(e.n2, this._endState(e, 2)); }
     this._nodeEnds = ends;
   }
 
@@ -406,14 +419,16 @@ export class Viewport {
     if (this._meshNodeIds && this._meshNodeIds.has(node.id)) return 'mesh';
     let o = this._nodeEnds?.get(node.id);
     if (!o) {                                            // single-node update outside renderModel
-      o = { n: 0, rel: 0 };
+      o = { n: 0, rel: 0, spr: 0 };
       for (const e of this.app.model.elements.values()) {
-        const r = e.releases || [];
-        if (e.n1 === node.id) { o.n++; if (r[4] || r[5]) o.rel++; }
-        if (e.n2 === node.id) { o.n++; if (r[10] || r[11]) o.rel++; }
+        if (e.n1 === node.id) this._countEnds(o, this._endState(e, 1));
+        if (e.n2 === node.id) this._countEnds(o, this._endState(e, 2));
       }
     }
-    return o.n === 0 ? 'free' : o.rel === 0 ? 'rigid' : o.rel === o.n ? 'hinge' : 'mixed';
+    if (o.n === 0) return 'free';
+    if (o.rel === o.n) return 'hinge';
+    if (o.spr > 0 && o.rel + o.spr === o.n) return 'partial';
+    return 'rigid';                                      // released ends (if any) are marked on the bars
   }
 
   // multiplier on the marker size (diagnosis / SCWB highlights) — the pixel size is set every frame
@@ -531,7 +546,7 @@ export class Viewport {
     mesh.userData = { type: 'node', id: node.id, kind, mul: 1 };
     mesh.renderOrder = 3;
     const px = (kind === 'mesh' ? 0.6 : 1) * (this.app?.model?.designSettings?.view?.nodePx || NODE_PX);
-    mesh.onBeforeRender = () => { const f = (this._nodePxFactor || 0.01) * px * (mesh.userData.mul || 1); mesh.scale.set(f, f, 1); };
+    mesh.onBeforeRender = () => { const f = (this._nodePxFactor || 0.01) * px * (mesh.userData.mul || 1); mesh.scale.set(f, f, 1); mesh.updateMatrixWorld(); };
     this._scene.add(mesh);
     this._nodeMeshes.set(node.id, mesh);
 
@@ -734,9 +749,11 @@ export class Viewport {
   }
 
   // ── Release markers (hinges) ────────────────────────────────────────────────
-  // Green circle  = released rotation (moment hinge: T/My/Mz)
+  // Blue circle   = released rotation (moment hinge: T/My/Mz) — CYPE "extremo de barra articulado"
+  // Blue double circle = rotational end spring (partial fixity)
   // Amber square  = released translation (N/Vy/Vz)
-  // Drawn near the corresponding end of the element.
+  // Drawn on the bar, a few pixels from the node (constant screen offset). When every bar end at the
+  // node is released the node itself is the circle and the end circles are not drawn.
   _hingeTexture(kind) {
     if (!this._hingeTexCache) this._hingeTexCache = {};
     if (this._hingeTexCache[kind]) return this._hingeTexCache[kind];
@@ -744,10 +761,11 @@ export class Viewport {
     c.width = c.height = 64;
     const g = c.getContext('2d');
     g.lineWidth = 7;
-    if (kind === 'rot') {
-      g.strokeStyle = '#4ade80';
+    if (kind === 'rot' || kind === 'spr') {
+      g.strokeStyle = HINGE_BLUE;
       g.fillStyle = 'rgba(7,10,15,0.92)';
-      g.beginPath(); g.arc(32, 32, 23, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.beginPath(); g.arc(32, 32, 26, 0, Math.PI * 2); g.fill(); g.stroke();
+      if (kind === 'spr') { g.lineWidth = 6; g.beginPath(); g.arc(32, 32, 12, 0, Math.PI * 2); g.stroke(); }
     } else {
       g.strokeStyle = '#fbbf24';
       g.fillStyle = 'rgba(7,10,15,0.92)';
@@ -778,8 +796,8 @@ export class Viewport {
     if (!this._hingeSprites) this._hingeSprites = new Map();
     this._removeHingeMarkers(elem.id);
     this._refreshNodeGlyphs([elem.n1, elem.n2]);
-    const rel = elem.releases;
-    if (!rel || !rel.some(r => r)) return;
+    const rel = elem.releases || [];
+    if (!rel.some(r => r) && !(elem.endSprings && Object.keys(elem.endSprings).length)) return;
     const n1 = this.app.model.nodes.get(elem.n1);
     const n2 = this.app.model.nodes.get(elem.n2);
     if (!n1 || !n2) return;
@@ -788,26 +806,40 @@ export class Viewport {
     const p2 = this.m2t(n2.x, n2.y, n2.z);
     const group = new THREE.Group();
     const L3 = p1.distanceTo(p2);
-    const s  = Math.min(Math.max(L3 * 0.08, 0.14), 0.5);
+    const tmp = new THREE.Vector3();
 
-    const addMark = (t, kind, lift) => {
+    // offPx: centre of the mark, in screen pixels from the node along the bar (node glyph ≈ 9 px, mark 8 px)
+    const addMark = (end, kind, offPx) => {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({
         map: this._hingeTexture(kind), depthTest: false, transparent: true, sizeAttenuation: false
       }));
-      sp.position.copy(p1.clone().lerp(p2, t));
-      if (lift) sp.position.y += s * 1.05;   // separates symbols if they coincide
-      // constant screen size, like the node markers (CYPE style): 8 px
-      sp.onBeforeRender = () => { const f = (this._nodePxFactor || 0.01) * 8; sp.scale.set(f, f, 1); };
+      const P = end === 1 ? p1 : p2, dir = (end === 1 ? p2.clone().sub(p1) : p1.clone().sub(p2)).normalize();
+      const nid = end === 1 ? elem.n1 : elem.n2;
+      sp.position.copy(P);
+      sp.onBeforeRender = (renderer, scene, camera) => {
+        // the articulated node already shows the circle: no end circles on it
+        const hide = kind !== 'trans' && this._nodeMeshes.get(nid)?.userData.kind === 'hinge';
+        const px = this._nodePxFactor || 0.01;
+        // pixel → world at the node's depth (perspective sprites: world size = scale·(−z))
+        const depth = camera.isOrthographicCamera ? 1 : Math.max(1e-6, -tmp.copy(P).applyMatrix4(camera.matrixWorldInverse).z);
+        const d = Math.min(offPx * px * depth, L3 * 0.45);
+        sp.position.copy(P).addScaledVector(dir, d);
+        const f = hide ? 0 : px * (kind === 'spr' ? 11 : 8); sp.scale.set(f, f, 1);
+        sp.updateMatrixWorld();
+      };
       sp.renderOrder = 5;
       group.add(sp);
     };
 
     const endRot   = off => rel.slice(off + 3, off + 6).some(r => r);
     const endTrans = off => rel.slice(off,     off + 3).some(r => r);
-    if (endRot(0))   addMark(0.12, 'rot',   false);
-    if (endTrans(0)) addMark(0.12, 'trans', endRot(0));
-    if (endRot(6))   addMark(0.88, 'rot',   false);
-    if (endTrans(6)) addMark(0.88, 'trans', endRot(6));
+    const spr = elem.endSprings || {};
+    const endSpr = off => [3, 4, 5].some(i => spr[off + i] > 0);
+    for (const [end, off] of [[1, 0], [2, 6]]) {
+      const rot = endSpr(off) ? 'spr' : endRot(off) ? 'rot' : null;
+      if (rot) addMark(end, rot, rot === 'spr' ? 11 : 10);
+      if (endTrans(off)) addMark(end, 'trans', rot ? 19 : 10);
+    }
 
     this._scene.add(group);
     this._hingeSprites.set(elem.id, group);
