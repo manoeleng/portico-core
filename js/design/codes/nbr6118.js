@@ -181,7 +181,8 @@ export function torsionCheck({ TSd, b, h, c1, fck, fcd, fywd, theta = 45 }) {
   const th = theta * Math.PI / 180, A = b * h, u = 2 * (b + h);
   let he = A / u, Ae, ue, regra;
   if (he >= 2 * c1) { Ae = (b - he) * (h - he); ue = 2 * ((b - he) + (h - he)); regra = 'he = A/u'; }
-  else { he = Math.min(A / u, b - 2 * c1); Ae = (b - 2 * c1) * (h - 2 * c1); ue = 2 * ((b - 2 * c1) + (h - 2 * c1)); regra = 'A/u < 2c1: Ae nos eixos das barras de canto'; }
+  else { he = Math.min(A / u, Math.min(b, h) - 2 * c1); Ae = (b - 2 * c1) * (h - 2 * c1); ue = 2 * ((b - 2 * c1) + (h - 2 * c1)); regra = 'A/u < 2c1: Ae nos eixos das barras de canto'; }
+  if (!(he > 0 && Ae > 0)) return null;                                              // b or h ≤ 2·c1
   const av2 = 1 - fck / 250;
   const TRd2 = 0.50 * av2 * fcd * 1000 * Ae * he * Math.sin(2 * th);                  // kN·m
   const a90Nec = TSd / (2 * Ae * fywd * 1000 / Math.tan(th));                          // m²/m, one leg
@@ -395,13 +396,21 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const TSd = gn * Math.abs(demands.T || 0);
   if (TSd > 1e-6 && options.torcaoCompatibilidade) {
     avisos.push('Torção de compatibilidade desprezada por opção do projeto (17.5.1.2): exige capacidade de adaptação plástica e os demais esforços calculados sem ela.');
-  } else if (TSd > 1e-6) {
-    const fywd = Math.min(fyd, 435);
-    const t = torsionCheck({ TSd, b, h, c1: cover, fck, fcd: P.fcd, fywd, theta });
-    const inter = VyD / sv.VRd2 + TSd / t.TRd2;                                   // 17.7.2.2
+    if (VyD > 0.7 * sv.VRd2) avisos.push(`Torção de compatibilidade: VSd = ${VyD.toFixed(1)} kN > 0,7·VRd2 = ${(0.7 * sv.VRd2).toFixed(1)} kN — em trechos de comprimento ≤ 2h isso NÃO é permitido (17.5.1.2), além da armadura mínima de torção.`);
+    else avisos.push('Torção de compatibilidade: em trechos de comprimento ≤ 2h respeitar a armadura mínima de torção (17.5.1.2); VSd ≤ 0,7·VRd2 atendido.');
+  }
+  const fywdT = Math.min(fyd, 435);
+  const t = TSd > 1e-6 && !options.torcaoCompatibilidade ? torsionCheck({ TSd, b, h, c1: cover, fck, fcd: P.fcd, fywd: fywdT, theta }) : null;
+  if (TSd > 1e-6 && !options.torcaoCompatibilidade && !t) { naoVerificado = true; avisos.push('Torção: seção com b ou h ≤ 2·c1 — seção vazada equivalente inválida, NÃO verificado.'); }
+  if (t) {
+    // 17.7.2.2 with the concomitant shears (Vz added too — conservative for biaxial shear)
+    const inter = VyD / sv.VRd2 + VzD / svz.VRd2 + TSd / t.TRd2;
+    const rhoMin = 0.2 * P.fctm / Math.min(fyk, 500);                              // 17.5.1.2: ρsl = ρsw ≥ 0,2·fct,m/fywk
+    t.aslNec = Math.max(t.aslNec, rhoMin * t.he * t.ue);
     const legs = stir ? (+stir.legs || 2) : 2;
     const legS = sv.aswS / legs;                                                   // provided, one leg (m²/m)
-    const legNec = Math.max(VyD - sv.Vc, 0) / sv.kSw / legs + t.a90Nec;            // shear part per leg + torsion
+    // peripheral leg: shear part shared by all legs + torsion (one wall, 17.5.1.6); total ≥ ρsw,mín·bw (17.5.1.2)
+    const legNec = Math.max(Math.max(VyD - sv.Vc, 0) / sv.kSw / legs + t.a90Nec, sv.aswMin / legs);
     const rTransv = legS > 0 ? legNec / legS : Infinity;                           // 17.7.2.3 (sum V + T)
     const aslProv = reb.Asl_torcao_cm2 != null ? reb.Asl_torcao_cm2 / 1e4 : null;
     const rLong = aslProv != null ? (aslProv > 0 ? t.aslNec / aslProv : Infinity) : Infinity;
@@ -413,6 +422,8 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
       he: +t.he.toFixed(4), Ae: +t.Ae.toFixed(5), ue: +t.ue.toFixed(4), a90Nec: t.a90Nec, aslNec: t.aslNec, theta,
       formula: 'VSd/VRd2 + TSd/TRd2 ≤ 1 (17.7.2.2); estribos V + T (17.7.2.3); TRd4 com As,l (17.5.1.5-b)' };
     if (theta !== 45 && modelo === 'I') avisos.push('Modelo I: θ = 45° também na torção (17.7.2.1).');
+    if (alpha !== 90) avisos.push('Torção: os estribos de torção devem ser verticais, normais ao eixo (17.5.1.2) — α ≠ 90° não serve à torção.');
+    if (VzD > 0) avisos.push('Torção: Vz concomitante somado na interação 17.7.2.2 (conservador).');
   }
 
   if (pilar && !(pilar.z.ok && pilar.y.ok)) { flexao.ratio = Infinity; interaction.ratio = Infinity; }

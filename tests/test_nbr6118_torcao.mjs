@@ -44,5 +44,25 @@ const run = (V, T, rebarExtra, options = {}) => nbr6118.check({ demands: { N: 0,
 { const r = run(60, 40, { Asl_torcao_cm2: 10 });
   assert('6. TSd > TRd2 reprova pela biela', r.torcao.interacaoVT > 1 && r.state === 'NO CUMPLE'); }
 
+// (7) Taxas mínimas 17.5.1.2 (achado da revisão): TSd = 1 kN·m, VSd = 10 kN, As,l = 3,0 cm²
+//   ρmín = 0,2·2,5649/500 = 1,02596e-3; estribo: ρ·bw = 2,0519 cm²/m total → 1,02596 por ramo (> A90/s = 0,2282)
+//   → 1,02596/5,02655 = 0,20411; As,l mín = ρ·he·ue = 1,02596e-3·0,071429·1,08 = 0,79146 cm² → /3,0 = 0,26382
+{ const r = run(10, 1, { Asl_torcao_cm2: 3.0 });
+  ok('7a. estribo pela taxa mínima', r.torcao.razaoEstribos, 0.20411, 1e-3);
+  ok('7b. As,l pela taxa mínima', r.torcao.razaoLongitudinal, 0.26382, 1e-3); }
+// (8) Estribo de 4 ramos: cortante dividido por 4 + torção num ramo periférico
+//   (150 − 70,793)/(0,9·0,46·434 783)/4 = 1,1001 cm²/m + 2,2817 = 3,3818 → /5,02655 = 0,67278
+{ const r = nbr6118.check({ demands: { N: 0, Vy: 150, Vz: 0, My: 0, Mz: 0, T: 10 }, mat,
+    sec: { ...sec({ Asl_torcao_cm2: 3.0 }), rebar: { cover_mm: 40, layers: [], stirrups: { dia: 8, s: 100, legs: 4 }, Asl_torcao_cm2: 3.0 } }, member: {}, options: { gamma_c: 1.4, gamma_s: 1.15 } });
+  ok('8. estribo de 4 ramos (ramo periférico)', r.torcao.razaoEstribos, 0.67278, 1e-3); }
+// (9) Ramo A/u ≥ 2c1 (17.5.1.4.1): 40 × 80, c1 = 4 cm → he = 0,13333; Ae = 0,26667·0,66667 = 0,17778 m²
+{ const t = torsionCheck({ TSd: 10, b: 0.40, h: 0.80, c1: 0.04, fck: 25, fcd: 25 / 1.4, fywd: 434.78 });
+  ok('9a. he', t.he, 0.133333, 1e-4); ok('9b. Ae', t.Ae, 0.177778, 1e-4); }
+// (10) Compatibilidade com VSd > 0,7·VRd2 = 279,4 kN → aviso de 17.5.1.2
+{ const r = run(300, 10, {}, { torcaoCompatibilidade: true });
+  assert('10. aviso VSd > 0,7·VRd2', r.avisos.some(a => /0,7·VRd2/.test(a) && /NÃO é permitido/.test(a))); }
+// (11) Guarda geométrica: b ≤ 2c1 → null
+assert('11. b ≤ 2c1 → seção equivalente inválida', torsionCheck({ TSd: 1, b: 0.08, h: 0.5, c1: 0.04, fck: 25, fcd: 17.86, fywd: 434.78 }) === null);
+
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
