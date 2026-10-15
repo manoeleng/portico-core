@@ -5,7 +5,9 @@
 // effective width (MLE). Z enrijecido, cartola and L (cantoneira) are reported "não verificado"
 // (ratio = Infinity + warning) except tension, which only needs the gross area.
 //
-//   · 9.6.2  tension          Nt,Rd = A·fy/1,10 (net-section rupture 9.6.2 b/c NOT checked → warning)
+//   · 9.6.2  tension          Nt,Rd = min(A·fy/1,10; An0·fu/1,35; Ct·An·fu/1,65) — b/c only with member.secaoLiquida
+//              { An0, An [m²], Ct | ligacao: 'parafusada'|'soldada', todosConectados, nDirecao, x, Lc [m], d, g [m],
+//              tipo: 'U'|'L', soldas: 'transversais'|'longitudinais' } (Ct of 9.6.2 items 3 and 4, profiles)
 //   · 9.7    compression      Nc,Rd = min(9.7.2 global, 9.7.3 distorcional)
 //       9.7.2  Nc,Rd = χ·Aef·fy/1,20 ; λ0 = √(A·fy/Ne) with A GROSS ; χ = 0,658^λ0² (λ0 ≤ 1,5) | 0,877/λ0²
 //       9.7.2.1/2  Nex, Ney, Nez, r0² = rx²+ry²+x0² ; monosymmetric (x = symmetry axis): Ne = min(Ney, Nexz)
@@ -19,6 +21,10 @@
 //                (Cs, Cm, j) ; Cb = 12,5·Mmax/(2,5·Mmax+3MA+4MB+3MC) (helper `cbMoments`)
 //       9.8.2.3  χdist·W·fy/1,10 ; dispensed by Tab. 14 (Ue, strong axis) or 9.3 (U simples);
 //                otherwise needs options.Mdist (strong) / options.MdistY (weak) — else "não verificado"
+//   · Anexo F  panel on the tension flange (member.painelMesaTracionada = true | { continua }): MRd = R·Wef·fy/1,10
+//              replaces the FLT of 9.8.2.2 (free compressed flange under suction); R by Tab. F.1; conditions a)–e), g), m)
+//              checked from the geometry, f) and h)–l) declared by the user (warning); F.4: not for cantilevers nor the
+//              stretch between an inflection point and an interior support. Yield and distortional checks stay.
 //   · 9.8.3  shear            kv = 5,0 ; VRd by h/t regime, γ = 1,10 (h = flat web width)
 //   · 9.8.4  M + V            (MSd/MRd)² + (VSd/VRd)² ≤ 1,0   (no transverse stiffeners)
 //   · 9.9    N + M            NSd/NRd + Mx,Sd/Mx,Rd + My,Sd/My,Rd ≤ 1,0 (linear; 2nd order from the analysis)
@@ -27,7 +33,7 @@
 // LACUNAS (always reported as warnings; never silent):
 //   · Ndist / Mdist have no closed formula in the 2010 edition (9.3: elastic stability analysis,
 //     e.g. CUFSM/DimPerfil): they are INPUTS (options.Ndist [kN], options.Mdist / options.MdistY [kN·m]).
-//   · Net-section rupture in tension (9.6.2 b/c), shear lag (9.4), MSE (9.7.2 b / 9.8.2.1 b),
+//   · Shear lag (9.4), MSE (9.7.2 b / 9.8.2.1 b),
 //     Anexo B (cold-work fy), Anexo C (MRD), Anexo F (purlin with panel on the tension flange),
 //     Vz (shear parallel to the flanges) and Ue weak-axis bending with the lips compressed
 //     (gradient + edge stiffener is not covered by 9.2.3).
@@ -298,6 +304,29 @@ function shearRd(h, t, fy, E, kv = 5.0) {
   return { V, regime, ht, l1, l2 };
 }
 
+// 9.6.2 c: Ct of PROFILES (items 3 bolted, 4 welded). Lengths in cm. Returns { Ct, ref } or { erro }.
+export function ctPerfil14762({ Ct, ligacao, todosConectados, nDirecao, x, Lc, d, g, tipo = 'U', soldas }) {
+  if (Ct != null) return { Ct: Math.min(Ct, 1), ref: 'informado' };
+  const lim = (v, vmin) => v < vmin - 1e-12 ? { erro: `Ct = ${v.toFixed(3)} < ${vmin}: ligação não permitida (9.6.2 c)` } : { Ct: Math.min(v, 0.9) };
+  if (ligacao === 'parafusada') {
+    if (todosConectados && nDirecao >= 2) return { Ct: 1.0, ref: '9.6.2 c-3: todos os elementos conectados, ≥ 2 parafusos' };
+    if (nDirecao === 1 || nDirecao == null && d > 0 && g > 0) {
+      if (!(d > 0 && g > 0)) return { erro: 'parafusos numa única seção: informe d e g (chapa equivalente, Ct = 2,5·d/g)' };
+      return { Ct: Math.min(2.5 * d / g, 1), ref: '9.6.2 c-3: parafusos numa única seção (chapa equivalente), Ct = 2,5·d/g' };
+    }
+    if (!(x > 0 && Lc > 0)) return { erro: 'U/L com parafusos e nem todos os elementos conectados: informe x e Lc' };
+    const r = lim(1 - 1.2 * x / Lc, 0.4); return r.erro ? r : { ...r, ref: '9.6.2 c-3: Ct = 1 − 1,2·x/L (≤ 0,9; ≥ 0,4)' };
+  }
+  if (ligacao === 'soldada') {
+    if (soldas === 'transversais') return { Ct: 1.0, ref: '9.6.2 c-4: apenas soldas transversais' };
+    if (todosConectados) return { Ct: 1.0, ref: '9.6.2 c-4: todos os elementos conectados' };
+    if (!(x > 0 && Lc > 0)) return { erro: 'soldas longitudinais em parte dos elementos: informe x e Lc' };
+    const r = tipo === 'L' ? lim(1 - 1.2 * x / Lc, 0.4) : lim(1 - 0.36 * x / Lc, 0.5);
+    return r.erro ? r : { ...r, ref: tipo === 'L' ? '9.6.2 c-4: cantoneira, Ct = 1 − 1,2·x/L (≤ 0,9; ≥ 0,4)' : '9.6.2 c-4: perfil U, Ct = 1 − 0,36·x/L (≤ 0,9; ≥ 0,5)' };
+  }
+  return { erro: 'informe Ct ou ligacao (parafusada | soldada)' };
+}
+
 function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   const avisos = [];
   const E = mat.E / 1e4, fy = mat.Fy / 1e4;                                           // kN/cm²
@@ -387,7 +416,25 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   if (N >= 0) {
     NRd = A * fy / gamT;
     axial = ratObj(Nabs, NRd, { modo: 'tração', formula: 'Nt,Rd = A·fy/1,10 (9.6.2 a)' });
-    if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (9.6.2 b/c, Ct) não verificada — o modelo não tem área líquida/ligação.');
+    const sl = member.secaoLiquida, fu = (mat.Fu || 0) / 1e4;
+    if (sl && (sl.An0 > 0 || sl.An > 0)) {
+      const cand = [{ v: NRd, f: 'Nt,Rd = A·fy/1,10 (9.6.2 a)' }];
+      if (!(fu > 0)) avisos.push('Tração: seção líquida informada sem fu no material — 9.6.2 b/c NÃO verificadas.');
+      else {
+        if (sl.An0 > 0) cand.push({ v: Math.min(sl.An0 * 1e4, A) * fu / 1.35, f: 'Nt,Rd = An0·fu/1,35 (9.6.2 b)' });
+        if (sl.An > 0) {
+          const xcm = sl.x != null ? sl.x * 100 : (isCh && g && sl.ligacao && !sl.todosConectados && sl.conexao !== 'mesas' ? g.xg : undefined);
+          const ct = ctPerfil14762({ ...sl, x: xcm, Lc: sl.Lc != null ? sl.Lc * 100 : undefined, d: sl.d != null ? sl.d * 100 : undefined, g: sl.g != null ? sl.g * 100 : undefined });
+          if (ct.erro) { axial.ratio = Infinity; axial.verificado = false; avisos.push(`Tração 9.6.2 c: ${ct.erro} — NÃO verificada.`); }
+          else {
+            cand.push({ v: ct.Ct * Math.min(sl.An * 1e4, A) * fu / 1.65, f: `Nt,Rd = Ct·An·fu/1,65 (9.6.2 c), Ct = ${ct.Ct.toFixed(3)} (${ct.ref})`, Ct: ct.Ct });
+            if (sl.x == null && xcm != null) avisos.push(`Tração 9.6.2 c: x = xg = ${xcm.toFixed(2)} cm (U ligado pela alma; ligado pelas mesas, 9.6.2 manda usar duas cantoneiras fictícias — informe x).`);
+          }
+        }
+        const gov = cand.reduce((a, b) => b.v < a.v ? b : a);
+        if (axial.ratio !== Infinity) { NRd = gov.v; axial = ratObj(Nabs, NRd, { modo: gov === cand[0] ? 'tração' : 'tração (seção líquida)', formula: gov.f, ...(gov.Ct != null ? { Ct: gov.Ct } : {}) }); }
+      }
+    } else if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (9.6.2 b/c, Ct) não verificada — informe member.secaoLiquida (An0 e/ou An + ligação).');
     if (!isCh) avisos.push(`Seção "${shape}": tração só por escoamento da seção bruta.`);
     if (Nabs > 0 && !semLc && lamHard > 300) avisos.push(`Tração: L/r = ${lamHard.toFixed(0)} > 300 — recomenda-se L/r ≤ 300 (NBR 14762:2010 9.6.3).`);
   } else {
@@ -449,6 +496,28 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     const se = solve(g, E, { axis: 'x', mode: 'stab', sigma: chi * fy });
     if (se.unverified) return { why: se.unverified };
     out.Me = Me; out.lambda0 = lam0; out.chiFLT = chi; out.WcEf = se.I / se.dc; out.MRdFLT = chi * out.WcEf * fy / gamF;
+    // Anexo F: tension flange connected to a panel (purlin + steel sheeting under suction) — replaces the FLT above
+    const pf = member.painelMesaTracionada;
+    if (pf) {
+      const cfg = typeof pf === 'object' ? pf : {};
+      const bwmm = g.bw * 10, b = g.bf - 2 * g.t - 2 * g.ri;                       // b: flat width of the flange (cm)
+      const falhas = [];
+      if (!g.ue) falhas.push('a) mesas sem enrijecedor de borda');
+      if (!(bwmm <= 292 + 1e-9)) falhas.push(`b) bw = ${bwmm.toFixed(0)} mm > 292`);
+      if (!(g.bw / g.t >= 60 && g.bw / g.t <= 170)) falhas.push(`c) bw/t = ${(g.bw / g.t).toFixed(1)} fora de 60–170`);
+      if (!(g.bw / g.bf >= 2.8 && g.bw / g.bf <= 4.5)) falhas.push(`d) bw/bf = ${(g.bw / g.bf).toFixed(2)} fora de 2,8–4,5`);
+      if (!(b / g.t >= 16 && b / g.t <= 43)) falhas.push(`e) b/t = ${(b / g.t).toFixed(1)} fora de 16–43`);
+      if (!(L < 1000)) falhas.push(`g) vão ${(L / 100).toFixed(2)} m ≥ 10 m`);
+      if (!(fy <= 41.0 + 1e-9)) falhas.push(`m) fy = ${(fy * 10).toFixed(0)} MPa > 410`);
+      if (falhas.length) {
+        avisos.push(`Anexo F não aplicável (${falhas.join('; ')}): FLT pela 9.8.2.2 com a mesa comprimida livre (F.2).`);
+      } else {
+        const R = cfg.continua ? 0.60 : bwmm <= 165 ? 0.70 : bwmm <= 216 ? 0.65 : 0.40;       // Tab. F.1, seção U
+        out.anexoF = { R, continua: !!cfg.continua };
+        out.MRdFLT = R * out.Wef * fy / gamF; out.chiFLT = null; out.lambda0 = null;
+        avisos.push(`Anexo F (painel na mesa tracionada): MRd = R·Wef·fy/1,10 com R = ${String(R).replace('.', ',')} (Tab. F.1, U ${cfg.continua ? 'contínua' : 'biapoiada'}), no lugar da FLT. Premissas do usuário: f) traspasse ≥ 1,5·bw nos apoios internos (contínua; vãos adjacentes com razão ≤ 1,2), h) mesas travadas lateralmente nos apoios, i) telha de aço ≥ 0,45 mm, altura ≥ 25 mm, nervuras a ≤ 300 mm, j–l) parafusos ≥ 5,5 mm (ou rebites 4,75 mm) com arruela 12,5 mm a ≤ 300 mm, perto do centro da mesa; F.4: não vale em balanços nem entre ponto de inflexão e apoio interno.`);
+      }
+    }
     // distorcional 9.8.2.3
     const dist = {};
     if (!g.ue) { dist.dispensada = true; dist.motivo = '9.3: U simples não sofre flambagem distorcional'; }
@@ -467,7 +536,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
       } else return { ...out, why: `flambagem distorcional não dispensada (${dist.motivo || 'D/bw abaixo da Tab. 14'}) e options.Mdist não informado (9.8.2.3 — LACUNA).` };
     }
     out.MRd = MRd;
-    out.ramo = MRd === out.MRdEsc ? 'escoamento (9.8.2.1)' : MRd === out.MRdFLT ? 'FLT (9.8.2.2)' : 'distorcional (9.8.2.3)';
+    out.ramo = MRd === out.MRdEsc ? 'escoamento (9.8.2.1)' : MRd === out.MRdFLT ? (out.anexoF ? 'painel na mesa tracionada (Anexo F)' : 'FLT (9.8.2.2)') : 'distorcional (9.8.2.3)';
     return out;
   };
 
@@ -564,7 +633,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   if (shape === 'U' && Mz > 0) avisos.push('U simples: distorcional dispensada (9.3), exceto viga com painel ligado à mesa tracionada e mesa comprimida livre (Anexo F/bibliografia).');
   if (shape === 'Ue' && My > 0 && !options.sentidoMy) avisos.push('My: sentido (alma/mesas comprimidas) não informado — adotado o mínimo entre os dois.');
 
-  if ((Mz > 0 || My > 0) && isCh) avisos.push('FLT (9.8.2.2): carga suposta no centro de torção ou em posição estabilizante; carga na mesa superior/alma de U/Ue (excêntrica ao centro de torção, torção induzida — Anexo F) NÃO coberta.');
+  if ((Mz > 0 || My > 0) && isCh) avisos.push('FLT (9.8.2.2): carga suposta no centro de torção ou em posição estabilizante; carga na mesa superior/alma de U/Ue (excêntrica ao centro de torção, torção induzida) NÃO coberta' + (member.painelMesaTracionada ? '' : ' — terça com telha na mesa tracionada: declare member.painelMesaTracionada (Anexo F)') + '.');
   const bending = flexaoX.ratio >= flexaoY.ratio ? flexaoX : flexaoY;
   let shear = corteY.ratio >= corteZ.ratio ? corteY : corteZ;
   if (Math.abs(demands.T || 0) > 1e-6) {
