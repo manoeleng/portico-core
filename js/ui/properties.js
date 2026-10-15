@@ -2021,7 +2021,8 @@ export class PropertiesPanel {
       <select id="mat-catalog"><option value="">— catálogo —</option></select></div>
       <button id="mat-catalog-add" class="btn-secondary" style="white-space:nowrap;font-size:11px">＋ Insertar</button>`;
     container.appendChild(pick);
-    import('../design/materials_catalog.js?v=7').then(({ MATERIAL_FAMILIES, getMaterialDef }) => {
+    import('../design/materials_catalog.js?v=7').then(({ MATERIAL_FAMILIES: MF0, MATERIAL_FAMILIES_BR, getMaterialDef }) => {
+      const MATERIAL_FAMILIES = i18n.getLocale() === 'pt' ? { ...MATERIAL_FAMILIES_BR, ...MF0 } : { ...MF0, ...MATERIAL_FAMILIES_BR };
       const sel = pick.querySelector('#mat-catalog');
       sel.innerHTML = '<option value="">— catálogo —</option>' +
         Object.entries(MATERIAL_FAMILIES).map(([fam, names]) => `<optgroup label="${fam}">` + names.map(n => `<option value="${n}">${n}</option>`).join('') + '</optgroup>').join('');

@@ -46,7 +46,7 @@ export const PT = {
   "Muro de relleno — puntal diagonal (4 nodos)…": "Parede de preenchimento — escora diagonal (4 nós)…",
   "Definir Ejes de Grilla…": "Definir eixos da grade…",
   "Combinaciones de Carga…": "Combinações de carregamento…",
-  "Crear casos y combos de norma (NCh3171)…": "Criar casos e combinações da norma (NCh3171)…",
+  "Crear casos y combos de norma (NCh3171)…": "Criar casos e combinações NBR 8681…",
   "Isométrica": "Isométrica",
   "Planta XY": "Planta XY",
   "Frente XZ": "Frontal XZ",
@@ -155,7 +155,7 @@ export const PT = {
   "Casos de carga": "Casos de carregamento",
   "＋ Nuevo caso de carga": "＋ Novo caso de carregamento",
   "Combinaciones": "Combinações",
-  "⚙ Crear casos y combos de norma (NCh3171)": "⚙ Criar casos e combinações da norma (NCh3171)",
+  "⚙ Crear casos y combos de norma (NCh3171)": "⚙ Criar casos e combinações NBR 8681",
   "＋ Agregar Combinación": "＋ Adicionar combinação",
   "⚙ Verificar diseño": "⚙ Verificar dimensionamento",
   "Describe la estructura en palabras y el asistente arma la ficha y genera el modelo (geometría, secciones, cargas NCh y combinaciones).": "Descreva a estrutura em palavras e o assistente monta a ficha e gera o modelo (geometria, seções, cargas NCh e combinações).",
@@ -417,7 +417,7 @@ export const PT = {
   "Caso de SERVICIO en la última etapa (estructura terminada)": "Caso de SERVIÇO na última etapa (estrutura concluída)",
   "Caso o combinación de resultados a mostrar (X, Y, combos…)": "Caso ou combinação de resultados a exibir (X, Y, combinações…)",
   "Caso sísmico — espectro de respuesta": "Caso sísmico — espectro de resposta",
-  "Casos D/L y combinaciones LRFD + servicio de la NCh3171": "Casos D/L e combinações ELU + ELS da NCh3171",
+  "Casos D/L y combinaciones LRFD + servicio de la NCh3171": "Casos G/Q/V/T/E e combinações ELU + ELS (NBR 8681, γ da NBR 6118/8800)",
   "Categoría (I)": "Categoria (I)",
   "Categoría de importancia": "Categoria de importância",
   "Centro de análisis": "Central de análises",
@@ -2225,6 +2225,12 @@ export const PT = {
   "No se pudo armar el edificio de shear:": "Não foi possível montar o edifício de cisalhamento:",
   "Error en rótulas plásticas:": "Erro nas rótulas plásticas:",
   "Correspondencia con la notación NBR: los ejes internos son X este · Y norte · Z arriba. En la sección, z es el eje fuerte: el momento en torno al eje fuerte (Mz) corresponde a Msd,x de la NBR (flexión en el plano del alma) y el del eje débil (My) a Msd,y. La convención interna no cambia (compatibilidad con archivos .s3d).": "Correspondência com a notação da NBR: os eixos internos são X leste · Y norte · Z para cima. Na seção, z é o eixo forte: o momento em torno do eixo forte (Mz) corresponde ao Msd,x da NBR (flexão no plano da alma) e o do eixo fraco (My) ao Msd,y. A convenção interna não muda (compatibilidade com arquivos .s3d).",
+
+  // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
+  "Combinaciones NBR creadas:": "Combinações NBR criadas:",
+
+  // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
+  "casos sin categoría (no combinados):": "casos sem categoria (não combinados):",
 };
 
 export default PT;

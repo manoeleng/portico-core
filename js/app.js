@@ -3,6 +3,8 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { Model }           from './model/model.js?v=7';
 import { csvLocalize }     from './report/numfmt.js?v=7';
+import { nbrCombinations } from './design/combinations_nbr.js?v=7';
+import { setDefaultCode }  from './design/registry.js?v=7';
 import { Serializer }      from './model/serializer.js?v=7';
 import { Viewport }        from './ui/viewport.js?v=7';
 import { PropertiesPanel } from './ui/properties.js?v=7';
@@ -6518,10 +6520,60 @@ class App {
     this.panel._switchTab('cargas');   // → renderLoadCases + renderCombinations
   }
 
+  // Brazilian cases and combinations (NBR 8681:2025 with γ of NBR 6118:2026 / NBR 8800:2024,
+  // seismic per NBR 15421:2023) from the load-case categories of the model (#106):
+  // dead → G, live → Q, wind → V1, V2… (one per case, never together), temperature → T,
+  // response spectrum → E (both signs). Family: concrete if any concrete material exists.
+  createNbrCasesAndCombos() {
+    const m = this.model;
+    this.snapshot();
+    const st = [...m.loadCases.values()].filter(l => l.type === 'static');
+    // category (#106) first; files without categories fall back to the case name (as the NCh3171 path does)
+    const RX = { dead: /muerta|dead|peso propio|permanente|\bpp\b|\bdl?\b|\bg\d*\b|\bcm\b/i,
+      live: /viva|sobrecarga|live|uso|vari[aá]vel|\bll?\b|\bq\d*\b|\bcv\b/i,
+      wind: /vient|vento|wind|\bw\d*\b|\bv\d+\b/i, seismic: /sism|seismic|\be[xy0-9]*\b/i, temperature: /temp|t[eé]rm/i };
+    const cat = (l) => l.loadType && l.loadType !== 'other' ? l.loadType
+      : (l.selfWeight ? 'dead' : Object.keys(RX).find(k => RX[k].test(l.name || '')) || 'other');
+    const by = (k) => st.filter(l => cat(l) === k);
+    let G = by('dead');
+    if (!G.length) G = [m.addLoadCase('G — Permanente (PP)', true, 'static', null, 'dead')];
+    let Q = by('live');
+    if (!Q.length) Q = [m.addLoadCase('Q — Variável', false, 'static', null, 'live')];
+    const map = { G, Q };
+    const T = by('temperature'); if (T.length) map.T = T;
+    by('wind').forEach((v, i) => { map['V' + (i + 1)] = [v]; });
+    const Es = [...by('seismic'), ...m.loadCases.values()].filter((l, i, a) => (l.type === 'spectrum' || cat(l) === 'seismic') && a.indexOf(l) === i);
+    Es.forEach((e, i) => { map['E' + (e.specDir || i + 1)] = [e]; });
+    const ignored = st.filter(l => cat(l) === 'other' || cat(l) === 'snow').map(l => l.name);
+    const isConc = [...m.materials.values()].some(mt => mt.design?.family === 'concrete' || /concreto|hormig/i.test(mt.name || ''));
+    const family = isConc ? 'concrete' : 'steel';
+    const r = nbrCombinations({ family, cases: Object.keys(map) });
+    const list = [];
+    for (const c of r.lista) {
+      list.push(c);
+      const eKey = Object.keys(c.factores).find(k => /^E/.test(k));
+      if (eKey) list.push({ nombre: c.nombre.replace(eKey, '−' + eKey), factores: { ...c.factores, [eKey]: -c.factores[eKey] } });
+    }
+    const exist = new Set([...m.combinations.values()].map(c => c.name));
+    let n = 0;
+    for (const c of list) {
+      if (exist.has(c.nombre)) continue;
+      const factors = [];
+      for (const [sym, f] of Object.entries(c.factores)) for (const lc of map[sym] || []) factors.push({ lcId: lc.id, factor: f });
+      m.addCombination({ name: c.nombre, factors });
+      n++;
+    }
+    this.markDirty(); this._updateStats?.(); this.refreshLoads?.();
+    this.panel.renderCombinations?.(); this._renderLcSelector?.();
+    this.toast(`${i18n.t('Combinaciones NBR creadas:')} ${n} · ${r.code}` + (ignored.length ? ` · ${i18n.t('casos sin categoría (no combinados):')} ${ignored.join(', ')}` : ''), ignored.length ? 'warn' : 'ok');
+    this.openCombosTab();
+  }
+
   // Creates the base load cases (D, L) and the default code combinations
   // (NCh3171 / LRFD). The seismic ones are added per direction if spectral
   // cases exist (X/Y). All are EDITABLE in the Combos tab.
   createCodeCasesAndCombos() {
+    if (i18n.getLocale() === 'pt') return this.createNbrCasesAndCombos();   // PLANO_BRASIL 3.2
     const m = this.model;
     this.snapshot();
     // Identify cases by their CATEGORY (#106); as a fallback, by self-weight / name.
@@ -7170,6 +7222,12 @@ class App {
       const el = document.getElementById(id);
       if (el) i18n.observe(el);
     }
+    const brDefaults = (loc) => {
+      if (loc === 'pt') { setDefaultCode('steel', 'NBR8800:2024'); setDefaultCode('concrete', 'NBR6118:2026'); }
+      else { setDefaultCode('steel', 'AISC360-16:LRFD'); setDefaultCode('concrete', 'ACI318-19'); }
+    };
+    if (i18n.getLocale() === 'pt') brDefaults('pt');
+    window.addEventListener('localechange', (ev) => brDefaults(ev.detail?.locale));
     // On language change, re-apply the dynamic status-bar texts.
     window.addEventListener('localechange', () => {
       if (this.viewport?.mode) this.viewport.setMode(this.viewport.mode);

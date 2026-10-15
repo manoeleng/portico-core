@@ -2478,6 +2478,12 @@ export const EN = {
   "No se pudo armar el edificio de shear:": "Could not build the shear building:",
   "Error en rótulas plásticas:": "Plastic hinge error:",
   "Correspondencia con la notación NBR: los ejes internos son X este · Y norte · Z arriba. En la sección, z es el eje fuerte: el momento en torno al eje fuerte (Mz) corresponde a Msd,x de la NBR (flexión en el plano del alma) y el del eje débil (My) a Msd,y. La convención interna no cambia (compatibilidad con archivos .s3d).": "Correspondence with NBR notation: the internal axes are X east · Y north · Z up. In the section, z is the strong axis: the moment about the strong axis (Mz) corresponds to NBR Msd,x (bending in the plane of the web) and the weak-axis one (My) to Msd,y. The internal convention does not change (compatibility with .s3d files).",
+
+  // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
+  "Combinaciones NBR creadas:": "NBR combinations created:",
+
+  // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
+  "casos sin categoría (no combinados):": "uncategorized cases (not combined):",
 };
 
 export default EN;
