@@ -25,7 +25,8 @@ export function renderLayersPanel(app) {
       <td><input type="checkbox" class="ly-lock" ${l.locked ? 'checked' : ''}></td>
       <td>${l.id === 1 ? '' : `<button class="ly-del" title="${esc(t('Eliminar capa (sus elementos pasan a la capa padrão)'))}">✕</button>`}</td></tr>`).join('')}
     </tbody></table>
-    <label class="ly-colorby"><input type="checkbox" id="ly-colorby" ${m.layerView.colorByLayer ? 'checked' : ''}> ${esc(t('Representar la estructura con los colores de las capas'))}</label>`;
+    <label class="ly-colorby"><input type="checkbox" id="ly-colorby" ${m.layerView.colorByLayer ? 'checked' : ''}> ${esc(t('Representar la estructura con los colores de las capas'))}</label>
+    <label class="ly-colorby"><input type="checkbox" id="ly-colorsec" ${m.layerView.colorBySection ? 'checked' : ''}> ${esc(t('Representar la estructura con los colores de las secciones'))}</label>`;
   cbox.innerHTML = CATEGORIES.map(c => `<label class="ly-cat"><input type="checkbox" data-cat="${c}" ${m.layerView.categories[c] !== false ? 'checked' : ''}> ${esc(t(CAT_LABEL[c] || c))}</label>`).join('');
 
   const changed = () => { app.markDirty(); app.viewport.applyLayers(); app.refreshLoads(); renderLayersPanel(app); };
@@ -49,7 +50,8 @@ export function renderLayersPanel(app) {
   box.querySelectorAll('.ly-vis').forEach(r => r.addEventListener('change', () => { lay(r).visible = r.checked; changed(); }));
   box.querySelectorAll('.ly-lock').forEach(r => r.addEventListener('change', () => { lay(r).locked = r.checked; changed(); }));
   box.querySelectorAll('.ly-del').forEach(b => b.addEventListener('click', () => { app.snapshot?.(); removeLayer(m, lay(b).id); changed(); }));
-  box.querySelector('#ly-colorby')?.addEventListener('change', (e) => { m.layerView.colorByLayer = e.target.checked; changed(); });
+  box.querySelector('#ly-colorby')?.addEventListener('change', (e) => { m.layerView.colorByLayer = e.target.checked; if (e.target.checked) m.layerView.colorBySection = false; changed(); app.viewport.refreshExtrusion?.(); });
+  box.querySelector('#ly-colorsec')?.addEventListener('change', (e) => { m.layerView.colorBySection = e.target.checked; if (e.target.checked) m.layerView.colorByLayer = false; changed(); app.viewport.refreshExtrusion?.(); });
   cbox.querySelectorAll('[data-cat]').forEach(r => r.addEventListener('change', () => { m.layerView.categories[r.dataset.cat] = r.checked; changed(); }));
   const add = document.getElementById('mt-layer-add');
   if (add && !add._wired) {

@@ -2898,6 +2898,11 @@ export const EN = {
   "Insertar en el modelo": "Insert into the model",
   "Usuario": "User",
   "Material definido por el usuario: confirme los valores": "User-defined material: check the values",
+  "Representar la estructura con los colores de las secciones": "Show the structure with the section colours",
+  "Color de la sección (vista coloreada por sección: panel Capas)": "Section colour (colour-by-section view: Layers panel)",
+  "Color": "Colour",
+  "Favoritos": "Favourites",
+  "Favorito": "Favourite",
 };
 
 export default EN;

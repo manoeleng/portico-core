@@ -7,6 +7,7 @@ import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
 import { toDisp, fromDisp, ulbl, isTf, inVal, readIn } from '../utils/units.js?v=7';
 import { unbracedLengths } from '../design/unbraced.js?v=7';
+import { sectionColor } from '../model/layers.js?v=7';
 
 // Hard-coded kN label that is an i18n dictionary key (kept verbatim) → translated label with the force unit of the
 // current display system (tf-m: kN → tf inside every compound unit — kN/m → tf/m, kN·m → tf·m, kN·m/m → tf·m/m).
@@ -2904,13 +2905,16 @@ export class PropertiesPanel {
     card.innerHTML = `
       <div class="sec-card-head">
         <span class="sec-card-id">${sec.id}</span>
+        <span style="width:10px;height:10px;border-radius:2px;flex:none;margin-right:4px;background:${sectionColor(this.app.model, sec.id)}"></span>
         <span class="sec-card-name">${esc(sec.name)}</span>
         ${(() => { const u = this.app.model.sectionUsage(sec.id); return `<span class="muted" style="font-size:10px;margin-left:auto;padding-right:6px" title="${esc(i18n.t('Barras que usan la sección'))}">${u.count ? `${u.count} ${i18n.t('barra(s)')}` : i18n.t('sin uso')}</span>`; })()}
         <span class="sec-card-chevron">▶</span>
       </div>
       <div class="sec-card-body">
-        <div class="prop-row cols1">
-          <div class="prop-field"><label>Nombre</label><input type="text" data-f="name" value="${esc(sec.name)}"></div>
+        <div class="prop-row" style="align-items:flex-end;gap:6px">
+          <div class="prop-field" style="flex:1"><label>Nombre</label><input type="text" data-f="name" value="${esc(sec.name)}"></div>
+          <div class="prop-field" style="flex:none"><label title="${esc(i18n.t('Color de la sección (vista coloreada por sección: panel Capas)'))}">${i18n.t('Color')}</label>
+            <input type="color" class="sec-color" value="${sectionColor(this.app.model, sec.id)}" style="width:36px;height:24px;padding:0;border:1px solid var(--border2)"></div>
         </div>
         <div class="prop-row cols1">
           <div class="prop-field"><label title="Clasifica la sección para el diseño: permite recorrer y diseñar sólo los pilares (o sólo las vigas). «Genérico» = sin filtrar.">Tipo de elemento (diseño)</label>
@@ -2954,6 +2958,10 @@ export class PropertiesPanel {
         </div>
       </div>
     `;
+    card.querySelector('.sec-color')?.addEventListener('change', (e) => {
+      this.app.snapshot(); sec.color = e.target.value; this.app.markDirty();
+      this.app.viewport.renderModel(this.app.model); this.app.viewport.refreshExtrusion?.(); this.renderSections();
+    });
     card.querySelector('.sec-card-head').addEventListener('click', () => {
       card.classList.toggle('open');
     });
@@ -3088,7 +3096,10 @@ export class PropertiesPanel {
     // sections of NBR 6355 profiles with any arrangement and gap.
     const famSel = card.querySelector('.sd-fam'), search = card.querySelector('.sd-search'), results = card.querySelector('.sd-results');
     if (famSel) import('../design/profiles.js?v=7').then(({ catalogFamilies, searchCatalog, profileToSection, catalogNames }) => {
-      famSel.innerHTML += catalogFamilies().map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+      famSel.innerHTML += `<option value="__fav">★ ${esc(i18n.t('Favoritos'))}</option>` + catalogFamilies().map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+      // favourite profiles: per browser, across projects (RFEM "favorites")
+      const favs = () => { try { return new Set(JSON.parse(localStorage.getItem('portico.favProfiles') || '[]')); } catch { return new Set(); } };
+      const toggleFav = (n) => { const f = favs(); f.has(n) ? f.delete(n) : f.add(n); try { localStorage.setItem('portico.favProfiles', JSON.stringify([...f])); } catch { /* storage blocked */ } };
       const apply = (name) => {
         const props = profileToSection(name); if (!props) { this.app.toast(i18n.t('Perfil no encontrado'), 'warn'); return; }
         this.app.snapshot();
@@ -3098,11 +3109,12 @@ export class PropertiesPanel {
         this.app.toast(`${i18n.t('Perfil')} ${name} ${i18n.t('aplicado (A, I, J y forma). Recalcule el análisis (F5).')}`, 'ok');
       };
       const list = () => {
-        const q = search.value, fam = famSel.value;
+        const q = search.value, fam = famSel.value, F = favs();
         if (!q.trim() && !fam) { results.innerHTML = `<div class="panel-hint" style="padding:4px">${i18n.t('Escriba para buscar o elija una familia.')}</div>`; return; }
-        const r = searchCatalog(q, fam, 120);
-        results.innerHTML = r.length ? r.map(x => `<div class="sd-hit" data-n="${esc(x.name)}" style="padding:2px 6px;cursor:pointer;display:flex;justify-content:space-between;gap:6px${x.name === sec.design?.profile ? ';background:var(--accent-dim,rgba(14,165,233,.15))' : ''}"><span>${esc(x.name)}</span><span class="muted" style="font-size:10px">${esc(x.family)}</span></div>`).join('')
+        const r = fam === '__fav' ? searchCatalog(q, '', 5000).filter(x => F.has(x.name)) : searchCatalog(q, fam, 120);
+        results.innerHTML = r.length ? r.map(x => `<div class="sd-hit" data-n="${esc(x.name)}" style="padding:2px 6px;cursor:pointer;display:flex;justify-content:space-between;gap:6px${x.name === sec.design?.profile ? ';background:var(--accent-dim,rgba(14,165,233,.15))' : ''}"><span><span class="sd-star" title="${esc(i18n.t('Favorito'))}" style="color:#d97706;cursor:pointer">${F.has(x.name) ? '★' : '☆'}</span> ${esc(x.name)}</span><span class="muted" style="font-size:10px">${esc(x.family)}</span></div>`).join('')
           : `<div class="panel-hint" style="padding:4px">${i18n.t('Sin resultados')}</div>`;
+        results.querySelectorAll('.sd-star').forEach(st => st.addEventListener('click', (ev) => { ev.stopPropagation(); toggleFav(st.closest('.sd-hit').dataset.n); list(); }));
         results.querySelectorAll('.sd-hit').forEach(d => { d.addEventListener('click', () => apply(d.dataset.n)); d.addEventListener('mouseenter', () => { d.style.background = 'var(--bg3)'; }); d.addEventListener('mouseleave', () => { d.style.background = ''; }); });
       };
       search.addEventListener('input', list); famSel.addEventListener('change', list); list();

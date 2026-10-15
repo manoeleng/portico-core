@@ -2641,6 +2641,11 @@ export const PT = {
   "Insertar en el modelo": "Inserir no modelo",
   "Usuario": "Usuário",
   "Material definido por el usuario: confirme los valores": "Material definido pelo usuário: confirme os valores",
+  "Representar la estructura con los colores de las secciones": "Representar a estrutura com as cores das seções",
+  "Color de la sección (vista coloreada por sección: panel Capas)": "Cor da seção (vista colorida por seção: painel Camadas)",
+  "Color": "Cor",
+  "Favoritos": "Favoritos",
+  "Favorito": "Favorito",
 };
 
 export default PT;

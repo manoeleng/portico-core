@@ -10,7 +10,7 @@ import { localAxes } from '../solver/timoshenko.js?v=7';
 import { NavCube } from './navcube.js?v=7';
 import { getProfile } from '../design/profiles.js?v=7';
 import { cfProfile } from '../design/profiles_cf.js?v=7';
-import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
+import { elemShown, elemLocked, layerById, sectionColor } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { i18n } from '../i18n/i18n.js?v=7';
@@ -1398,7 +1398,8 @@ export class Viewport {
   // elevation plane ∧ not hidden by the user ∧ layer visible ∧ category on. Locked layers: not pickable. ─────────
   _elemBaseColor(elem) {
     const m = this.app?.model;
-    return m?.layerView?.colorByLayer ? layerById(m, elem.layer ?? 1).color : COL.ELEM;
+    return m?.layerView?.colorByLayer ? layerById(m, elem.layer ?? 1).color
+      : m?.layerView?.colorBySection ? sectionColor(m, elem.secId) : COL.ELEM;
   }
   applyLayers() {
     const m = this.app?.model;
@@ -3934,7 +3935,8 @@ export class Viewport {
 
       const geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
       // colour: the layer colour when "colour by layer" is on, else steel grey-blue
-      const lyc = model.layerView?.colorByLayer ? layerById(model, elem.layer ?? 1).color : null;
+      const lyc = model.layerView?.colorByLayer ? layerById(model, elem.layer ?? 1).color
+        : model.layerView?.colorBySection ? sectionColor(model, elem.secId) : null;
       const col = new THREE.Color(lyc || 0x8fb3d9), mode = this._extrudeMode || 'solid';
       const mat = new THREE.MeshPhongMaterial({ color: col, side: THREE.DoubleSide,
         ...(mode === 'translucent' ? { transparent: true, opacity: 0.35, depthWrite: false } : {}),

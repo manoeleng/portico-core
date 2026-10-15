@@ -13,7 +13,7 @@ export function ensureLayers(model) {
   if (!model.layers.some((l) => l.id === 1)) model.layers.unshift({ ...DEFAULT_LAYER });
   if (!model.layers.some((l) => l.id === model.activeLayer)) model.activeLayer = 1;
   const lv = model.layerView || {};
-  model.layerView = { colorByLayer: !!lv.colorByLayer, categories: Object.fromEntries(CATEGORIES.map((c) => [c, lv.categories?.[c] !== false])) };
+  model.layerView = { colorByLayer: !!lv.colorByLayer, colorBySection: !lv.colorByLayer && !!lv.colorBySection, categories: Object.fromEntries(CATEGORIES.map((c) => [c, lv.categories?.[c] !== false])) };
   return model.layers;
 }
 
@@ -51,4 +51,11 @@ export function removeLayer(model, id) {
   for (const e of model.elements.values()) if (e.layer === id) e.layer = 1;
   if (model.activeLayer === id) model.activeLayer = 1;
   return true;
+}
+
+// Colour of a section (CSI/Robot "display colour"): its own `color`, else a fixed palette by id (stable across sessions).
+export const SECTION_PALETTE = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'];
+export function sectionColor(model, secId) {
+  const s = model?.sections?.get(secId);
+  return s?.color || SECTION_PALETTE[((+secId || 1) - 1) % SECTION_PALETTE.length];
 }
