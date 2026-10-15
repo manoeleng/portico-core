@@ -172,6 +172,60 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   assert('j6. q calculado na altura total H + montante + flecha (z = 7,75 m ≥ 6,75 m)', q1 >= q0, `${q0} → ${q1}`);
 }
 
+// (k) materials by function and cold-formed sections (NBR 6355): Ue chords, L web
+{
+  const k = generateModel({ ...spec, warehouse: { ...spec.warehouse, chord_size: 'Ue 150x60x20x3,00', diagonal_size: 'L 50x3,00',
+    materials: { columns: 'AR350', chords: 'MR250', web: 'AR350 COR' } } }, BR);
+  const name = (id) => k.materials[id - 1].name;
+  assert('k1. três aços distintos no modelo', new Set(k.materials.map(x => x.name)).size === 3, k.materials.map(x => x.name).join(','));
+  assert('k2. pilares AR350, banzos MR250, alma AR350 COR', k.elements.filter(e => e.secId === 1).every(e => name(e.matId) === 'AR350')
+    && k.elements.filter(e => e.secId === 2).every(e => name(e.matId) === 'MR250') && k.elements.filter(e => e.secId === 3 && e.releases[4]).every(e => name(e.matId) === 'AR350 COR'));
+  const sc = k.sections.find(x => x.id === 2), sd = k.sections.find(x => x.id === 3);
+  assert('k3. banzo Ue (NBR 14762 via cfProps) e alma L dobrada', sc.design?.shape === 'Ue' && !!sc.design.cfProps && sd.design?.shape === 'L' && !!sd.design.cfProps, `${sc.design?.shape}/${sd.design?.shape}`);
+  for (const nm of ['CM', 'Viento X (Cpi 0)']) { const { F, R } = solve(k, nm); const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
+    assert(`k4. ${nm}: equilíbrio com perfis dobrados`, R.every((r, i) => Math.abs(r + F[i]) < tol)); }
+}
+// (l) concrete columns 40x40 C30: fixed base, steel truss pinned on top, no wall bracing
+{
+  const l = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'concreto', column_concrete: { b_cm: 40, h_cm: 40 } } }, BR);
+  const cols = l.elements.filter(e => e.secId === 1), name = (id) => l.materials[id - 1].name;
+  assert('l1. pilares 40x40 em C30', cols.length === 14 && cols.every(e => name(e.matId) === 'C30') && l.sections[0].name === '40x40', `${cols.length} ${name(cols[0].matId)}`);
+  assert('l2. topo do pilar articulado (ry, rz liberados na ponta superior)', cols.every(e => e.releases[10] && e.releases[11] && !e.releases[4]));
+  assert('l3. sem contraventamento vertical nas paredes (só no telhado)', l.elements.filter(e => e.cable).every(e => l.nodes[e.n1 - 1].z >= 6 && l.nodes[e.n2 - 1].z >= 6));
+  for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento Y (Cpi 0)']) { const { F, R } = solve(l, nm); const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
+    assert(`l4. ${nm}: estável e equilíbrio`, R.every(Number.isFinite) && R.every((r, i) => Math.abs(r + F[i]) < tol), `F=[${F.map(v => v.toFixed(2))}] R=[${R.map(v => v.toFixed(2))}]`); }
+}
+// (m) roof only: no columns, trusses on supports (fixed x = 0, sliding x = span)
+{
+  const r = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'sem' } }, BR);
+  assert('m1. nenhum nó abaixo do banzo inferior', r.nodes.every(n => n.z >= 6 - 1e-9));
+  const sup = r.nodes.filter(n => n.restraints.uz);
+  assert('m2. dois apoios por treliça (fixo + deslizante em X)', sup.length === 14 && sup.filter(n => n.x === 0).every(n => n.restraints.ux) && sup.filter(n => n.x === 15).every(n => !n.restraints.ux));
+  for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento Y (Cpi 0)']) { const { F, R } = solve(r, nm); const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
+    assert(`m3. ${nm}: estável e equilíbrio (só cobertura)`, R.every(Number.isFinite) && R.every((v, i) => Math.abs(v + F[i]) < tol), `F=[${F.map(v => v.toFixed(2))}] R=[${R.map(v => v.toFixed(2))}]`); }
+  assert('m4. aviso: vento de paredes e empenas não aplicado', r._warnings.some(w => /Sem pilares/.test(w.msg)));
+}
+// (n) sag-rod lines (CBCA 2.10–2.11): 1 line per bay, flexible φ12,5; purlins split, pinned only at the frames
+{
+  const nS = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 1 } }, BR);
+  const N = (id) => nS.nodes[id - 1];
+  const sag = nS.elements.filter(e => e.secId === 7), purl = nS.elements.filter(e => e.secId === 5);
+  assert('n1. correntes: 1 linha × nT trechos × 6 vãos, só tração, φ12,5', sag.length === nT * 6 && sag.every(e => e.cable) && /φ12,5/.test(nS.sections.find(x => x.id === 7).name), `${sag.length}`);
+  assert('n2. terças (inclusive as de beiral) divididas no meio do vão: (nT + 1) linhas × 6 vãos × 2 trechos', purl.length === (nT + 1) * 6 * 2, String(purl.length));
+  const keyOf = (e) => [N(e.n1), N(e.n2)].map(n => `${n.x},${n.z}`).sort().join('|') + '|' + [N(e.n1).y, N(e.n2).y].sort((p, q) => p - q).join('-');
+  const eaveFull = nS.elements.filter(e => N(e.n1).x === 0 && N(e.n2).x === 0 && N(e.n1).z === 6 && N(e.n2).z === 6 && Math.abs(N(e.n1).y - N(e.n2).y) > 2.5 + 1e-9);
+  assert('n2b. no beiral não sobra barra inteira em paralelo com a terça dividida', eaveFull.length === 0, eaveFull.map(keyOf).join(' ; '));
+  const fr = new Set([0, 5, 10, 15, 20, 25, 30]);
+  assert('n3. terças rotuladas só nos pórticos, contínuas na corrente', purl.every(e => (fr.has(N(e.n1).y) === !!e.releases[4]) && (fr.has(N(e.n2).y) === !!e.releases[10])));
+  const { F, R, res } = solve(nS, 'CM');
+  assert('n4. CM: equilíbrio com correntes', R.every((r, i) => Math.abs(r + F[i]) < 1e-3 * Math.max(1, ...F.map(Math.abs))));
+  const Nmax = Math.max(...sag.map(e => Math.abs(res.getElemForces(e.id)?.N ?? 0)));
+  assert('n5. correntes solicitadas sob peso próprio + telha (|N| > 0)', Nmax > 1e-3, `|N| máx = ${Nmax.toFixed(3)} kN`);
+  const rg = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 2, sag_rod_type: 'rigida', sag_rod_section: 'L 40x2,00' } }, BR);
+  const sr = rg.elements.filter(e => e.secId === 7);
+  assert('n6. correntes rígidas nos terços: 2 × nT × 6, L 40x2,00, sem flag de tração', sr.length === 2 * nT * 6 && sr.every(e => !e.cable) && rg.sections.find(x => x.id === 7).design?.shape === 'L');
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

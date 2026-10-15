@@ -1707,16 +1707,48 @@ export function generateWarehouse(spec, libs) {
     if (!(g.purlin_spacing_m > 0)) addWarning('estimated', `Espaçamento das terças não informado: 1,8 m (limite superior para telha trapezoidal, Manual CBCA de galpões; confirme na tabela do fabricante da telha).`);
   } else { nT = Math.max(2, Math.round(g.n_panels || Math.max(4, Math.round(luz)))); if (nT % 2) nT += 1; }
 
-  const secCol = pickSection(g.column_section ?? (spec.sections || {}).columns, perfiles, esMadera ? { b_cm: 15, h_cm: 20 } : { b_cm: 30, h_cm: 30 }, 'Column', addWarning); secCol.id = 1;
-  const secCord = pickSection(g.chord_size, perfiles, esMadera ? { b_cm: 7.5, h_cm: 15 } : { b_cm: 15, h_cm: 15 }, 'Chord', addWarning); secCord.id = 2;
-  const secDiag = pickSection(g.diagonal_size, perfiles, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Diagonal/purlin', addWarning); secDiag.id = 3;
+  // sections by function: hot-rolled (Gerdau W/HP of the preset) or cold-formed of NBR 6355 (Ue, L — the
+  // js/design/profiles_cf.js catalogue, routed to NBR 14762 by design.cfProps), or concrete {b_cm, h_cm}
+  const cfSec = (nm, label) => {
+    const c = typeof nm === 'string' ? cfSection(nm.trim()) : null;
+    if (!c) return null;
+    addWarning('info', `${label}: perfil formado a frio ${nm.trim()} (NBR 6355).`);
+    const sh = c.shape || 'Ue', d = c.dims;
+    const Avy = sh === 'L' ? d.b * d.t : d.bw * d.t, Avz = sh === 'L' ? d.b * d.t : 2 * d.bf * d.t;
+    return { name: nm.trim(), A: c.A, Iz: c.Iz, Iy: c.Iy, J: c.J, Avy: +Avy.toFixed(10), Avz: +Avz.toFixed(10), kappay: 1.0, kappaz: 1.0,
+      design: { shape: sh, profile: nm.trim(), cfProps: c } };
+  };
+  const pickAny = (nm, def, label) => cfSec(nm, label) || pickSection(nm, perfiles, def, label, addWarning);
+  // column type: 'simples'/'laminado' (single member, fixed base) | 'treliçado' (lattice) | 'concreto' (precast
+  // cantilever, fixed base, steel truss pinned on top) | 'sem' (roof only: trusses on supports)
+  const ct = String(g.column_type || '').toLowerCase();
+  const tipoPilar = /treli|lattice|truss/.test(ct) ? 'trelicado' : /concr|horm/.test(ct) ? 'concreto'
+    : /^(sem|sin|none|no)\b|cobertura|roof/.test(ct) ? 'sem' : 'laminado';
+  const secCol = tipoPilar === 'concreto'
+    ? (() => { const c = g.column_concrete || {}, b = c.b_cm > 0 ? +c.b_cm : 40, h = c.h_cm > 0 ? +c.h_cm : 40; return rectToSection({ b_cm: b, h_cm: h }, `${b}x${h}`); })()
+    : pickAny(g.column_section ?? (spec.sections || {}).columns, esMadera ? { b_cm: 15, h_cm: 20 } : { b_cm: 30, h_cm: 30 }, 'Column');
+  secCol.id = 1;
+  const secCord = pickAny(g.chord_size, esMadera ? { b_cm: 7.5, h_cm: 15 } : { b_cm: 15, h_cm: 15 }, 'Chord'); secCord.id = 2;
+  const secDiag = pickAny(g.diagonal_size, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Diagonal/purlin'); secDiag.id = 3;
+  // materials by function (warehouse.materials = { columns, chords, web, purlins, rods }); default = sections.material
+  const MM = g.materials || {}, mats = [mat], matKey = new Map([[mat.name.toLowerCase(), 1]]);
+  const matIdOf = (nm) => {
+    if (!nm) return 1;
+    const r = pickMat(nm), k = r.name.toLowerCase();
+    if (matKey.has(k)) return matKey.get(k);
+    r.id = mats.length + 1; mats.push(r); matKey.set(k, r.id); return r.id;
+  };
+  const isConc = (id) => { const E = +mats[id - 1].E; return E > 1e7 && E < 6e7; };
+  const idMatCol = matIdOf(MM.columns || (tipoPilar === 'concreto' ? 'C30' : null));
+  if (tipoPilar === 'concreto' && !isConc(idMatCol)) addWarning('replacement', `Pilar de concreto com material "${mats[idMatCol - 1].name}" (não é concreto) — confira warehouse.materials.columns.`);
+  const idMatChord = matIdOf(MM.chords), idMatWeb = matIdOf(MM.web), idMatPurl = matIdOf(MM.purlins), idMatRod = matIdOf(MM.rods);
   // lattice ("treliçado") columns: two chords (outer face x = 0 / span and inner x = w / span − w), horizontals at
   // every module and one alternating diagonal per panel (pinned lacing), two pinned bases — the column of the
   // Forecast/CalcSteel generators. Default 'simples' (single member, fixed base).
-  const pilarTrel = /treli|lattice|truss/i.test(String(g.column_type || ''));
+  const pilarTrel = tipoPilar === 'trelicado';
   const wCol = g.column_width_m > 0 ? g.column_width_m : 0.5;
   const modCol = g.column_module_m > 0 ? g.column_module_m : 0.5;
-  const secLace = pilarTrel ? pickSection(g.column_lacing_section ?? g.diagonal_size, perfiles, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Travejamento do pilar', addWarning) : null;
+  const secLace = pilarTrel ? pickAny(g.column_lacing_section ?? g.diagonal_size, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Travejamento do pilar') : null;
   if (secLace) secLace.id = 6;
   if (pilarTrel && !(wCol < luz / 4)) addWarning('replacement', `Largura do pilar treliçado ${wCol} m incompatível com o vão ${luz} m.`);
   // Brazil preset (or warehouse.bracing = true): X bracing in the end bays and pinned web/purlins —
@@ -1770,18 +1802,27 @@ export function generateWarehouse(spec, libs) {
   const zRoof = (a) => +(hE + (a <= luz / 2 ? (2 * hR / luz) * a : (2 * hR / luz) * (luz - a))).toFixed(5);
   const Yf = serie(largo, sep);          // frame positions
   const frames = [];                      // {T, B, tops}
+  const wallEls = new Set();                 // members of the side walls (columns, end posts): wall wind goes there
+  const addWall = (n1, n2, s) => { const id = addEl(n1, n2, s); if (id != null) wallEls.add(id); return id; };
   for (const yf of Yf) {
     const PINL = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
-    if (!pilarTrel) {
-      // columns (x=0, x=span) from z=0 (fixed) to H
-      addEl(getNode(0, yf, 0, empot), getNode(0, yf, H), secCol.id);
-      addEl(getNode(luz, yf, 0, empot), getNode(luz, yf, H), secCol.id);
+    if (tipoPilar === 'sem') {
+      // roof only: the bottom chord ends rest on supports — fixed x = 0 (ux, uy, uz), sliding x = span (uy, uz);
+      // rx held at both (fork support: the truss cannot roll about its own axis)
+      getNode(0, yf, H, { ux: 1, uy: 1, uz: 1, rx: 1, ry: 0, rz: 0 });
+      getNode(luz, yf, H, { ux: 0, uy: 1, uz: 1, rx: 1, ry: 0, rz: 0 });
+    } else if (!pilarTrel) {
+      // columns (x=0, x=span) from z=0 (fixed) to H; a concrete column carries the steel truss pinned on top
+      for (const x of [0, luz]) {
+        const id = addWall(getNode(x, yf, 0, empot), getNode(x, yf, H), secCol.id);
+        if (id != null && tipoPilar === 'concreto') elements[id - 1].releases = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+      }
     } else {
       const rot = { ux: 1, uy: 1, uz: 1, rx: 0, ry: 0, rz: 0 };          // pinned base of each chord
       const nk = Math.max(2, Math.ceil(H / modCol - 1e-9)), zk = (k) => +(k * H / nk).toFixed(5);
       for (const [xo, xi] of [[0, wCol], [luz, luz - wCol]]) {
         for (let k = 0; k < nk; k++) {
-          addEl(getNode(xo, yf, zk(k), k === 0 ? rot : null), getNode(xo, yf, zk(k + 1)), secCol.id);   // outer chord
+          addWall(getNode(xo, yf, zk(k), k === 0 ? rot : null), getNode(xo, yf, zk(k + 1)), secCol.id);   // outer chord
           addEl(getNode(xi, yf, zk(k), k === 0 ? rot : null), getNode(xi, yf, zk(k + 1)), secCol.id);   // inner chord
         }
         for (let k = 1; k <= nk; k++) { const id = addEl(getNode(xo, yf, zk(k)), getNode(xi, yf, zk(k)), secLace.id); if (id) elements[id - 1].releases = [...PINL]; }
@@ -1794,7 +1835,9 @@ export function generateWarehouse(spec, libs) {
     // roof truss: bottom chord at H, gable top chord
     const B = [], T = [], tops = [];
     for (let i = 0; i <= nT; i++) { const x = along(i); B[i] = getNode(x, yf, H); T[i] = getNode(x, yf, +(H + zRoof(x)).toFixed(4)); }
-    if (hE > 0) { addEl(B[0], T[0], secCol.id); addEl(B[nT], T[nT], secCol.id); }   // end posts = column up to the top chord
+    // end posts: the steel column carried up to the top chord (same section, rigid knee); on a concrete column or
+    // with no column the post belongs to the truss (chord section)
+    if (hE > 0) { const sp = (tipoPilar === 'laminado' || pilarTrel) ? secCol.id : secCord.id; addWall(B[0], T[0], sp); addWall(B[nT], T[nT], sp); }
     // bottom chord (tie) through every panel node and, with lattice columns, the inner chord tops x = w and span − w
     const xsB = [...new Set([...Array.from({ length: nT + 1 }, (_, i) => along(i)), ...(pilarTrel ? [wCol, luz - wCol] : [])].map(v => +v.toFixed(5)))].sort((p, q) => p - q);
     for (let i = 0; i + 1 < xsB.length; i++) addEl(getNode(xsB[i], yf, H), getNode(xsB[i + 1], yf, H), secCord.id);
@@ -1807,11 +1850,35 @@ export function generateWarehouse(spec, libs) {
     if (tCel === 'warren') addEl(B[nT / 2], T[nT / 2], secDiag.id);   // king post
     frames.push({ T, B, tops });
   }
-  // purlins: tie consecutive frames at each chord node
-  for (let s = 0; s + 1 < Yf.length; s++) for (let i = 0; i <= nT; i++) {
-    addEl(frames[s].T[i], frames[s + 1].T[i], secDiag.id);
-    addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
+  // sag-rod lines ("linhas de corrente", Manual CBCA de galpões 2.10–2.11): 0, 1 (mid-span) or 2 (thirds) lines per
+  // bay along the slope, tying the purlins in their weak direction → Ly = Lb = bay/(n + 1). Flexible = threaded round
+  // bar (12,5 mm in small sheds, 16 mm usual — CBCA 2.11), tension only; rigid = cold-formed angle (also compression).
+  const nSag = Math.max(0, Math.min(2, Math.round(+g.sag_rod_lines || 0)));
+  const sagRigid = /r[ií]gid|rigid/i.test(String(g.sag_rod_type || ''));
+  const dSag = (g.sag_rod_mm > 0 ? +g.sag_rod_mm : 12.5) / 1000;
+  const secSag = nSag === 0 ? null : sagRigid ? pickAny(g.sag_rod_section || 'L 50x3,00', { b_cm: 5, h_cm: 5 }, 'Corrente rígida')
+    : { name: `Corrente φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')}`, A: +(Math.PI * dSag ** 2 / 4).toFixed(10), Iz: +(Math.PI * dSag ** 4 / 64).toFixed(14),
+      Iy: +(Math.PI * dSag ** 4 / 64).toFixed(14), J: +(Math.PI * dSag ** 4 / 32).toFixed(14), Avy: +(0.9 * Math.PI * dSag ** 2 / 4).toFixed(10),
+      Avz: +(0.9 * Math.PI * dSag ** 2 / 4).toFixed(10), kappay: 1.0, kappaz: 1.0 };
+  if (secSag) secSag.id = 7;
+  const frameY = new Set(Yf.map((y) => rk(y)));
+  // purlins: tie consecutive frames at each chord node (top chord split at the sag points)
+  for (let s = 0; s + 1 < Yf.length; s++) {
+    const yA = Yf[s], yB = Yf[s + 1], ys = [yA, ...Array.from({ length: nSag }, (_, k) => yA + (k + 1) * (yB - yA) / (nSag + 1)), yB];
+    const line = [];
+    for (let i = 0; i <= nT; i++) {
+      const tA = nodes[frames[s].T[i] - 1], ids = ys.map((y, k) => k === 0 ? frames[s].T[i] : k === ys.length - 1 ? frames[s + 1].T[i] : getNode(tA.x, y, tA.z));
+      for (let k = 0; k + 1 < ids.length; k++) addEl(ids[k], ids[k + 1], secDiag.id);
+      line.push(ids);
+      // bottom-chord tie; at the eave of a triangular truss B = T and the (split) eave purlin already ties it
+      if (frames[s].B[i] !== frames[s].T[i]) addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
+    }
+    if (secSag) for (let k = 1; k <= nSag; k++) for (let i = 0; i < nT; i++) {   // along the slope, eave to eave over the ridge
+      const id = addEl(line[i][k], line[i + 1][k], secSag.id);
+      if (id != null) { const e = elements[id - 1]; e.releases = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1]; if (!sagRigid) e.cable = true; }
+    }
   }
+  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, de beiral a beiral passando pela cumeeira — as duas águas travam os lances extremos na cumeeira e a terça de beiral no beiral (Manual CBCA de galpões 2.10–2.11). Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1}; na verificação da terça use Lx = vão do pórtico.`);
   if (comContrav) {
     // pin both ends of the truss web and of the purlins (ry, rz released; torsion kept): chords stay continuous
     const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
@@ -1819,7 +1886,13 @@ export function generateWarehouse(spec, libs) {
       const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
       const isPurlin = Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.z - b.z) < 1e-6 && Math.abs(a.y - b.y) > 1e-6;
       const isWeb = e.secId === secDiag.id && Math.abs(a.y - b.y) < 1e-6;
-      if (isPurlin || isWeb) e.releases = [...PIN];
+      if (isWeb) e.releases = [...PIN];
+      else if (isPurlin) {   // pinned at the frames only; continuous across sag-rod points
+        const r = Array(12).fill(0);
+        if (frameY.has(rk(a.y))) { r[4] = 1; r[5] = 1; }
+        if (frameY.has(rk(b.y))) { r[10] = 1; r[11] = 1; }
+        e.releases = r;
+      }
       if (isPurlin && secTerca && a.z > H + 1e-6) e.secId = secTerca.id;            // purlins on the top chord (biapoiadas)
       else if (isPurlin && secTerca && Math.abs(a.x) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;   // eave purlins
       else if (isPurlin && secTerca && Math.abs(a.x - luz) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;
@@ -1834,13 +1907,19 @@ export function generateWarehouse(spec, libs) {
     for (const s of bays) {
       const A = frames[s], B = frames[s + 1];
       for (let i = 0; i < nT; i++) { rod(A.T[i], B.T[i + 1]); rod(A.T[i + 1], B.T[i]); }   // roof plane, panel by panel
-      for (const x of [0, luz]) {                                                       // side walls
+      if (tipoPilar === 'laminado' || pilarTrel) for (const x of [0, luz]) {             // side walls (steel columns)
         const yA = Yf[s], yB = Yf[s + 1];
         rod(getNode(x, yA, 0), getNode(x, yB, H)); rod(getNode(x, yB, 0), getNode(x, yA, H));
       }
     }
     if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : modoContrav === 'escolhidos' ? `nos vãos ${bays.map(b => b + 1).join(', ')} (de ${nBays})` : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
+
+  // material of each member by its function
+  const matOfSec = new Map([[secCol.id, idMatCol], [secCord.id, idMatChord], [secDiag.id, idMatWeb], [4, idMatRod], [5, idMatPurl], [6, idMatCol], [7, idMatRod]]);
+  for (const e of elements) e.matId = matOfSec.get(e.secId) ?? 1;
+  if (tipoPilar === 'sem') addWarning('info', 'Sem pilares (somente a cobertura): treliças apoiadas no banzo inferior — fixo em x = 0, deslizante em x = vão (rx impedido, apoio em garfo). Vento de paredes e empenas não aplicado; as reações são as ações sobre a estrutura de apoio.');
+  if (tipoPilar === 'concreto') addWarning('info', `Pilares de concreto ${secCol.name} cm engastados na base, treliça de aço articulada no topo; sem contraventamento vertical nas paredes (os pilares em balanço resistem).`);
 
   // ── Roof loads (CM + CV) on the top chords, tributary width sep ──
   const cargas = spec.loads || {};
@@ -1879,7 +1958,7 @@ export function generateWarehouse(spec, libs) {
       const kN = (v) => (v || 0) / 1000;
       // every column member on the outer face (a single member, or all the outer-chord segments of a lattice column)
       const colAt = (x, yf) => elements.filter(e => { const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
-        return e.secId === secCol.id && Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - yf) < 1e-6 && Math.abs(b.y - yf) < 1e-6; }).map(e => e.id);
+        return wallEls.has(e.id) && Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - yf) < 1e-6 && Math.abs(b.y - yf) < 1e-6; }).map(e => e.id);
       const roof = (lc, f, trib, pW, pL) => {           // pW windward-slope (x < span/2), pL leeward
         const nH = frames[f].tops.length / 2;
         frames[f].tops.forEach((tp, i) => {
@@ -1931,7 +2010,7 @@ export function generateWarehouse(spec, libs) {
     if (zona == null) addWarning('omitted', 'Sismo NBR 15421: informe seismic.zona ou seismic.ag_g (Fig. 1/Tab. 1) — galpão sem casos de sismo.');
     else if (+zona === 0) addWarning('info', 'Sismo NBR 15421: zona sísmica 0, categoria A — nenhum requisito de resistência sísmica é exigido (7.3.2).');
     else if (+zona === 1) {
-      const secById = new Map([secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : [])].map(q => [q.id, q]));
+      const secById = new Map([secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])].map(q => [q.id, q]));
       const lcEx = { id: loadCases.length + 1, name: 'Sismo X (NBR 15421 7.3.2)', loads: [], selfWeight: false, type: 'static', specDir: null };
       const lcEy = { id: loadCases.length + 2, name: 'Sismo Y (NBR 15421 7.3.2)', loads: [], selfWeight: false, type: 'static', specDir: null };
       let W = 0;
@@ -1943,7 +2022,7 @@ export function generateWarehouse(spec, libs) {
       };
       const Lof = (e) => { const a = nodes.find(n => n.id === e.n1), b = nodes.find(n => n.id === e.n2); return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); };
       const elById = new Map(elements.map(e => [e.id, e]));
-      for (const e of elements) push(e.id, (+mat.rho || 0) * (+secById.get(e.secId)?.A || 0) * 9.80665, Lof(e));   // self-weight (as the solver)
+      for (const e of elements) push(e.id, (+mats[e.matId - 1]?.rho || 0) * (+secById.get(e.secId)?.A || 0) * 9.80665, Lof(e));   // self-weight (as the solver)
       for (const ld of lcCM.loads) if (ld.type === 'dist' && ld.dir === 'gravity') push(ld.elemId, ld.w, Lof(elById.get(ld.elemId)));
       loadCases.push(lcEx, lcEy);
       addWarning('info', `Sismo NBR 15421: zona 1, categoria A — Fx = 0,01·wx (7.3.2) em X e em Y separadamente; peso permanente W = ${W.toFixed(1)} kN → H = ${(0.01 * W).toFixed(2)} kN por direção (sobrecarga de cobertura não incluída). W é só o peso do modelo: some fechamentos, forros, instalações e equipamentos fixos; em armazenamento, 25 % da variável. Requisito mínimo da categoria A.`);
@@ -1953,10 +2032,10 @@ export function generateWarehouse(spec, libs) {
 
   return {
     version: '1.0', units: 'kN-m', mode: '3D',
-    nodes, elements, materials: [mat], sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : [])], diaphragms: [],
+    nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, ...(hE > 0 ? [+(H + hE).toFixed(4)] : []), +(H + hE + hR).toFixed(4)] },
-    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: 3 + (comContrav ? 2 : 0) + (secLace ? 1 : 0), diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
+    _counters: { nodes: nodes.length, elements: elements.length, materials: mats.length, sections: 3 + (comContrav ? 2 : 0) + (secLace ? 1 : 0) + (secSag ? 1 : 0), diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
     _generado: {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,

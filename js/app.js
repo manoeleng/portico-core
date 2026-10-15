@@ -7141,37 +7141,47 @@ class App {
     const { generateModel } = await import('../assistant/generator.js?v=7');
     const { cfNames } = await import('./design/profiles_cf.js?v=7');
     const prev = this.serializer.toJSON(this.model), prevName = this._fileName;
-    const W = libs.perfiles.map(p => p.nombre), UE = cfNames().filter(n => n.startsWith('Ue'));
+    const W = libs.perfiles.map(p => p.nombre), UE = cfNames().filter(n => n.startsWith('Ue')), LDF = cfNames().filter(n => n.startsWith('L '));
     const ACOS = libs.materiales.filter(m => /acero/i.test(m.tipo)).map(m => m.nombre);
+    const CONC = libs.materiales.filter(m => /hormig/i.test(m.tipo)).map(m => m.nombre);
     const opt = (list, sel) => list.map(v => `<option ${v === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    // profile families: hot-rolled (Gerdau, preset catalogue) and cold-formed (NBR 6355: Ue, L)
+    const fam = (sel, { ue = true, l = true } = {}) => `<optgroup label="${esc(t('Laminados (Gerdau)'))}">${opt(W, sel)}</optgroup>`
+      + (ue ? `<optgroup label="${esc(t('Formados a frío — Ue (NBR 6355)'))}">${opt(UE, sel)}</optgroup>` : '')
+      + (l ? `<optgroup label="${esc(t('Formados a frío — L (NBR 6355)'))}">${opt(LDF, sel)}</optgroup>` : '');
     const num = (id, label, v, step = 0.1, min = 0) => `<div class="prop-field"><label>${label}</label><input type="number" id="${id}" value="${v}" step="${step}" min="${min}"></div>`;
     const sel = (id, label, html) => `<div class="prop-field"><label>${label}</label><select id="${id}">${html}</select></div>`;
     const sec = (title) => `<div style="margin:10px 0 4px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase">${title}</div>`;
+    const row = (n, html, show = '') => `<div class="prop-row cols${n}"${show ? ` data-show="${show}"` : ''}>${html}</div>`;
     const t = (k) => i18n.t(k);
     const el = document.createElement('div');
     el.id = 'wh-panel';
-    el.style.cssText = 'position:fixed;left:12px;top:70px;width:340px;max-height:calc(100vh - 90px);overflow:auto;z-index:9000;background:var(--bg-elev,#fff);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:0 12px 12px;font-size:12px';
+    el.style.cssText = 'position:fixed;left:12px;top:70px;width:360px;max-height:calc(100vh - 90px);overflow:auto;z-index:9000;background:var(--bg-elev,#fff);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:0 12px 12px;font-size:12px';
     el.innerHTML = `
 <div style="position:sticky;top:0;background:var(--accent,#16a34a);color:#fff;margin:0 -12px 8px;padding:10px 12px;font-weight:600;display:flex;justify-content:space-between">
   <span>${t('Generador de nave industrial (galpón)')}</span><span id="wh-close" style="cursor:pointer">✕</span></div>
 ${sec(t('1. Geometría principal'))}
-<div class="prop-row cols2">${num('wh-span', t('Vano (m)'), 15, 0.5, 4)}${num('wh-len', t('Largo (m)'), 30, 1, 4)}</div>
-<div class="prop-row cols2">${num('wh-h', t('Altura del pilar (m)'), 6, 0.25, 2)}${num('wh-sep', t('Separación de pórticos (m)'), 5, 0.25, 1)}</div>
-<div class="prop-row cols2">${num('wh-nport', t('Nº de pórticos (0 = por la separación)'), 0, 1, 0)}${num('wh-he', t('Montante inicial de la cercha (m)'), 0, 0.05, 0)}</div>
+${row(2, num('wh-span', t('Vano (m)'), 15, 0.5, 4) + num('wh-h', t('Altura del pilar (m)'), 6, 0.25, 2))}
+${row(2, num('wh-nport', t('Nº de pórticos'), 7, 1, 2) + num('wh-sep', t('Distancia entre pórticos (m)'), 5, 0.25, 1))}
+${row(2, `<div class="prop-field"><label>${t('Largo (m)')}</label><input type="text" id="wh-len" readonly tabindex="-1" style="opacity:.7"></div>` + num('wh-he', t('Montante inicial de la cercha (m)'), 0, 0.05, 0))}
 ${sec(t('2. Pilares'))}
-<div class="prop-row cols3">${sel('wh-ctype', t('Tipo'), `<option value="simples">${t('Simple')}</option><option value="treliçado">${t('Reticulado')}</option>`)}${num('wh-cw', t('Ancho (m)'), 0.5, 0.05, 0.2)}${num('wh-cmod', t('Modulación (m)'), 0.5, 0.05, 0.2)}</div>
+${row(1, sel('wh-ctype', t('Tipo'), `<option value="laminado">${t('Perfil laminado')}</option><option value="treliçado">${t('Reticulado')}</option><option value="concreto">${t('Hormigón')}</option><option value="sem">${t('Sin pilar (solo la cubierta)')}</option>`))}
+${row(2, sel('wh-mcol', t('Acero de los pilares'), opt(ACOS, 'MR250')) + sel('wh-scol', t('Perfil del pilar'), fam('W 250 x 32,7')), 'steelcol')}
+${row(3, num('wh-cw', t('Ancho (m)'), 0.5, 0.05, 0.2) + num('wh-cmod', t('Modulación (m)'), 0.5, 0.05, 0.2) + sel('wh-slace', t('Celosía del pilar'), fam('W 150 x 13,0')), 'lattice')}
+${row(3, sel('wh-ccol', t('Hormigón'), opt(CONC, 'C30')) + num('wh-cb', 'b (cm)', 40, 5, 15) + num('wh-ch', 'h (cm)', 40, 5, 15), 'concrete')}
 ${sec(t('3. Cubierta (cercha)'))}
-<div class="prop-row cols3">${sel('wh-truss', t('Cercha'), '<option>warren</option><option>pratt</option><option>howe</option>')}${num('wh-slope', t('Pendiente (%)'), 10, 1, 1)}${num('wh-psp', t('Separación de correas (m)'), 1.8, 0.1, 0.6)}</div>
-${sec(t('4. Arriostramientos'))}
+${row(3, sel('wh-truss', t('Cercha'), '<option>warren</option><option>pratt</option><option>howe</option>') + num('wh-slope', t('Pendiente (%)'), 10, 1, 1) + num('wh-psp', t('Separación de correas (m)'), 1.8, 0.1, 0.6))}
+${row(2, sel('wh-mchord', t('Acero de los cordones'), opt(ACOS, 'MR250')) + sel('wh-schord', t('Cordones de la cercha'), fam('W 150 x 13,0')))}
+${row(2, sel('wh-mweb', t('Acero de montantes y diagonales'), opt(ACOS, 'MR250')) + sel('wh-sdiag', t('Montantes y diagonales'), fam('W 150 x 13,0')))}
+${sec(t('4. Correas y líneas de tirantes'))}
+${row(2, sel('wh-mpurl', t('Acero de las correas'), opt(ACOS, 'MR250')) + sel('wh-sterca', t('Correas'), `<option value="">${t('Automática (d ≥ L/40)')}</option>` + opt(UE, '')))}
+${row(2, sel('wh-sagn', t('Líneas de tirantes por vano'), `<option value="0">${t('Ninguna')}</option><option value="1">${t('1 (centro del vano)')}</option><option value="2">${t('2 (tercios)')}</option>`) + sel('wh-sagt', t('Tipo'), `<option value="flexivel">${t('Flexible (barra redonda)')}</option><option value="rigida">${t('Rígida (angular)')}</option>`), 'sag0')}
+${row(2, num('wh-sagd', t('Diámetro (mm)'), 12.5, 0.5, 8), 'sagflex')}
+${row(2, sel('wh-sags', t('Perfil de la línea rígida'), opt(LDF, 'L 50x3,00')), 'sagrig')}
+${sec(t('5. Arriostramientos'))}
 ${sel('wh-brace', t('Cubierta y fachadas'), `<option value="extremidades">${t('Solo en los extremos')}</option><option value="todos">${t('En todos los vanos')}</option><option value="escolhidos">${t('En los vanos elegidos')}</option><option value="sem">${t('Sin arriostramiento')}</option>`)}
 <div class="prop-field" id="wh-bays-wrap" style="display:none"><label id="wh-bays-lbl">${t('Vanos arriostrados (ej.: 1, 3, 6)')}</label><input type="text" id="wh-bays" value="1"></div>
-${sec(t('5. Perfiles y materiales'))}
-${sel('wh-mat', t('Acero'), opt(ACOS, 'MR250'))}
-${sel('wh-scol', t('Pilar (cordones)'), opt(W, 'W 250 x 32,7'))}
-${sel('wh-schord', t('Cordones de la cercha'), opt(W, 'W 150 x 13,0'))}
-${sel('wh-sdiag', t('Montantes y diagonales'), opt(W, 'W 150 x 13,0'))}
-${sel('wh-sterca', t('Correas'), `<option value="">${t('Automática (d ≥ L/40)')}</option>` + opt(UE, ''))}
-<div class="prop-row cols2">${num('wh-rod', t('Tirante redondo (mm)'), 12, 1, 12)}${sel('wh-slace', t('Celosía del pilar'), opt(W, 'W 150 x 13,0'))}</div>
+${row(2, sel('wh-mrod', t('Acero de los tirantes'), opt(ACOS, 'MR250')) + num('wh-rod', t('Tirante redondo (mm)'), 12, 1, 12))}
 ${sec(t('6. Cargas y viento (NBR 6123)'))}
 <div class="prop-row cols2">${num('wh-cm', t('Peso de cubierta (kN/m²)'), 0.15, 0.05, 0)}${num('wh-cv', t('Sobrecarga de cubierta (kN/m²)'), 0.25, 0.05, 0)}</div>
 <div class="prop-row cols3">${num('wh-v0', 'V0 (m/s)', 35, 1, 0)}${sel('wh-cat', t('Categoría'), '<option>I</option><option>II</option><option>III</option><option selected>IV</option><option>V</option>')}${sel('wh-s3', t('Grupo S3'), '<option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>')}</div>
@@ -7181,27 +7191,39 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
   <button type="button" id="wh-cancel" class="btn-secondary">${t('Cancelar')}</button>
   <button type="button" id="wh-ok" class="btn-primary">✓ ${t('Generar modelo')}</button></div>`;
     document.body.appendChild(el);
-    const $ = (id) => el.querySelector('#' + id), v = (id) => $(id).value, n = (id) => parseFloat($(id).value);
-    const spec = () => ({
-      project: 'galpao', typology: 'galpão', sections: { material: v('wh-mat'), columns: v('wh-scol') },
-      warehouse: { span_m: n('wh-span'), length_m: n('wh-len'), column_height_m: n('wh-h'), frame_spacing_m: n('wh-sep'),
-        n_frames: n('wh-nport') >= 2 ? Math.round(n('wh-nport')) : undefined, end_depth_m: n('wh-he') > 0 ? n('wh-he') : undefined,
-        bracing_bays: v('wh-brace') === 'escolhidos' ? String(v('wh-bays')).split(/[^\d]+/).filter(Boolean).map(Number) : undefined,
-        slope_pct: n('wh-slope'), truss_type: v('wh-truss'), purlin_spacing_m: n('wh-psp'), bracing: v('wh-brace'),
-        column_type: v('wh-ctype'), column_width_m: n('wh-cw'), column_module_m: n('wh-cmod'),
-        chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
-        purlin_section: v('wh-sterca') || undefined, bracing_rod_mm: n('wh-rod') },
-      loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0, seismic: v('wh-zona') !== '' },
-      seismic: v('wh-zona') !== '' ? { zona: +v('wh-zona') } : undefined,
-      wind: { V0_m_s: n('wh-v0'), categoria: v('wh-cat'), grupoS3: v('wh-s3') },
-    });
+    const $ = (id) => el.querySelector('#' + id), v = (id) => $(id).value, n = (id) => parseFloat(String($(id).value).replace(',', '.'));
+    const nPort = () => Math.max(2, Math.round(n('wh-nport') || 2));
+    const spec = () => {
+      const tp = v('wh-ctype'), steelCol = tp === 'laminado' || tp === 'treliçado';
+      return {
+        project: 'galpao', typology: 'galpão', sections: { material: v('wh-mchord'), columns: steelCol ? v('wh-scol') : undefined },
+        warehouse: { span_m: n('wh-span'), length_m: +((nPort() - 1) * n('wh-sep')).toFixed(4), column_height_m: n('wh-h'), frame_spacing_m: n('wh-sep'),
+          n_frames: nPort(), end_depth_m: n('wh-he') > 0 ? n('wh-he') : undefined,
+          bracing_bays: v('wh-brace') === 'escolhidos' ? String(v('wh-bays')).split(/[^\d]+/).filter(Boolean).map(Number) : undefined,
+          slope_pct: n('wh-slope'), truss_type: v('wh-truss'), purlin_spacing_m: n('wh-psp'), bracing: v('wh-brace'),
+          column_type: tp, column_width_m: n('wh-cw'), column_module_m: n('wh-cmod'),
+          column_concrete: tp === 'concreto' ? { b_cm: n('wh-cb'), h_cm: n('wh-ch') } : undefined,
+          chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
+          purlin_section: v('wh-sterca') || undefined, bracing_rod_mm: n('wh-rod'),
+          sag_rod_lines: +v('wh-sagn'), sag_rod_type: v('wh-sagt'), sag_rod_mm: n('wh-sagd'), sag_rod_section: v('wh-sags'),
+          materials: { columns: tp === 'concreto' ? v('wh-ccol') : steelCol ? v('wh-mcol') : undefined, chords: v('wh-mchord'),
+            web: v('wh-mweb'), purlins: v('wh-mpurl'), rods: v('wh-mrod') } },
+        loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0, seismic: v('wh-zona') !== '' },
+        seismic: v('wh-zona') !== '' ? { zona: +v('wh-zona') } : undefined,
+        wind: { V0_m_s: n('wh-v0'), categoria: v('wh-cat'), grupoS3: v('wh-s3') },
+      };
+    };
     let last = null, timer = null;
     const preview = () => {
-      // chosen-bays field only with that mode; label shows the valid range 1 … n_frames − 1
-      const nf = n('wh-nport') >= 2 ? Math.round(n('wh-nport')) : Math.floor(n('wh-len') / n('wh-sep') + 1e-9) + 1;
+      // dependent fields: column type, sag-rod type, chosen bays; length = (n − 1)·spacing; bays 1 … n − 1
+      const tp = v('wh-ctype'), sagN = +v('wh-sagn'), sagR = v('wh-sagt') === 'rigida';
+      const show = { steelcol: tp === 'laminado' || tp === 'treliçado', lattice: tp === 'treliçado', concrete: tp === 'concreto',
+        sag0: true, sagflex: sagN > 0 && !sagR, sagrig: sagN > 0 && sagR };
+      el.querySelectorAll('[data-show]').forEach(r => { r.style.display = show[r.dataset.show] ? '' : 'none'; });
+      $('wh-sagt').disabled = sagN === 0;
+      $('wh-len').value = String(+((nPort() - 1) * n('wh-sep')).toFixed(2)).replace('.', ',');
       $('wh-bays-wrap').style.display = v('wh-brace') === 'escolhidos' ? '' : 'none';
-      $('wh-sep').disabled = n('wh-nport') >= 2;
-      $('wh-bays-lbl').textContent = `${t('Vanos arriostrados (ej.: 1, 3, 6)')} — 1…${Math.max(1, nf - 1)}`;
+      $('wh-bays-lbl').textContent = `${t('Vanos arriostrados (ej.: 1, 3, 6)')} — 1…${nPort() - 1}`;
       try {
         const sp = spec(); last = generateModel(sp, libs);
         this._loadJSON(JSON.stringify(last), 'galpao.s3d');
