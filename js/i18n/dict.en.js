@@ -2561,6 +2561,16 @@ export const EN = {
   "Flecha medida respecto a los apoyos de cada vano (voladizo: respecto al apoyo). Limitaciones: la análisis debe usar E0,m y deformación por cortante (8.1); no incluye la deformación de las uniones (Kser, 7.1.12) — necesaria en cerchas y pórticos con uniones metálicas.": "Deflection measured relative to the supports of each span (cantilever: relative to the support). Limitations: the analysis must use E0,m and shear deformation (8.1); connection slip (Kser, 7.1.12) is not included — required for trusses and frames with metal connections.",
   "Materiales frágiles (8.2) no verificados: active designSettings.timberFrageis.": "Brittle materials (8.2) not checked: enable designSettings.timberFrageis.",
   "Alcance: vigas de madera casi horizontales entre apoyos (nudos con restricción vertical o pilares); barras de madera fuera de ese alcance (inclinadas, diagonales, montantes):": "Scope: nearly horizontal timber beams between supports (nodes with vertical restraint or columns); timber bars outside this scope (inclined, diagonals, posts):",
+  "viga acero: canto objetivo ≈ L/20 = {d} mm → {perfil}": "steel beam: target depth ≈ L/20 = {d} mm → {perfil}",
+  "columna acero: lado ≈ H/15 = {d} mm → {perfil}": "steel column: side ≈ H/15 = {d} mm → {perfil}",
+  "viga H.A.: h≈L/11={h} cm, b≈h/2={b} cm": "RC beam: h≈L/11={h} cm, b≈h/2={b} cm",
+  "columna H.A.: Ag≈N/(0.35·f'c) → {a}×{a} cm": "RC column: Ag≈N/(0.35·f'c) → {a}×{a} cm",
+  "madera: h≈L/17={h} mm, b≈h/3={b} mm": "timber: h≈L/17={h} mm, b≈h/3={b} mm",
+  "{nn} nudos, {ne} elementos, {nc} casos, {ncb} combinaciones": "{nn} nodes, {ne} elements, {nc} cases, {ncb} combinations",
+  "nave de {mat}, luz {luz} m × largo {largo} m, {nf} pórticos @{sep} m, cerchas {tc} con pendiente {pend}%: {nn} nudos, {ne} barras": "{mat} warehouse, span {luz} m × length {largo} m, {nf} frames @{sep} m, {tc} trusses with {pend}% slope: {nn} nodes, {ne} bars",
+  "acero": "steel",
+  "madera": "timber",
+  "Propuesta:": "Proposal:",
 };
 
 export default EN;

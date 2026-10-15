@@ -63,6 +63,15 @@ export function t(es) {
   return tr == null ? es : tr;
 }
 
+/**
+ * Translation of a message with embedded values: the Spanish template carries {name} placeholders
+ * (the dictionary key is the template); string values are translated too; numbers take the decimal comma in es/pt.
+ *   tf('{n} nudos', { n: 12 }) → '12 nós' (pt)
+ */
+export function tf(template, vars = {}) {
+  return t(template).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? (typeof vars[k] === 'string' ? t(vars[k]) : _locale === 'en' ? String(vars[k]) : String(vars[k]).replace('.', ',')) : m));
+}
+
 /** Applies the current locale to all text nodes under `root`. Idempotent. */
 export function translate(root = document.body) {
   if (!root) return;
@@ -137,5 +146,5 @@ export function init(root = document.body) {
   translate(root);
 }
 
-export const i18n = { t, translate, observe, getLocale, setLocale, init, SUPPORTED };
+export const i18n = { t, tf, translate, observe, getLocale, setLocale, init, SUPPORTED };
 export default i18n;

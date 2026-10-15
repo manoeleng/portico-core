@@ -2306,6 +2306,16 @@ export const PT = {
   "Flecha medida respecto a los apoyos de cada vano (voladizo: respecto al apoyo). Limitaciones: la análisis debe usar E0,m y deformación por cortante (8.1); no incluye la deformación de las uniones (Kser, 7.1.12) — necesaria en cerchas y pórticos con uniones metálicas.": "Flecha medida em relação aos apoios de cada vão (balanço: em relação ao apoio). Limitações: a análise deve usar E0,m e deformação por cisalhamento (8.1); não inclui a deformação das ligações (Kser, 7.1.12) — necessária em treliças e pórticos com ligações metálicas.",
   "Materiales frágiles (8.2) no verificados: active designSettings.timberFrageis.": "Materiais frágeis (8.2) não verificados: ative designSettings.timberFrageis.",
   "Alcance: vigas de madera casi horizontales entre apoyos (nudos con restricción vertical o pilares); barras de madera fuera de ese alcance (inclinadas, diagonales, montantes):": "Escopo: vigas de madeira aproximadamente horizontais entre apoios (nós com restrição vertical ou pilares); barras de madeira fora desse escopo (inclinadas, diagonais, montantes):",
+  "viga acero: canto objetivo ≈ L/20 = {d} mm → {perfil}": "viga de aço: altura-alvo ≈ L/20 = {d} mm → {perfil}",
+  "columna acero: lado ≈ H/15 = {d} mm → {perfil}": "pilar de aço: lado ≈ H/15 = {d} mm → {perfil}",
+  "viga H.A.: h≈L/11={h} cm, b≈h/2={b} cm": "viga de concreto armado: h≈L/11={h} cm, b≈h/2={b} cm",
+  "columna H.A.: Ag≈N/(0.35·f'c) → {a}×{a} cm": "pilar de concreto armado: Ac≈N/(0,35·fck) → {a}×{a} cm",
+  "madera: h≈L/17={h} mm, b≈h/3={b} mm": "madeira: h≈L/17={h} mm, b≈h/3={b} mm",
+  "{nn} nudos, {ne} elementos, {nc} casos, {ncb} combinaciones": "{nn} nós, {ne} elementos, {nc} casos, {ncb} combinações",
+  "nave de {mat}, luz {luz} m × largo {largo} m, {nf} pórticos @{sep} m, cerchas {tc} con pendiente {pend}%: {nn} nudos, {ne} barras": "galpão de {mat}, vão {luz} m × comprimento {largo} m, {nf} pórticos a cada {sep} m, treliças {tc} com inclinação {pend}%: {nn} nós, {ne} barras",
+  "acero": "aço",
+  "madera": "madeira",
+  "Propuesta:": "Proposta:",
 };
 
 export default PT;

@@ -134,6 +134,7 @@ export function candidatesForFamily(family, prefs = {}) {
 
 // ── Preliminary sizing (#71): simple rules BEFORE the analysis ───────────────────
 // Returns { shape, dims, nota } or, for steel, { profile, nota } (catalog name).
+// notaT = { k: Spanish template with {placeholders}, v: values } for the UI (i18n.tf).
 // tipo: 'viga'|'columna' · material: 'steel'|'concrete'|'timber'
 //   L  span (m) · q distributed load (kN/m, beams) · N axial (kN, columns) ·
 //   fc (MPa, concrete) · H column height (m).
@@ -145,31 +146,36 @@ export function predimensionar({ tipo = 'viga', material = 'steel', L = 5, q = 1
       const ipe = catalogNames('IPE').map(profileToSectionNamed).filter(Boolean)
         .sort((a, b) => a.sec.design.dims.d - b.sec.design.dims.d);
       const pick = ipe.find(p => p.sec.design.dims.d >= dObj) || ipe[ipe.length - 1];
-      return { profile: pick?.name, shape: 'I', dims: pick?.sec.design.dims, nota: `viga acero: canto objetivo ≈ L/20 = ${(dObj * 1000).toFixed(0)} mm → ${pick?.name}` };
+      return { profile: pick?.name, shape: 'I', dims: pick?.sec.design.dims, nota: `viga acero: canto objetivo ≈ L/20 = ${(dObj * 1000).toFixed(0)} mm → ${pick?.name}`,
+        notaT: { k: 'viga acero: canto objetivo ≈ L/20 = {d} mm → {perfil}', v: { d: +(dObj * 1000).toFixed(0), perfil: pick?.name || '' } } };
     }
     // steel column: HE with side ≈ H/15 (reasonable slenderness).
     const dObj = H / 15;
     const he = catalogNames('HEB').map(profileToSectionNamed).filter(Boolean)
       .sort((a, b) => a.sec.design.dims.d - b.sec.design.dims.d);
     const pick = he.find(p => p.sec.design.dims.d >= dObj) || he[0];
-    return { profile: pick?.name, shape: 'I', dims: pick?.sec.design.dims, nota: `columna acero: lado ≈ H/15 = ${(dObj * 1000).toFixed(0)} mm → ${pick?.name}` };
+    return { profile: pick?.name, shape: 'I', dims: pick?.sec.design.dims, nota: `columna acero: lado ≈ H/15 = ${(dObj * 1000).toFixed(0)} mm → ${pick?.name}`,
+      notaT: { k: 'columna acero: lado ≈ H/15 = {d} mm → {perfil}', v: { d: +(dObj * 1000).toFixed(0), perfil: pick?.name || '' } } };
   }
   if (material === 'concrete') {
     if (tipo === 'viga') {
       // h≈L/11 (constructive, rounded to 5 cm), b≈h/2 (min 0.20 m).
       let h = Math.ceil((L / 11) / 0.05) * 0.05; h = Math.max(h, 0.25);
       let b = Math.max(Math.ceil((h / 2) / 0.05) * 0.05, 0.20);
-      return { shape: 'rect', dims: { b, h }, nota: `viga H.A.: h≈L/11=${(h * 100).toFixed(0)} cm, b≈h/2=${(b * 100).toFixed(0)} cm` };
+      return { shape: 'rect', dims: { b, h }, nota: `viga H.A.: h≈L/11=${(h * 100).toFixed(0)} cm, b≈h/2=${(b * 100).toFixed(0)} cm`,
+        notaT: { k: 'viga H.A.: h≈L/11={h} cm, b≈h/2={b} cm', v: { h: +(h * 100).toFixed(0), b: +(b * 100).toFixed(0) } } };
     }
     // concrete column: Ag ≈ N/(0.35·f'c) (compression pre-design); square rounded to 5 cm.
     const Ag = Math.abs(N) / (0.35 * fc * 1000);   // N in kN, fc MPa→kN/m²
     let a = Math.ceil(Math.sqrt(Ag) / 0.05) * 0.05; a = Math.max(a, 0.25);
-    return { shape: 'rect', dims: { b: a, h: a }, nota: `columna H.A.: Ag≈N/(0.35·f'c) → ${(a * 100).toFixed(0)}×${(a * 100).toFixed(0)} cm` };
+    return { shape: 'rect', dims: { b: a, h: a }, nota: `columna H.A.: Ag≈N/(0.35·f'c) → ${(a * 100).toFixed(0)}×${(a * 100).toFixed(0)} cm`,
+    notaT: { k: "columna H.A.: Ag≈N/(0.35·f'c) → {a}×{a} cm", v: { a: +(a * 100).toFixed(0) } } };
   }
   // timber: cross-section from deflection (h≈L/17), rounded to 25 mm, b≈h/3.
   let h = Math.ceil((L / 17) / 0.025) * 0.025; h = Math.max(h, 0.10);
   let b = Math.max(Math.ceil((h / 3) / 0.025) * 0.025, 0.05);
-  return { shape: 'rect', dims: { b, h }, nota: `madera: h≈L/17=${(h * 1000).toFixed(0)} mm, b≈h/3=${(b * 1000).toFixed(0)} mm` };
+  return { shape: 'rect', dims: { b, h }, nota: `madera: h≈L/17=${(h * 1000).toFixed(0)} mm, b≈h/3=${(b * 1000).toFixed(0)} mm`,
+    notaT: { k: 'madera: h≈L/17={h} mm, b≈h/3={b} mm', v: { h: +(h * 1000).toFixed(0), b: +(b * 1000).toFixed(0) } } };
 }
 
 function profileToSectionNamed(name) { const sec = profileToSection(name); return sec ? { name, sec } : null; }

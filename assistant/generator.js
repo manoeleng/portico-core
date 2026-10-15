@@ -672,6 +672,7 @@ function generateModelByTypology(spec, libs) {
       por: 'assistant/generator.js',
       reglas: reglas._meta?.version,
       resumen: `${nodes.length} nodes, ${elements.length} elements, ${loadCases.length} cases, ${combinations.length} combinations`,
+      resumenT: { k: '{nn} nudos, {ne} elementos, {nc} casos, {ncb} combinaciones', v: { nn: nodes.length, ne: elements.length, nc: loadCases.length, ncb: combinations.length } },
     },
     _warnings: warnings,   // [{type:'replacement'|'estimated'|'omitted'|'info', msg}] (Spanish labels by design)
   };
@@ -1863,6 +1864,8 @@ export function generateWarehouse(spec, libs) {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,
       resumen: `warehouse ${esMadera ? 'madera' : 'acero'} luz ${luz} m × largo ${largo} m, ${Yf.length} frames @${sep} m, trusses ${tCel} pend. ${(slope * 100).toFixed(0)}%: ${nodes.length} nodes, ${elements.length} bars`,
+      resumenT: { k: 'nave de {mat}, luz {luz} m × largo {largo} m, {nf} pórticos @{sep} m, cerchas {tc} con pendiente {pend}%: {nn} nudos, {ne} barras',
+        v: { mat: esMadera ? 'madera' : 'acero', luz, largo, nf: Yf.length, sep, tc: tCel, pend: +(slope * 100).toFixed(0), nn: nodes.length, ne: elements.length } },
     },
     _warnings: warnings,
   };

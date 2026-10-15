@@ -4853,7 +4853,7 @@ class App {
         H: +document.getElementById('pd-L').value || 3 });
       this._predim = p;
       const dimTxt = p.profile ? `<b>${p.profile}</b>` : Object.entries(p.dims).map(([k, v]) => `${k}=${(v * 1000).toFixed(0)} mm`).join(' · ');
-      document.getElementById('pd-out').innerHTML = `Propuesta: ${dimTxt}<br><span style="font-size:11px">${p.nota}</span>`;
+      document.getElementById('pd-out').innerHTML = `${i18n.t('Propuesta:')} ${dimTxt}<br><span style="font-size:11px">${p.notaT ? i18n.tf(p.notaT.k, p.notaT.v) : p.nota}</span>`;
     };
     overlay.querySelectorAll('#pd-tipo,#pd-mat,#pd-L,#pd-q,#pd-N,#pd-fc').forEach(e => e.addEventListener('input', refresh));
     refresh();
@@ -7109,7 +7109,7 @@ class App {
       } else {
         this._loadJSON(JSON.stringify(modelo), (spec.project || 'assistant') + '.s3d');
         this.markDirty();
-        this.toast(`${i18n.t('Modelo generado —')} ${modelo._generado?.resumen || ''}`, 'ok');
+        this.toast(`${i18n.t('Modelo generado —')} ${modelo._generado?.resumenT ? i18n.tf(modelo._generado.resumenT.k, modelo._generado.resumenT.v) : (modelo._generado?.resumen || '')}`, 'ok');
       }
       this._showWarnings(modelo._warnings || []);
       // Feedback: if this generation came from an assistant query, offer to mark
@@ -7186,7 +7186,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
         const sp = spec(); last = generateModel(sp, libs);
         this._loadJSON(JSON.stringify(last), 'galpao.s3d');
         const ws = (last._warnings || []).filter(w => w.type !== 'info').length;
-        $('wh-status').textContent = `${last._generado?.resumen || ''} · ${last.loadCases.length} ${t('casos')} · ${last.combinations.length} ${t('combinaciones')}${ws ? ` · ${ws} ${t('avisos')}` : ''}`;
+        $('wh-status').textContent = `${last._generado?.resumenT ? i18n.tf(last._generado.resumenT.k, last._generado.resumenT.v) : (last._generado?.resumen || '')} · ${last.loadCases.length} ${t('casos')} · ${last.combinations.length} ${t('combinaciones')}${ws ? ` · ${ws} ${t('avisos')}` : ''}`;
       } catch (e) { $('wh-status').textContent = e.message; }
     };
     el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(preview, 350); });
@@ -8537,10 +8537,10 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     // pass through unchanged. Kept local (not in the global i18n dict) so the DOM
     // walker never rewrites stray "nuevo"/"modelo" text nodes elsewhere.
     const DEFAULT_LABELS = {
-      'nuevo': 'Untitled', 'Sin título': 'Untitled',
-      'modelo': 'Untitled', 'autoguardado': 'Autosaved',
+      en: { 'nuevo': 'Untitled', 'Sin título': 'Untitled', 'modelo': 'Untitled', 'autoguardado': 'Autosaved' },
+      pt: { 'nuevo': 'novo', 'Sin título': 'Sem título', 'modelo': 'modelo', 'autoguardado': 'salvo automaticamente' },
     };
-    const name = (i18n.getLocale() === 'en' && DEFAULT_LABELS[raw]) ? DEFAULT_LABELS[raw] : raw;
+    const name = DEFAULT_LABELS[i18n.getLocale()]?.[raw] ?? raw;
     document.title = (this._dirty ? '● ' : '') + `${name} — ${getBranding().appName}`;
   }
 
