@@ -14,6 +14,7 @@
 
 import { fromShape } from './section_props.js?v=7';
 import { cfNames, cfSection } from './profiles_cf.js?v=7';
+import { compositeNames, compositeSection, parseCompositeName } from './composite_cf.js?v=7';
 import { VS, CVS, CS } from './profiles_nbr5884.js?v=7';
 import { L as L_LIB, TUBO_RED, TUBO_RET } from './profiles_lib.js?v=7';
 import { rhsEN10219 } from './rhs_en10219.js?v=7';
@@ -223,6 +224,15 @@ CATALOG['Tubo retangular'] = Object.fromEntries(Object.entries(TUBO_RET).map(([n
 
 // Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
 CATALOG['Ue (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('Ue')).map(n => [n, { shape: 'Ue', cf: true }]));
+CATALOG['L (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('L ')).map(n => [n, { shape: 'L', cf: true }]));
+CATALOG['U simples (NBR 6355)'] = Object.fromEntries(cfNames('U').map(n => [n, { shape: 'U', cf: true }]));
+// Built-up sections from NBR 6355 profiles (composite_cf.js): dupla cantoneira, duplo Ue (costas / caixa), duplo U
+const famComp = (kind, arr, g) => Object.fromEntries(compositeNames(kind, arr, g).map(n => [n, { shape: kind, cf: true, composite: true }]));
+CATALOG['2L costas (NBR 6355, g = 8 mm)'] = famComp('2L', 'costas', 8);
+CATALOG['2Ue costas (NBR 6355)'] = famComp('2Ue', 'costas', 0);
+CATALOG['2Ue caixa (NBR 6355)'] = famComp('2Ue', 'caixa', 0);
+CATALOG['2U costas (NBR 6355)'] = famComp('2U', 'costas', 0);
+CATALOG['2U caixa (NBR 6355)'] = famComp('2U', 'caixa', 0);
 
 // List of names per family (to populate a <select>).
 export function catalogFamilies() { return Object.keys(CATALOG); }
@@ -239,8 +249,11 @@ export function getProfile(name) {
 export function profileToSection(name) {
   const p = getProfile(name); if (!p) return null;
   if (p.cf) {
-    const c = cfSection(name);
-    return { A: c.A, Iz: c.Iz, Iy: c.Iy, J: c.J, design: { shape: 'Ue', profile: name, cfProps: c } };
+    const q = p.composite ? parseCompositeName(name) : null;
+    const c = q ? compositeSection(q.kind, q.base, q.arr, q.gapMm) : cfSection(name);
+    if (!c) return null;
+    return { A: c.A, Iz: c.Iz, Iy: c.Iy, J: c.J, ...(c.Avy ? { Avy: c.Avy, Avz: c.Avz } : {}),
+      design: { shape: c.shape || 'Ue', profile: name, cfProps: c } };
   }
   const g = fromShape(p.shape, p.dims);
   if (!g) return null;
