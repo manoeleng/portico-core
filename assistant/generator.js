@@ -1652,6 +1652,15 @@ export function generateWarehouse(spec, libs) {
   const secCol = pickSection(g.column_section ?? (spec.sections || {}).columns, perfiles, esMadera ? { b_cm: 15, h_cm: 20 } : { b_cm: 30, h_cm: 30 }, 'Column', addWarning); secCol.id = 1;
   const secCord = pickSection(g.chord_size, perfiles, esMadera ? { b_cm: 7.5, h_cm: 15 } : { b_cm: 15, h_cm: 15 }, 'Chord', addWarning); secCord.id = 2;
   const secDiag = pickSection(g.diagonal_size, perfiles, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Diagonal/purlin', addWarning); secDiag.id = 3;
+  // lattice ("treliçado") columns: two chords (outer face x = 0 / span and inner x = w / span − w), horizontals at
+  // every module and one alternating diagonal per panel (pinned lacing), two pinned bases — the column of the
+  // Forecast/CalcSteel generators. Default 'simples' (single member, fixed base).
+  const pilarTrel = /treli|lattice|truss/i.test(String(g.column_type || ''));
+  const wCol = g.column_width_m > 0 ? g.column_width_m : 0.5;
+  const modCol = g.column_module_m > 0 ? g.column_module_m : 0.5;
+  const secLace = pilarTrel ? pickSection(g.column_lacing_section ?? g.diagonal_size, perfiles, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Travejamento do pilar', addWarning) : null;
+  if (secLace) secLace.id = 6;
+  if (pilarTrel && !(wCol < luz / 4)) addWarning('replacement', `Largura do pilar treliçado ${wCol} m incompatível com o vão ${luz} m.`);
   // Brazil preset (or warehouse.bracing = true): X bracing in the end bays and pinned web/purlins —
   // Manual CBCA "Galpões para usos gerais" 2.14/2.15: roof bracing in the end bays against the gable wind,
   // X diagonals with only the tension one acting (compressed one neglected), purlins take the compression;
@@ -1701,13 +1710,32 @@ export function generateWarehouse(spec, libs) {
   const Yf = serie(largo, sep);          // frame positions
   const frames = [];                      // {T, B, tops}
   for (const yf of Yf) {
-    // columns (x=0, x=span) from z=0 (fixed) to H
-    addEl(getNode(0, yf, 0, empot), getNode(0, yf, H), secCol.id);
-    addEl(getNode(luz, yf, 0, empot), getNode(luz, yf, H), secCol.id);
+    const PINL = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
+    if (!pilarTrel) {
+      // columns (x=0, x=span) from z=0 (fixed) to H
+      addEl(getNode(0, yf, 0, empot), getNode(0, yf, H), secCol.id);
+      addEl(getNode(luz, yf, 0, empot), getNode(luz, yf, H), secCol.id);
+    } else {
+      const rot = { ux: 1, uy: 1, uz: 1, rx: 0, ry: 0, rz: 0 };          // pinned base of each chord
+      const nk = Math.max(2, Math.ceil(H / modCol - 1e-9)), zk = (k) => +(k * H / nk).toFixed(5);
+      for (const [xo, xi] of [[0, wCol], [luz, luz - wCol]]) {
+        for (let k = 0; k < nk; k++) {
+          addEl(getNode(xo, yf, zk(k), k === 0 ? rot : null), getNode(xo, yf, zk(k + 1)), secCol.id);   // outer chord
+          addEl(getNode(xi, yf, zk(k), k === 0 ? rot : null), getNode(xi, yf, zk(k + 1)), secCol.id);   // inner chord
+        }
+        for (let k = 1; k <= nk; k++) { const id = addEl(getNode(xo, yf, zk(k)), getNode(xi, yf, zk(k)), secLace.id); if (id) elements[id - 1].releases = [...PINL]; }
+        for (let k = 0; k < nk; k++) {
+          const id = k % 2 ? addEl(getNode(xi, yf, zk(k)), getNode(xo, yf, zk(k + 1)), secLace.id) : addEl(getNode(xo, yf, zk(k)), getNode(xi, yf, zk(k + 1)), secLace.id);
+          if (id) elements[id - 1].releases = [...PINL];
+        }
+      }
+    }
     // roof truss: bottom chord at H, gable top chord
     const B = [], T = [], tops = [];
     for (let i = 0; i <= nT; i++) { const x = along(i); B[i] = getNode(x, yf, H); T[i] = getNode(x, yf, +(H + zRoof(x)).toFixed(4)); }
-    for (let i = 0; i < nT; i++) addEl(B[i], B[i + 1], secCord.id);                  // bottom chord (tie)
+    // bottom chord (tie) through every panel node and, with lattice columns, the inner chord tops x = w and span − w
+    const xsB = [...new Set([...Array.from({ length: nT + 1 }, (_, i) => along(i)), ...(pilarTrel ? [wCol, luz - wCol] : [])].map(v => +v.toFixed(5)))].sort((p, q) => p - q);
+    for (let i = 0; i + 1 < xsB.length; i++) addEl(getNode(xsB[i], yf, H), getNode(xsB[i + 1], yf, H), secCord.id);
     for (let i = 0; i < nT; i++) {
       const e = addEl(T[i], T[i + 1], secCord.id);
       const da = along(i + 1) - along(i); const Lsl = Math.hypot(da, zRoof(along(i + 1)) - zRoof(along(i))) || da;
@@ -1784,8 +1812,9 @@ export function generateWarehouse(spec, libs) {
     if (!(vi.q_Nm2 > 0)) addWarning('omitted', 'Vento NBR 6123 não calculado (ver avisos): galpão sem casos de vento.');
     else {
       const kN = (v) => (v || 0) / 1000;
-      const colAt = (x, yf) => elements.find(e => { const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
-        return e.secId === secCol.id && Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - yf) < 1e-6; })?.id;
+      // every column member on the outer face (a single member, or all the outer-chord segments of a lattice column)
+      const colAt = (x, yf) => elements.filter(e => { const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
+        return e.secId === secCol.id && Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - yf) < 1e-6 && Math.abs(b.y - yf) < 1e-6; }).map(e => e.id);
       const roof = (lc, f, trib, pW, pL) => {           // pW windward-slope (x < span/2), pL leeward
         const nH = frames[f].tops.length / 2;
         frames[f].tops.forEach((tp, i) => {
@@ -1804,18 +1833,18 @@ export function generateWarehouse(spec, libs) {
         Yf.forEach((yf, f) => {
           const trib = tributario(Yf, f), c0 = colAt(0, yf), cL = colAt(luz, yf);
           // +X (α = 90°)
-          if (c0) lcX.loads.push({ type: 'dist', elemId: c0, dir: 'globalX', w: +(kN(P['1']) * trib).toFixed(6) });
-          if (cL) lcX.loads.push({ type: 'dist', elemId: cL, dir: 'globalX', w: +(-kN(P['4']) * trib).toFixed(6) });
+          for (const id of c0) lcX.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(kN(P['1']) * trib).toFixed(6) });
+          for (const id of cL) lcX.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(-kN(P['4']) * trib).toFixed(6) });
           roof(lcX, f, trib, P.EFI, P.GHJ);
           // +Y (α = 0°): region of the frame measured from the windward gable y = 0
           const reg = yf <= vi.x0_m + 1e-9 ? 1 : yf <= largo / 2 + 1e-9 ? 2 : 3;
           const pS = reg === 1 ? P.A1B1 : reg === 2 ? P.A2B2 : P.A3B3, pR = reg === 1 ? P.EG : reg === 2 ? P.FH : P.IJ;
-          if (c0) lcY.loads.push({ type: 'dist', elemId: c0, dir: 'globalX', w: +(kN(pS) * trib).toFixed(6) });
-          if (cL) lcY.loads.push({ type: 'dist', elemId: cL, dir: 'globalX', w: +(-kN(pS) * trib).toFixed(6) });
+          for (const id of c0) lcY.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(kN(pS) * trib).toFixed(6) });
+          for (const id of cL) lcY.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(-kN(pS) * trib).toFixed(6) });
           roof(lcY, f, trib, pR, pR);
           if (f === 0 || f === Yf.length - 1) {          // gables: C (y = 0, pressure +Y) and D (y = length)
             const pG = f === 0 ? kN(P.C) : -kN(P.D);
-            for (const c of [c0, cL]) if (c) lcY.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
+            for (const c of [...c0, ...cL]) lcY.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
           }
         });
         loadCases.push(lcX, lcY);
@@ -1826,10 +1855,10 @@ export function generateWarehouse(spec, libs) {
 
   return {
     version: '1.0', units: 'kN-m', mode: '3D',
-    nodes, elements, materials: [mat], sections: comContrav ? [secCol, secCord, secDiag, secRod, secTerca] : [secCol, secCord, secDiag], diaphragms: [],
+    nodes, elements, materials: [mat], sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : [])], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, +(H + hR).toFixed(4)] },
-    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: comContrav ? 5 : 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
+    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: 3 + (comContrav ? 2 : 0) + (secLace ? 1 : 0), diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
     _generado: {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,

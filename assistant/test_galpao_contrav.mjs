@@ -102,6 +102,34 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   assert('f3. todos os vãos: equilíbrio Y', Math.abs(R[1] + F[1]) < 1e-3 * Math.abs(F[1]));
 }
 
+// (g) lattice ("treliçado") columns — width 0,5 m, module 0,5 m: H = 6 m → 12 panels; two pinned bases per column
+{
+  const t = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'treliçado', column_width_m: 0.5, column_module_m: 0.5 } }, BR);
+  const N = (id) => t.nodes[id - 1];
+  const bases = t.nodes.filter(n => n.z === 0 && n.restraints.ux && n.restraints.uz);
+  assert('g1. dois apoios por pilar (2 × 2 × 7 pórticos = 28), articulados', bases.length === 28 && bases.every(n => !n.restraints.ry), String(bases.length));
+  const legs0 = t.elements.filter(e => e.secId === 1 && N(e.n1).x === 0 && N(e.n2).x === 0 && N(e.n1).y === 10);
+  assert('g2. montante externo em 12 segmentos de 0,5 m', legs0.length === 12, String(legs0.length));
+  const lace = t.elements.filter(e => e.secId === 6);
+  assert('g3. travejamento rotulado (horizontais + diagonais)', lace.length > 0 && lace.every(e => e.releases[4] && e.releases[10]), String(lace.length));
+  const bottomNode = t.nodes.find(n => Math.abs(n.x - 0.5) < 1e-9 && n.y === 10 && Math.abs(n.z - 6) < 1e-9);
+  assert('g4. banzo inferior da treliça com nó em x = w (topo do montante interno)', !!bottomNode);
+  for (const name of ['CM', 'Viento X (Cpi 0)', 'Viento Y (Cpi 0)']) {
+    const { F, R } = solve(t, name);
+    const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
+    assert(`g5. ${name}: estável e ΣR + ΣF = 0 (X, Y, Z)`, R.every(Number.isFinite) && R.every((r, k) => Math.abs(r + F[k]) < tol), `F = [${F.map(v => v.toFixed(2))}] R = [${R.map(v => v.toFixed(2))}]`);
+  }
+  const { F } = solve(t, 'Viento X (Cpi -0,3)');
+  // walls: (0,7 + 0,5)·616,87·6·30 = 133,24 kN; roof X component −7,53 kN → 125,71 kN (same as single columns)
+  assert('g6. vento X total igual ao do pilar simples (125,71 kN)', Math.abs(F[0] - 125.71) < 0.05, F[0].toFixed(2));
+  // no near-mechanism: max displacement under CM and wind X of the same order as with single columns
+  const dmax = (mod, name) => { const { res } = solve(mod, name); let d = 0; for (const n of mod.nodes) { const u = res.getNodeDisp(n.id); if (u) d = Math.max(d, Math.hypot(u[0], u[1], u[2])); } return d; };
+  for (const name of ['CM', 'Viento X (Cpi 0)']) {
+    const dt = dmax(t, name), ds = dmax(m, name);
+    assert(`g7. ${name}: deslocamento máx. treliçado ${(dt * 1000).toFixed(1)} mm × simples ${(ds * 1000).toFixed(1)} mm (mesma ordem, < L/100)`, dt < 0.15 && dt < 10 * ds);
+  }
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
