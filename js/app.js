@@ -7162,7 +7162,7 @@ class App {
   <span>${t('Generador de nave industrial (galpón)')}</span><span id="wh-close" style="cursor:pointer">✕</span></div>
 ${sec(t('1. Geometría principal'))}
 ${row(2, num('wh-span', t('Vano (m)'), 15, 0.5, 4) + num('wh-h', t('Altura del pilar (m)'), 6, 0.25, 2))}
-${row(2, num('wh-nport', t('Nº de pórticos'), 7, 1, 2) + num('wh-sep', t('Distancia entre pórticos (m)'), 5, 0.25, 1))}
+${row(2, num('wh-nport', t('Nº de pórticos'), 7, 1, 1) + num('wh-sep', t('Distancia entre pórticos (m)'), 5, 0.25, 1))}
 ${row(2, `<div class="prop-field"><label>${t('Largo (m)')}</label><input type="text" id="wh-len" readonly tabindex="-1" style="opacity:.7"></div>` + num('wh-he', t('Montante inicial de la cercha (m)'), 0, 0.05, 0))}
 ${sec(t('2. Pilares'))}
 ${row(1, sel('wh-ctype', t('Tipo'), `<option value="laminado">${t('Perfil laminado')}</option><option value="treliçado">${t('Reticulado')}</option><option value="concreto">${t('Hormigón')}</option><option value="sem">${t('Sin pilar (solo la cubierta)')}</option>`))}
@@ -7192,7 +7192,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
   <button type="button" id="wh-ok" class="btn-primary">✓ ${t('Generar modelo')}</button></div>`;
     document.body.appendChild(el);
     const $ = (id) => el.querySelector('#' + id), v = (id) => $(id).value, n = (id) => parseFloat(String($(id).value).replace(',', '.'));
-    const nPort = () => Math.max(2, Math.round(n('wh-nport') || 2));
+    const nPort = () => Math.max(1, Math.round(n('wh-nport') || 1));
     const spec = () => {
       const tp = v('wh-ctype'), steelCol = tp === 'laminado' || tp === 'treliçado';
       return {

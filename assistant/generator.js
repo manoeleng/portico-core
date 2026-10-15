@@ -1685,11 +1685,16 @@ export function generateWarehouse(spec, libs) {
 
   const g = spec.warehouse || {};
   const luz = g.span_m > 0 ? g.span_m : 15; if (!(g.span_m > 0)) addWarning('replacement', 'Warehouse span not given: 15 m.');
-  const largo = g.length_m > 0 ? g.length_m : 30; if (!(g.length_m > 0)) addWarning('replacement', 'Warehouse length not given: 30 m.');
-  const H = g.column_height_m > 0 ? g.column_height_m : 6;
-  // number of frames (≥ 2) prevails over the spacing: spacing = length / (n − 1)
+  // number of frames (≥ 2) prevails over the spacing: spacing = length / (n − 1). n = 1: one representative frame,
+  // the spacing being its tributary width (roof and wind loads); no purlins, bracing or sag rods (they need two frames)
   const nPort = Math.round(+g.n_frames || 0);
+  const umPortico = nPort === 1;
+  const largo = umPortico ? 0 : g.length_m > 0 ? g.length_m : 30;
+  if (!umPortico && !(g.length_m > 0)) addWarning('replacement', 'Warehouse length not given: 30 m.');
+  const H = g.column_height_m > 0 ? g.column_height_m : 6;
   const sep = nPort >= 2 ? +(largo / (nPort - 1)).toFixed(6) : (g.frame_spacing_m > 0 ? g.frame_spacing_m : 5);
+  const tribOf = (f) => umPortico ? sep : tributario(Yf, f);
+  if (umPortico) addWarning('info', `Pórtico isolado (modelo plano 2D, X–Z — fora do plano não há sistema resistente sem os demais pórticos): largura de influência = ${sep} m (cargas de telhado e vento); terças, contraventamento e correntes não gerados. Cpe do vento com comprimento = ${sep} m — para um pórtico interno de galpão longo, gere o galpão completo.`);
   const slope = (g.slope_pct >= 0 ? g.slope_pct : 15) / 100;
   const hR = g.ridge_height_m > 0 ? g.ridge_height_m : +(slope * (luz / 2)).toFixed(4);
   // end depth of the truss ("montante inicial"): 0 = triangular truss (top chord meets the bottom chord on the
@@ -1800,7 +1805,7 @@ export function generateWarehouse(spec, libs) {
 
   const along = (i) => +(i * luz / nT).toFixed(5);
   const zRoof = (a) => +(hE + (a <= luz / 2 ? (2 * hR / luz) * a : (2 * hR / luz) * (luz - a))).toFixed(5);
-  const Yf = serie(largo, sep);          // frame positions
+  const Yf = umPortico ? [0] : serie(largo, sep);          // frame positions
   const frames = [];                      // {T, B, tops}
   const wallEls = new Set();                 // members of the side walls (columns, end posts): wall wind goes there
   const addWall = (n1, n2, s) => { const id = addEl(n1, n2, s); if (id != null) wallEls.add(id); return id; };
@@ -1928,7 +1933,7 @@ export function generateWarehouse(spec, libs) {
   const lcCM = { id: 1, name: 'CM', loads: [], selfWeight: true, type: 'static', specDir: null };
   const lcCV = { id: 2, name: 'CV', loads: [], selfWeight: false, type: 'static', specDir: null };
   for (let f = 0; f < Yf.length; f++) {
-    const trib = tributario(Yf, f);
+    const trib = tribOf(f);
     for (const tp of frames[f].tops) {
       if (tp.elemId == null) continue;
       lcCM.loads.push({ type: 'dist', elemId: tp.elemId, dir: 'gravity', w: +(qCM * trib * tp.dx / tp.Lsl).toFixed(6) });
@@ -1951,7 +1956,7 @@ export function generateWarehouse(spec, libs) {
   const regras = libs.reglas || {};
   if (cargas.wind && regras.loads?.wind?.metodo === 'NBR6123') {
     const theta = Math.atan(2 * hR / luz), sn = Math.sin(theta), cs = Math.cos(theta);
-    const vi = windLoad({ ...spec, geometry: { ...(spec.geometry || {}), roof_slope_deg: theta * 180 / Math.PI, length_m: largo, width_m: luz } }, regras, H + hE + hR);
+    const vi = windLoad({ ...spec, geometry: { ...(spec.geometry || {}), roof_slope_deg: theta * 180 / Math.PI, length_m: umPortico ? sep : largo, width_m: luz } }, regras, H + hE + hR);
     for (const n of vi._notas || []) addWarning('info', `Vento: ${n}`);
     if (!(vi.q_Nm2 > 0)) addWarning('omitted', 'Vento NBR 6123 não calculado (ver avisos): galpão sem casos de vento.');
     else {
@@ -1973,9 +1978,10 @@ export function generateWarehouse(spec, libs) {
       for (const { cpi, presiones: P } of vi.presiones_por_cpi) {
         const cpiTxt = String(cpi).replace('.', ',');
         const lcX = { id: 3 + k++, name: `Viento X (Cpi ${cpiTxt})`, loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _cpi: cpi };
-        const lcY = { id: 3 + k++, name: `Viento Y (Cpi ${cpiTxt})`, loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _cpi: cpi };
+        // one frame = plane (2D) model: no out-of-plane (gable) wind case
+        const lcY = umPortico ? null : { id: 3 + k++, name: `Viento Y (Cpi ${cpiTxt})`, loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _cpi: cpi };
         Yf.forEach((yf, f) => {
-          const trib = tributario(Yf, f), c0 = colAt(0, yf), cL = colAt(luz, yf);
+          const trib = tribOf(f), c0 = colAt(0, yf), cL = colAt(luz, yf);
           // +X (α = 90°)
           for (const id of c0) lcX.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(kN(P['1']) * trib).toFixed(6) });
           for (const id of cL) lcX.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(-kN(P['4']) * trib).toFixed(6) });
@@ -1983,15 +1989,15 @@ export function generateWarehouse(spec, libs) {
           // +Y (α = 0°): region of the frame measured from the windward gable y = 0
           const reg = yf <= vi.x0_m + 1e-9 ? 1 : yf <= largo / 2 + 1e-9 ? 2 : 3;
           const pS = reg === 1 ? P.A1B1 : reg === 2 ? P.A2B2 : P.A3B3, pR = reg === 1 ? P.EG : reg === 2 ? P.FH : P.IJ;
-          for (const id of c0) lcY.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(kN(pS) * trib).toFixed(6) });
-          for (const id of cL) lcY.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(-kN(pS) * trib).toFixed(6) });
-          roof(lcY, f, trib, pR, pR);
+          for (const id of c0) lcY?.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(kN(pS) * trib).toFixed(6) });
+          for (const id of cL) lcY?.loads.push({ type: 'dist', elemId: id, dir: 'globalX', w: +(-kN(pS) * trib).toFixed(6) });
+          if (lcY) roof(lcY, f, trib, pR, pR);
           if (f === 0 || f === Yf.length - 1) {          // gables: C (y = 0, pressure +Y) and D (y = length)
             const pG = f === 0 ? kN(P.C) : -kN(P.D);
-            for (const c of [...c0, ...cL]) lcY.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
+            for (const c of [...c0, ...cL]) lcY?.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
           }
         });
-        loadCases.push(lcX, lcY);
+        loadCases.push(lcX, ...(lcY ? [lcY] : []));
       }
       addWarning('info', `Vento NBR 6123: q = ${vi.q_Nm2} N/m² (α = 90°), ${vi.q_empena_Nm2} N/m² (α = 0°); ${loadCases.length - 2} casos (X e Y × Cpi ${vi.cpi.join(' / ')}); −X/−Y por simetria.`);
     }
@@ -2024,14 +2030,14 @@ export function generateWarehouse(spec, libs) {
       const elById = new Map(elements.map(e => [e.id, e]));
       for (const e of elements) push(e.id, (+mats[e.matId - 1]?.rho || 0) * (+secById.get(e.secId)?.A || 0) * 9.80665, Lof(e));   // self-weight (as the solver)
       for (const ld of lcCM.loads) if (ld.type === 'dist' && ld.dir === 'gravity') push(ld.elemId, ld.w, Lof(elById.get(ld.elemId)));
-      loadCases.push(lcEx, lcEy);
+      loadCases.push(lcEx, ...(umPortico ? [] : [lcEy]));
       addWarning('info', `Sismo NBR 15421: zona 1, categoria A — Fx = 0,01·wx (7.3.2) em X e em Y separadamente; peso permanente W = ${W.toFixed(1)} kN → H = ${(0.01 * W).toFixed(2)} kN por direção (sobrecarga de cobertura não incluída). W é só o peso do modelo: some fechamentos, forros, instalações e equipamentos fixos; em armazenamento, 25 % da variável. Requisito mínimo da categoria A.`);
       if (!comContrav) addWarning('omitted', 'Sismo NBR 15421 zona 1: sem contraventamento o galpão não tem sistema resistente declarado na direção Y (7.3.2 exige duas direções ortogonais e mecanismo de torção).');
     } else addWarning('omitted', `Sismo NBR 15421: zona ${zona} (categoria ${+zona === 2 ? 'B' : 'C'}) exige o método das forças horizontais equivalentes (seção 9) ou análise espectral — não gerado para o galpão.`);
   }
 
   return {
-    version: '1.0', units: 'kN-m', mode: '3D',
+    version: '1.0', units: 'kN-m', mode: umPortico ? '2D' : '3D',   // a single frame is a plane frame (X–Z)
     nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, ...(hE > 0 ? [+(H + hE).toFixed(4)] : []), +(H + hE + hR).toFixed(4)] },

@@ -226,6 +226,20 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   assert('n6. correntes rígidas nos terços: 2 × nT × 6, L 40x2,00, sem flag de tração', sr.length === 2 * nT * 6 && sr.every(e => !e.cable) && rg.sections.find(x => x.id === 7).design?.shape === 'L');
 }
 
+// (o) one frame only: a single representative frame, tributary width = spacing; no purlins/bracing/sag rods
+for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
+  const o = generateModel({ ...spec, warehouse: { ...spec.warehouse, n_frames: 1, sag_rod_lines: 1, column_type: ct } }, BR);
+  assert(`o1. ${ct}: um único pórtico (todos os nós em y = 0)`, o.nodes.every(n => n.y === 0), String(new Set(o.nodes.map(n => n.y)).size));
+  assert(`o2. ${ct}: sem terças, tirantes nem correntes`, !o.elements.some(e => e.cable || e.secId === 5 || e.secId === 7));
+  const { F, R } = solve(o, 'CM');
+  // roof dead load on the tributary width 5 m: qCM·trib·span = 0,15·5·15 = 11,25 kN plus self-weight
+  const qRoof = o.loadCases.find(l => l.name === 'CM').loads.reduce((sm, ld) => { const e = o.elements[ld.elemId - 1], a = o.nodes[e.n1 - 1], b = o.nodes[e.n2 - 1]; return sm + ld.w * Math.hypot(b.x - a.x, b.z - a.z); }, 0);
+  assert(`o3. ${ct}: telha na largura de influência 5 m → 0,15·5·15 = 11,25 kN (w gravado com 6 casas)`, Math.abs(qRoof - 11.25) < 1e-5 * 11.25, qRoof.toFixed(6));
+  assert(`o3b. ${ct}: pórtico isolado é plano (2D) e sem caso de vento Y`, o.mode === '2D' && !o.loadCases.some(l => /^Viento Y/.test(l.name)));
+  for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento X (Cpi -0,3)']) { const r = solve(o, nm); const tol = 1e-3 * Math.max(1, ...r.F.map(Math.abs));
+    assert(`o4. ${ct} · ${nm}: estável e equilíbrio`, r.R.every(Number.isFinite) && r.R.every((v, i) => Math.abs(v + r.F[i]) < tol), `F=[${r.F.map(v => v.toFixed(2))}] R=[${r.R.map(v => v.toFixed(2))}]`); }
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
