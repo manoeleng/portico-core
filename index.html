@@ -556,7 +556,8 @@
       <!-- Vertical super-tabs -->
       <div id="panel-vtabs">
         <button class="vtab active" data-vtab="model">Modelo</button>
-        <button class="vtab" data-vtab="loads" title="Cargas: casos, combinaciones y cargas del elemento seleccionado en el caso activo">Cargas</button>
+        <button class="vtab" data-vtab="loads" title="Cargas: casos y cargas del elemento seleccionado en el caso activo">Cargas</button>
+        <button class="vtab" data-vtab="combos" title="Combinaciones de los casos de carga (ELU / ELS)">Combinaciones</button>
         <button class="vtab" data-vtab="assistant">Asistente</button>
         <button class="vtab" data-vtab="results">Resultados</button>
         <button class="vtab" data-vtab="design">Diseño</button>
@@ -623,7 +624,6 @@
           <div id="loads-tabs">
             <button class="ptab ltab active" data-ltab="sel">Sel.</button>
             <button class="ptab ltab" data-ltab="casos">Casos</button>
-            <button class="ptab ltab" data-ltab="combos">Combinaciones</button>
           </div>
           <div id="loads-body">
             <div id="ltab-sel" class="ptab-content active">
@@ -633,11 +633,15 @@
               <div id="lc-list"></div>
               <button class="btn-add" id="btn-add-lc-panel">＋ Nuevo caso de carga</button>
             </div>
-            <div id="ltab-combos" class="ptab-content">
-              <button class="btn-add" id="btn-combos-norma" style="margin-bottom:8px;background:rgba(210,153,34,0.16);border-color:var(--warn);color:var(--warn)" title="Casos D/L y combinaciones LRFD + servicio de la NCh3171">⚙ Crear casos y combos de norma (NCh3171)</button>
-              <div id="combo-list"></div>
-              <button class="btn-add" id="btn-add-combo">＋ Agregar Combinación</button>
-            </div>
+          </div>
+        </div>
+
+        <!-- COMBINACIONES (pestaña propia) -->
+        <div id="vpanel-combos" class="vpanel-content">
+          <div id="combos-body">
+            <button class="btn-add" id="btn-combos-norma" style="margin-bottom:8px;background:rgba(210,153,34,0.16);border-color:var(--warn);color:var(--warn)" title="Casos D/L y combinaciones LRFD + servicio de la NCh3171">⚙ Crear casos y combos de norma (NCh3171)</button>
+            <div id="combo-list"></div>
+            <button class="btn-add" id="btn-add-combo">＋ Agregar Combinación</button>
           </div>
         </div>
 

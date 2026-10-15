@@ -6559,8 +6559,7 @@ class App {
   // Opens the combinations tab (accessible from the Analysis menu / F8)
   openCombosTab() {
     this.setPanelCollapsed?.(false);
-    this.panel._switchVTab('loads');
-    this.panel._switchLTab('combos');   // → renderCombinations
+    this.panel._switchVTab('combos');   // → renderCombinations
   }
 
   // Brazilian cases and combinations (NBR 8681:2025 with γ of NBR 6118:2026 / NBR 8800:2024,

@@ -2324,7 +2324,7 @@ export const PT = {
   "Haga clic en un nodo o elemento para editar sus cargas en el caso activo. Ctrl+clic para seleccionar varios.": "Clique em um nó ou barra para editar as cargas no caso ativo. Ctrl+clique para selecionar vários.",
   "Las áreas no tienen cargas en este panel (temperatura por cara: pestaña Modelo).": "As áreas não têm cargas neste painel (temperatura por face: aba Modelo).",
   "La carga térmica por cara de las áreas se edita en la pestaña Modelo.": "A carga térmica por face das áreas é editada na aba Modelo.",
-  "Cargas: casos, combinaciones y cargas del elemento seleccionado en el caso activo": "Cargas: casos, combinações e cargas do elemento selecionado no caso ativo",
+  "Cargas: casos y cargas del elemento seleccionado en el caso activo": "Cargas: casos e cargas do elemento selecionado no caso ativo",
   "Articulado": "Articulado",
   "Empotramiento parcial (αR)": "Engaste parcial (αR)",
   "Personalizado (por elemento)": "Personalizado (por barra)",
@@ -2345,6 +2345,7 @@ export const PT = {
   "En 3D la torsión de los demás elementos sigue continua y puede transmitir momento a ese elemento; con momento nodal aplicado o giro parcialmente restringido en el apoyo, este absorbe ese momento.": "Em 3D a torção das demais barras segue contínua e pode transmitir momento a essa barra; com momento nodal aplicado ou giro parcialmente restringido no apoio, ela absorve esse momento.",
   "Flexión de los extremos de elemento en el nodo (torsión continua). αR = 0 articulado, 1 empotrado; Rsec = 3·EI·αR/(Lef·(1−αR)) por elemento, con la sección y la longitud actuales (NBR 9062:2017 5.1.2.7).": "Flexão dos extremos de barra no nó (torção contínua). αR = 0 articulado, 1 engastado; Rsec = 3·EI·αR/(Lef·(1−αR)) por barra, com a seção e o comprimento atuais (NBR 9062:2017 5.1.2.7).",
   "Resorte lineal: el mismo αR para M+ y M−. Use en el modelo el mismo EI con que se obtuvo αR (Anexo A: ajuste el modificador de inercia de la sección).": "Mola linear: o mesmo αR para M+ e M−. Use no modelo o mesmo EI com que αR foi obtido (Anexo A: ajuste o modificador de inércia da seção).",
+  "Combinaciones de los casos de carga (ELU / ELS)": "Combinações dos casos de carga (ELU / ELS)",
 };
 
 export default PT;

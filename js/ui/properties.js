@@ -20,14 +20,14 @@ export class PropertiesPanel {
       assistant: document.getElementById('vpanel-assistant'),
       temp:      document.getElementById('vpanel-temp'),
       loads:     document.getElementById('vpanel-loads'),
+      combos:    document.getElementById('vpanel-combos'),
     };
     this._currentVTab = 'model';
-    // ── Cargas sub-tabs (selection loads / cases / combinations) ───────────
+    // ── Cargas sub-tabs (selection loads / cases); combinations have their own vertical tab ──
     this._ltabBtns = [...panelEl.querySelectorAll('#loads-tabs .ltab')];
     this._ltabContents = {
       sel:    document.getElementById('ltab-sel'),
       casos:  document.getElementById('ltab-casos'),
-      combos: document.getElementById('ltab-combos'),
     };
     this._currentLTab = 'sel';
     this._lastShown = null;   // what the selection panel shows → re-shown when switching Modelo ↔ Cargas
@@ -138,7 +138,6 @@ export class PropertiesPanel {
     this._ltabBtns.forEach(b => b.classList.toggle('active', b.dataset.ltab === tab));
     Object.entries(this._ltabContents).forEach(([k, el]) => el?.classList.toggle('active', k === tab));
     if (tab === 'casos')  this.renderLoadCases();
-    if (tab === 'combos') this.renderCombinations();
   }
 
   // active-case selector of the Cargas panel (same list as the toolbar selector, analysis cases only)
@@ -160,6 +159,7 @@ export class PropertiesPanel {
     if (vtab === 'design') this.renderDesign();
     if (vtab === 'temp') this.app.renderTemporales?.();
     if (vtab === 'loads') { this.renderLoadsHeader(); this._switchLTab(this._currentLTab); }
+    if (vtab === 'combos') this.renderCombinations();
     // Modelo ↔ Cargas: the same selection, shown in the other mode
     if (prev !== vtab && (vtab === 'loads' || (vtab === 'model' && prev === 'loads'))) this._reshow();
   }

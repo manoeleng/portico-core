@@ -2579,7 +2579,7 @@ export const EN = {
   "Haga clic en un nodo o elemento para editar sus cargas en el caso activo. Ctrl+clic para seleccionar varios.": "Click a node or member to edit its loads in the active case. Ctrl+click to select several.",
   "Las áreas no tienen cargas en este panel (temperatura por cara: pestaña Modelo).": "Areas have no loads in this panel (per-face temperature: Model tab).",
   "La carga térmica por cara de las áreas se edita en la pestaña Modelo.": "The per-face thermal load of areas is edited in the Model tab.",
-  "Cargas: casos, combinaciones y cargas del elemento seleccionado en el caso activo": "Loads: cases, combinations and loads of the selected item in the active case",
+  "Cargas: casos y cargas del elemento seleccionado en el caso activo": "Loads: cases and loads of the selected item in the active case",
   "Articulado": "Pinned",
   "Empotramiento parcial (αR)": "Partial fixity (αR)",
   "Personalizado (por elemento)": "Custom (per member)",
@@ -2600,6 +2600,7 @@ export const EN = {
   "En 3D la torsión de los demás elementos sigue continua y puede transmitir momento a ese elemento; con momento nodal aplicado o giro parcialmente restringido en el apoyo, este absorbe ese momento.": "In 3D the torsion of the other members stays continuous and may transfer moment to that member; with an applied nodal moment or a partly restrained support rotation, it takes that moment.",
   "Flexión de los extremos de elemento en el nodo (torsión continua). αR = 0 articulado, 1 empotrado; Rsec = 3·EI·αR/(Lef·(1−αR)) por elemento, con la sección y la longitud actuales (NBR 9062:2017 5.1.2.7).": "Bending of the member ends at the node (torsion continuous). αR = 0 pinned, 1 fixed; Rsec = 3·EI·αR/(Lef·(1−αR)) per member, with the current section and length (NBR 9062:2017 5.1.2.7).",
   "Resorte lineal: el mismo αR para M+ y M−. Use en el modelo el mismo EI con que se obtuvo αR (Anexo A: ajuste el modificador de inercia de la sección).": "Linear spring: the same αR for M+ and M−. Use in the model the same EI αR was obtained with (Annex A: set the section's inertia modifier).",
+  "Combinaciones de los casos de carga (ELU / ELS)": "Combinations of the load cases (ULS / SLS)",
 };
 
 export default EN;
