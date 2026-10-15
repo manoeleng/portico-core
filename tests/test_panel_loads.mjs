@@ -4,7 +4,7 @@
 // (y = 0; 1,5; 3; 4,5; 6), vão da telha em Y, q = 1 kN/m² → terças de borda w = 0,75 kN/m, internas 1,5 kN/m;
 // vigas de borda paralelas ao vão (x = 0 e 10) não recebem nada; Σ w·L = q·A = 60 kN.
 import { Model } from '../js/model/model.js';
-import { panelToDistLoads, regeneratePanelLoads } from '../js/model/panel_loads.js';
+import { panelToDistLoads, regeneratePanelLoads, panelMembers } from '../js/model/panel_loads.js';
 import { StaticSolver } from '../js/solver/static_solver.js';
 globalThis.window = globalThis;
 await import('../lib/numeric.js');
@@ -151,6 +151,19 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   ok('P9. caso CM: Σ = (0,15 + 0,10)·60 = 15 kN', total(m, cm.loads), 15);
   assert('P9b. duas cargas distintas no mesmo pano (panelLoadId 1 e 2)', new Set(cm.loads.map((l) => l.panelLoadId)).size === 2);
   ok('P9c. caso Vento: sucção 0,6·60 = 36 kN para cima', -total(m, v.loads), 36);
+}
+
+// (10) roles of the bars in the panel (dashed drawing): the 'loaded' ones are exactly those that get load in P1
+{
+  const { m, purl, edge, corners, L } = roof();
+  const e0 = m.elements.get(purl[0]), rod = m.addElement(L[0][0], L[1][1], e0.matId, e0.secId).id; m.updateElement(rod, { cable: true });
+  const pan = { id: 1, nodes: corners, q: 1, dir: 'gravity', axis: 'Y' };
+  const roles = panelMembers(m, pan), r = panelToDistLoads(m, pan);
+  const got = new Set(r.loads.map((l) => l.elemId));
+  assert('P10. terças: papel "loaded" = barras que recebem carga', purl.every((id) => roles.get(id) === 'loaded' && got.has(id)));
+  assert('P10b. vigas paralelas ao vão: "parallel" (tracejadas)', edge.every((id) => roles.get(id) === 'parallel' && !got.has(id)));
+  assert('P10c. tirante no pano: "cable" (tracejado), sem carga', roles.get(rod) === 'cable' && !got.has(rod));
+  assert('P10d. nenhuma outra barra classificada', roles.size === purl.length + edge.length + 1);
 }
 
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);

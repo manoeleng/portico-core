@@ -201,6 +201,31 @@ export function panelFrame(model, panel) {
     at: (x, y) => [p0[0] + u[0] * x + v[0] * y, p0[1] + u[1] * x + v[1] * y, p0[2] + u[2] * x + v[2] * y] };
 }
 
+/**
+ * Members lying in the panel (same plane and polygon tests as panelToDistLoads) and their role in the one-way
+ * distribution: 'loaded' (across the span: receives the strip), 'parallel' (along the span) or 'cable' (tirante).
+ * Geometry only — independent of the loads. Map elemId → role. Drawn dashed when not 'loaded' (CYPE shows the bars of
+ * a panel that take no surface load in dashed line).
+ */
+export function panelMembers(model, panel) {
+  const roles = new Map();
+  const f = panelFrame(model, panel);
+  if (!f) return roles;
+  const size = Math.max(...f.pts.map((q) => len(sub(q, f.p0))));
+  const tol = Math.max(1e-6, 1e-4 * size);
+  const to2 = (p) => { const d = sub(p, f.p0); return [dot(d, f.u), dot(d, f.v)]; };
+  for (const e of model.elements.values()) {
+    const a = model.nodes.get(e.n1), b = model.nodes.get(e.n2);
+    if (!a || !b) continue;
+    const pa = P(a), pb = P(b);
+    if (Math.abs(dot(sub(pa, f.p0), f.n)) > 1e-3 * size + tol || Math.abs(dot(sub(pb, f.p0), f.n)) > 1e-3 * size + tol) continue;
+    const A2 = to2(pa), B2 = to2(pb), M2 = [(A2[0] + B2[0]) / 2, (A2[1] + B2[1]) / 2];
+    if (!inPoly(A2, f.poly, tol) || !inPoly(B2, f.poly, tol) || !inPoly(M2, f.poly, tol)) continue;
+    roles.set(e.id, e.cable ? 'cable' : Math.abs(dot(unit(sub(pb, pa)), f.u)) > 0.1 ? 'parallel' : 'loaded');
+  }
+  return roles;
+}
+
 // ── Panels as model geometry, loads per case (CYPE: the "paño" is a surface of the model; loads are assigned to it in
 // each load case, several per case if needed) ──────────────────────────────────────────────────────────────────────
 //   model.panels    = [{ id, nodes, axis, layer, name? }]

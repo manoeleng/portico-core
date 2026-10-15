@@ -5,7 +5,7 @@
 //   Three.js:  X east, Y up,  Z south (Y-up default)
 //   Transform: m2t(x,y,z) → (x, z, y)   t2m(v) → {x:v.x, y:v.z, z:v.y}
 // ──────────────────────────────────────────────────────────────────────────────
-import { panelFrame } from '../model/panel_loads.js?v=7';
+import { panelFrame, panelMembers } from '../model/panel_loads.js?v=7';
 import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -3964,6 +3964,7 @@ export class Viewport {
     if (!panels.length || model.layerView?.categories?.panos === false) return;
     const sel = this._selPanel ? this._selPanel.id : null;
     const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
+    this._dashPanelMembers(model, span);
     const fmt = (v) => (+v).toFixed(2).replace('.', ',');
     const sym = (d) => d === 'gravity' ? '↓' : d === 'against' ? i18n.t('vento →|') : d === 'normal' ? i18n.t('vento |→') : d === 'globalX' ? '→X' : d === 'globalY' ? '→Y' : '';
     for (const p of panels) {
@@ -4022,6 +4023,37 @@ export class Viewport {
     for (const obj of this._loadObjects) this._scene.remove(obj);
     this._loadObjects = [];
     this._panelFills = [];
+    this._undashPanelMembers();
+  }
+
+  // Bars lying in a visible panel that take NO surface load (parallel to the span, tirantes) are drawn dashed, as in
+  // CYPE — a bar loaded by any visible panel stays solid. The line keeps its color (selection/results recolor it).
+  _dashPanelMembers(model, span) {
+    const roles = new Map();
+    for (const p of model.panels || []) {
+      if (layerById(model, p.layer ?? 1).visible === false) continue;
+      for (const [id, r] of panelMembers(model, p)) if (roles.get(id) !== 'loaded') roles.set(id, r);
+    }
+    for (const [id, r] of roles) {
+      if (r === 'loaded') continue;
+      const line = this._elemLines.get(id);
+      if (!line || line.userData.panelDashed) continue;
+      const old = line.material;
+      line.material = new THREE.LineDashedMaterial({ color: old.color.clone(), dashSize: span * 0.012, gapSize: span * 0.008,
+        transparent: old.transparent, opacity: old.opacity });
+      old.dispose();
+      line.computeLineDistances();
+      line.userData.panelDashed = true;
+    }
+  }
+  _undashPanelMembers() {
+    for (const [, line] of this._elemLines || []) {
+      if (!line.userData.panelDashed) continue;
+      const old = line.material;
+      line.material = new THREE.LineBasicMaterial({ color: old.color.clone(), transparent: old.transparent, opacity: old.opacity });
+      old.dispose();
+      delete line.userData.panelDashed;
+    }
   }
 
   // Show / hide the load arrows (toggle from the UI).
