@@ -1,0 +1,52 @@
+{
+  "_comentario": "Oraculos transcritos de oraculos_14762.json (ficha NBR 14762:2010 + CBCA 2014 'Estruturas compostas por perfis formados a frio' E. Lubas Silva, base NBR 14762:2010 / 6355:2012, e CBCA 449/2008 so p/ formulas MLE com E=20500 explicito). Unidades: cm, cm2, cm3, cm4, cm6, kN/cm2, kN, kN.cm (o teste converte para kN, m). Nada aqui e calculado; valores impressos tem 3-4 algarismos. Ex.05: Nc,Rd impresso (16,69) e' inconsistente com o proprio chi=0,330 → usado o recalculo 0,330*8,71*25/1,2 = 59,9 kN (alerta da ficha).",
+  "perfis": {
+    "Ue 100x50x17x1,20": {"shape":"Ue","bw":100,"bf":50,"D":17,"t":1.2,"ri":1.2,"A":2.71,"Ix":44.15,"Iy":10.12,"Wx":8.83,"Wy":3.15,"rx":4.03,"ry":1.93,"It":0.013,"Cw":246.61,"x0":4.28,"r0":6.19,"xg":1.79,"_nota":"It=0,013 do manual (catalogo CSV traz 0,01)"},
+    "Ue 150x60x20x3,00": {"shape":"Ue","bw":150,"bf":60,"D":20,"t":3.0,"ri":3.0,"A":8.71,"Ix":298.07,"Iy":41.94,"Wx":39.74,"Wy":10.28,"rx":5.85,"ry":2.19,"It":0.261,"Cw":2090.94,"x0":4.55,"r0":7.73,"xg":1.92},
+    "Ue 100x50x17x3,00": {"shape":"Ue","bw":100,"bf":50,"D":17,"t":3.0,"ri":3.0,"A":6.43,"Ix":99.30,"Iy":21.66,"Wx":19.86,"Wy":6.72,"rx":3.93,"ry":1.84,"It":0.19,"Cw":521.00,"x0":4.06,"r0":5.94,"xg":1.78},
+    "U 125x50x2,65 (S8)": {"shape":"U","bw":125,"bf":50,"t":2.65,"ri":3.975,"A":5.732,"Ix":133.55,"Iy":13.503,"Wx":21.37,"Wy":3.58,"rx":4.827,"ry":1.53,"It":0.134,"Cw":344.854,"x0":2.84,"r0":5.809,"xg":1.23},
+    "U 100x50x2,0 (M449 Ex.13)": {"shape":"U","bw":100,"bf":50,"t":2.0,"ri":2.0,"A":3.87,"Ix":61.491,"Iy":9.726,"It":0.052,"Cw":159.068,"x0":3.108,"r0":5.298},
+    "Ue 200x100x25x2,65 (6355:2003, M449 Ex.14)": {"shape":"Ue","bw":200,"bf":100,"D":25,"t":2.65,"ri":2.65,"A":11.463,"Ix":749.504,"Iy":157.365,"It":0.268,"Cw":12951.323,"x0":7.858,"r0":11.868}
+  },
+  "casos": {
+    "BR-14762-NE-01": {"fonte":"M14 Ex.04 p.51-53","perfil":"Ue 100x50x17x1,20","fy":25,"E":20000,"G":7700,"KxLx":400,"KyLy":400,"KzLz":400,
+      "esperado":{"Nex":54.47,"Ney":12.49,"Nez":10.55,"Nexz":9.57,"Ne":9.57,"lambda0":2.660,"chi":0.124,"Aef":2.71,"Nc_Rd_global":7.0,"Dmin_Tab11":0.0716,"dispensada":true},
+      "nota":"KyLy/ry = 400/1,93 = 207 > 200 (9.7.4): o manual ignora o limite; a verificacao sai 'nao verificada' (ratio=Infinity) e os numeros ficam so como informacao."},
+    "BR-14762-NE-02": {"fonte":"M14 Ex.05 p.53-54","perfil":"Ue 150x60x20x3,00","fy":25,"E":20000,"G":7700,"KxLx":600,"KyLy":300,"KzLz":300,
+      "esperado":{"Nex":163.44,"Ney":91.98,"Nez":110.38,"Nexz":81.89,"Ne":81.89,"lambda0":1.63,"chi":0.330,"Aef":8.71,"Nc_Rd_recalculo":59.9}},
+    "BR-14762-DIST-01": {"fonte":"M14 Ex.06 p.55","perfil":"Ue 100x50x17x3,00","fy":25,"Ndist":575.60,"L":300,
+      "esperado":{"lambda_dist":0.528,"chi_dist":1.0,"Nc_Rd_dist":133.96}},
+    "BR-14762-FLEX-01": {"fonte":"M14 Ex.07 p.62-66","perfil":"Ue 100x50x17x1,20","fy":25,"E":20000,"G":7700,"Lb":400,"Cb":1.0,
+      "esperado":{"Wef":8.6,"MRd_esc":195.45,"Me":71.1,"Wc":8.83,"lambda0":1.762,"chi_FLT":0.322,"Wc_ef":8.83,"MRd_FLT":64.6,"Dmin_Tab14":0.1633,"MRd":64.6}},
+    "BR-14762-FLEX-02": {"fonte":"M14 Ex.08 p.67-70","perfil":"Ue 100x50x17x1,20","fy":25,"E":20000,"G":7700,"L":400,"Cb":1.0,"Cm":1.0,"Cs":1.0,
+      "esperado":{"xm":1.737,"x0":4.29,"beta_l":33.49,"beta_w":-22.974,"beta_f":25.387,"j":6.06,"Me":692.0,"lambda0":0.452,"chi_FLT":1.0,"Wef":2.96,"MRd_esc":67.3,"MRd":67.3}},
+    "BR-14762-VM-01": {"fonte":"M14 Ex.09 p.71","perfil":"Ue 100x50x17x1,20","fy":25,"E":20000,"MSd":150,"VSd":0.75,
+      "esperado":{"limite_1_08":68.3,"limite_1_4":88.5,"h_t":79.33,"VRd":13.45,"interacao":0.592}},
+    "BR-14762-TERCA-S8": {"fonte":"M14 Anexo D item 4.8 'S8 terca U125x50x2,65' p.164-170","perfil":"U 125x50x2,65 (S8)","fy":24,"E":20000,"G":7700,
+      "Lx":342,"Ly":171,"Lz":171,"Lb":171,"Cb":1.3,"NSd":1.2,"MxSd":230,"MySd":10,"VSd":0.1,
+      "esperado":{"Nex":225.38,"Ney":91.15,"Nez":99.564,"Nexz":86.59,"Ne":86.59,"lambda0":1.26,"chi":0.514,"Aef":5.732,"Nc_Rd":58.94,
+        "flexao_x":{"Wef_esc":19.336,"MRd_esc":421.87,"Me":719.38,"lambda0":0.844,"chi_FLT":0.89,"Wc_ef":19.71,"MRd_FLT":382.82,"MxRd":382.82},
+        "flexao_y":{"Wy_ef_esc":3.077,"MRd_esc":67.14,"Cs":-1.0,"j":6.879,"Me":224.57,"Wc":3.581,"lambda0":0.619,"chi_FLT":0.992,"Wc_ef":3.091,"MRd_FLT":66.89,"MyRd":66.89},
+        "VRd":39.69,"lim_1_08":69.714,"h_t":43.17,
+        "interacao_9_9":{"N":0.02,"Mx":0.60,"My":0.15,"soma":0.77},
+        "esbeltez":{"x":70.8,"y":111.7}},
+      "nota":"As cifras de flexao em x e o cortante do manual usam h = bw-4t (ri = t) embora a entrada liste ri = 3,975 mm; Wef/Wc,ef de x e y vem do DimPerfil 4.0 (nao reproduzivel a mao)."},
+    "BR-14762-PILAR-S6-tracao": {"fonte":"M14 Anexo D item 4.6 'S6' p.153-156 (so a tracao, escoamento da bruta)","A":44.53,"fy":24,"esperado":{"Nt_Rd_esc":971.65}},
+    "BR-14762-CB": {"fonte":"M14 S8 (Cb_x=1,3) e S6 (Cb=2,737)","casos":[
+      {"Mmax":16,"MA":7,"MB":12,"MC":15,"Cb":1.3,"tol":0.005,"nota":"qL2/8 = 16/128; 7,12,15 /128 -> 1,2987"},
+      {"Mmax":3920,"MA":-1000,"MB":0,"MC":1700,"Cb":2.737,"tol":0.001}]},
+    "BR-14762-TAB-DISPENSA": {"casos":[
+      {"tab":11,"bf_bw":0.5,"bw_t":83.33,"D_bw_min":0.0716},
+      {"tab":14,"bf_bw":0.5,"bw_t":83.33,"D_bw_min":0.1633},
+      {"tab":11,"bf_bw":0.4,"bw_t":83.33,"D_bw_min":0.0533},
+      {"tab":11,"bf_bw":0.6,"bw_t":83.33,"D_bw_min":0.0900}]},
+    "BR-14762-MLE-449": {"fonte":"M449 Ex.01-03 (formulas Tab.5/6 validas; E=20500 explicito)","E":20500,
+      "Ex01_mesa":{"b":9.47,"t":0.265,"sigma":21.32,"k":0.43,"lambda_p":1.85,"bef":4.51},
+      "Ex02_mesa":{"b":9.47,"t":0.265,"sigma":25,"psi":-0.236,"k":0.624,"lambda_p":1.66,"bef_2001":4.94},
+      "Ex03_L":{"b":7.33,"t":0.335,"sigma":8.6,"k":0.43,"lambda_p":0.72,"bef":7.07}},
+    "BR-14762-NE-449-13": {"fonte":"M449 Ex.13 p.67-69 (so Ne; E=20500, G=7884,615)","perfil":"U 100x50x2,0 (M449 Ex.13)","E":20500,"G":7884.615,"KL":150,
+      "esperado":{"Nex":552.95,"Ney":87.46,"Nez":65.43,"Nexz":62.67,"Ne":62.67}},
+    "BR-14762-NE-449-14": {"fonte":"M449 Ex.14 p.69-71 (so Ne; E=20500, G=7884,615; props 6355:2003)","perfil":"Ue 200x100x25x2,65 (6355:2003, M449 Ex.14)","E":20500,"G":7884.615,"Lx":300,"Ly":150,"Lz":150,
+      "esperado":{"Nex":1684.942,"Ney":1415.074,"Nez":841.839,"Nexz":657.444,"Ne":657.44}}
+  }
+}
