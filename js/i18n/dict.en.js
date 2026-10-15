@@ -2854,6 +2854,16 @@ export const EN = {
   "Contenções também impedem a torção (Lb = Lz = Ly)": "Restraints also prevent twist (Lb = Lz = Ly)",
   "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).": "Tick when the lateral restraints also prevent twist and hold the compression flange (e.g. slab on the compression flange, knee brace). Unticked, Lb and Lz run between the ends and the supports (conservative).",
   "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.": "Unbraced lengths (NBR 8800:2024 4.10.6.1). Empty = automatic: physical member (collinear segments) between anchored restraint points (support, diaphragm, plate or a member tied to one). Lx: buckling about the strong axis (local z); Ly: about the weak axis (local y); Lb: lateral-torsional buckling.",
+  "Escala de la deformada: real, automática o múltiplos de la automática": "Deformed scale: true, automatic or multiples of the automatic",
+  "Real": "True",
+  "Auto": "Auto",
+  "Animar la deformada": "Animate the deformed shape",
+  "Rótulos": "Labels",
+  "Valores escritos en los diagramas": "Values written on the diagrams",
+  "Máx/mín": "Max/min",
+  "Por barra": "Per member",
+  "Diagrama de momento del lado comprimido (por defecto: lado traccionado)": "Moment diagram on the compression side (default: tension side)",
+  "Invertir DMF": "Flip BMD",
 };
 
 export default EN;

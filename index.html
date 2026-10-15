@@ -501,6 +501,19 @@
             style="width:70px;cursor:pointer" title="Ajuste fino relativo al tamaño automático (×0.03 … ×31)">
           <input type="number" id="result-scale" value="1" step="0.1" min="0.01"
             style="width:62px" title="Factor relativo (1 = automático). Doble clic = volver a 1.">
+          <select id="res-preset" title="Escala de la deformada: real, automática o múltiplos de la automática" style="max-width:74px">
+            <option value="">—</option><option value="real">Real</option><option value="1">Auto</option>
+            <option value="2">×2</option><option value="3">×3</option><option value="5">×5</option>
+          </select>
+          <button id="res-anim" title="Animar la deformada" style="background:transparent;border:1px solid var(--border2);border-radius:3px;cursor:pointer;font-size:11px;padding:1px 6px">▶</button>
+        </div>
+        <div class="vp-ctrl">
+          <label>Rótulos</label>
+          <select id="res-labels" title="Valores escritos en los diagramas" style="max-width:96px">
+            <option value="global">Máx/mín</option><option value="barra">Por barra</option><option value="nenhum">Ninguno</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer" title="Diagrama de momento del lado comprimido (por defecto: lado traccionado)">
+            <input type="checkbox" id="res-flip"> Invertir DMF</label>
         </div>
         <!-- #103: caso/combinación a mostrar + descarga del caso actual -->
         <div class="vp-ctrl">

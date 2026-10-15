@@ -2599,6 +2599,16 @@ export const PT = {
   "Contenções também impedem a torção (Lb = Lz = Ly)": "Contenções também impedem a torção (Lb = Lz = Ly)",
   "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).": "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).",
   "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.": "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.",
+  "Escala de la deformada: real, automática o múltiplos de la automática": "Escala da deformada: real, automática ou múltiplos da automática",
+  "Real": "Real",
+  "Auto": "Auto",
+  "Animar la deformada": "Animar a deformada",
+  "Rótulos": "Rótulos",
+  "Valores escritos en los diagramas": "Valores escritos nos diagramas",
+  "Máx/mín": "Máx/mín",
+  "Por barra": "Por barra",
+  "Diagrama de momento del lado comprimido (por defecto: lado traccionado)": "Diagrama de momento do lado comprimido (padrão: lado tracionado)",
+  "Invertir DMF": "Inverter DMF",
 };
 
 export default PT;

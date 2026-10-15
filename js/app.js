@@ -178,6 +178,34 @@ class App {
     // #103: result-case selector + download of the current case (in the bar)
     document.getElementById('res-case')?.addEventListener('change', e => this._showResultCase(e.target.value));
     document.getElementById('res-dl')?.addEventListener('click', () => this.exportResults());
+    // SkyCiv-like result display options: deformed-scale presets, animation, labels, moment diagram side
+    {
+      const lsGet = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+      const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
+      const setFactor = (f) => {
+        const inp = document.getElementById('result-scale'); if (inp) inp.value = +(+f).toPrecision(4);
+        const rg = document.getElementById('result-scale-range'); if (rg) rg.value = Math.max(-1.5, Math.min(1.5, Math.log10(Math.max(f, 1e-3))));
+        this._refreshResultView();
+      };
+      document.getElementById('res-preset')?.addEventListener('change', (e) => {
+        const v = e.target.value; if (!v) return;
+        const base = this.viewport._autoScaleBase || 1;
+        const type = document.getElementById('result-type')?.value || 'deformed';
+        setFactor(v === 'real' ? (type === 'deformed' ? 1 / base : 1) : +v);
+        e.target.value = '';
+      });
+      const anim = document.getElementById('res-anim');
+      anim?.addEventListener('click', () => {
+        const on = !this.viewport._deformAnim;
+        if (on && (document.getElementById('result-type')?.value || 'deformed') !== 'deformed') { document.getElementById('result-type').value = 'deformed'; this._refreshResultView(); }
+        this.viewport.setDeformAnimation(on);
+        anim.textContent = on ? '⏸' : '▶';
+      });
+      const lab = document.getElementById('res-labels');
+      if (lab) { lab.value = lsGet('portico.diagLabels', 'global'); lab.addEventListener('change', () => { lsSet('portico.diagLabels', lab.value); this._refreshResultView(); }); }
+      const flip = document.getElementById('res-flip');
+      if (flip) { flip.checked = lsGet('portico.flipBMD', '0') === '1'; flip.addEventListener('change', () => { lsSet('portico.flipBMD', flip.checked ? '1' : '0'); this._refreshResultView(); }); }
+    }
     document.getElementById('result-scale')?.addEventListener('change', () => {
       this._refreshResultView();
       // Sync range slider (factor → log10)

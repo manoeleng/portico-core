@@ -3051,16 +3051,14 @@ export class Viewport {
       const n1  = this.app.model.nodes.get(elem.n1);
       const n2  = this.app.model.nodes.get(elem.n2);
       if (solid && this._deformedSolid(elem, results, scale, maxD)) continue;
-      const pts = [];
+      const pts = [], p0 = [], dv = [];
       for (let k = 0; k <= NPTS; k++) {
         const xi = k / NPTS;
         const d  = results.getElemAtXi(elem.id, xi);
         if (!d) break;
-        pts.push(this.m2t(
-          n1.x + xi*(n2.x - n1.x) + scale*d.ux,
-          n1.y + xi*(n2.y - n1.y) + scale*d.uy,
-          n1.z + xi*(n2.z - n1.z) + scale*d.uz
-        ));
+        const b0 = this.m2t(n1.x + xi*(n2.x - n1.x), n1.y + xi*(n2.y - n1.y), n1.z + xi*(n2.z - n1.z));
+        const dd = this.m2t(scale*d.ux, scale*d.uy, scale*d.uz);
+        pts.push(b0.clone().add(dd)); p0.push(b0.x, b0.y, b0.z); dv.push(dd.x, dd.y, dd.z);
       }
       if (pts.length < 2) continue;
       const dmid = results.getElemAtXi(elem.id, 0.5);
@@ -3068,6 +3066,7 @@ export class Viewport {
         ? Math.hypot(dmid.ux, dmid.uy, dmid.uz) / maxD : 0;
       const geo  = new THREE.BufferGeometry().setFromPoints(pts);
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: _dispColor(tmid) }));
+      line.userData.anim = { p0: Float32Array.from(p0), dv: Float32Array.from(dv) };
       this._scene.add(line);
       this._resultObjects.push(line);
     }
@@ -3083,12 +3082,13 @@ export class Viewport {
         new THREE.MeshBasicMaterial({ color: _dispColor(t) })
       );
       mesh.position.copy(this.m2t(dc.x, dc.y, dc.z));
-      mesh.userData = { type: 'node', id: node.id };
+      mesh.userData = { type: 'node', id: node.id, animNode: { p0: this.m2t(node.x, node.y, node.z), dv: this.m2t(dc.x - node.x, dc.y - node.y, dc.z - node.z) } };
       this._scene.add(mesh);
       this._resultObjects.push(mesh);
       this._resultNodeMarkers.set(node.id, mesh);
     }
     this._showResultsUI(`${i18n.t('Deformada')} ×${_fmt(scale)} (${i18n.t('factor')} ×${+f.toPrecision(3)}) | δmax=${_fmt(maxD)}`);
+    if (this._deformAnim) this.setDeformAnimation(true);   // keep animating across redraws
     this._drawColorbar(0, maxD);
     // The faces deform with the nodes and are colored by von Mises (if there are areas).
     this.colorAreasByVM(results, scale);
@@ -3106,16 +3106,18 @@ export class Viewport {
     let ring = this._sectionShape(sec).getPoints(6).map((p) => [p.x, p.y]);
     if (ring.length > 2) { const [a0, a1] = ring[0], [b0, b1] = ring[ring.length - 1]; if (Math.hypot(a0 - b0, a1 - b1) < 1e-12) ring.pop(); }
     const m = ring.length; if (m < 3) return false;
-    const NS = 12, oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0, pos = [], col = [], idx = [];
+    const NS = 12, oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0, pos = [], col = [], idx = [], p0 = [], dvs = [];
     for (let k = 0; k <= NS; k++) {
       const xi = k / NS, d = results.getElemAtXi(elem.id, xi);
       if (!d) return false;
       const c = _dispColor(maxD > 1e-12 ? Math.min(1, Math.hypot(d.ux, d.uy, d.uz) / maxD) : 0);
       const b = [0, 1, 2].map((i) => [n1.x, n1.y, n1.z][i] + xi * ([n2.x, n2.y, n2.z][i] - [n1.x, n1.y, n1.z][i])
         + oy * la.ey[i] + oz * la.ez[i] + scale * [d.ux, d.uy, d.uz][i]);
+      const dd = this.m2t(scale * d.ux, scale * d.uy, scale * d.uz);
       for (const [sx, sy] of ring) {   // shape x → −ez, shape y → ey (as in the undeformed solid)
         const v = this.m2t(b[0] - sx * la.ez[0] + sy * la.ey[0], b[1] - sx * la.ez[1] + sy * la.ey[1], b[2] - sx * la.ez[2] + sy * la.ey[2]);
         pos.push(v.x, v.y, v.z); col.push(c.r, c.g, c.b);
+        p0.push(v.x - dd.x, v.y - dd.y, v.z - dd.z); dvs.push(dd.x, dd.y, dd.z);
       }
     }
     for (let k = 0; k < NS; k++) for (let i = 0; i < m; i++) {
@@ -3132,9 +3134,28 @@ export class Viewport {
     const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, side: THREE.DoubleSide,
       ...(mode === 'translucent' ? { transparent: true, opacity: 0.55, depthWrite: false } : {}),
       ...(mode === 'edges' ? { wireframe: true } : {}) }));
-    mesh.userData = { type: 'elem', id: elem.id };
+    mesh.userData = { type: 'elem', id: elem.id, anim: { p0: Float32Array.from(p0), dv: Float32Array.from(dvs) } };
     this._scene.add(mesh); this._resultObjects.push(mesh);
     return true;
+  }
+
+  // Deformed-shape animation (SkyCiv-like): the drawn deformation goes 0 → full → 0 continuously. Uses the base
+  // positions and scaled displacements stored on each object at drawing time.
+  setDeformAnimation(on) {
+    this._deformAnim = !!on;
+    const apply = (k) => {
+      for (const o of this._resultObjects || []) {
+        const a = o.userData?.anim, an = o.userData?.animNode;
+        if (a) {
+          const at = o.geometry.getAttribute('position');
+          for (let i = 0; i < at.count; i++) at.setXYZ(i, a.p0[3 * i] + k * a.dv[3 * i], a.p0[3 * i + 1] + k * a.dv[3 * i + 1], a.p0[3 * i + 2] + k * a.dv[3 * i + 2]);
+          at.needsUpdate = true; if (o.isMesh) o.geometry.computeVertexNormals();
+        } else if (an) o.position.copy(an.p0).addScaledVector(an.dv, k);
+      }
+    };
+    if (!on) { this._animFn = null; apply(1); return; }
+    this._animT = 0;
+    this._animFn = () => { this._animT += 0.05; apply(0.5 - 0.5 * Math.cos(this._animT)); };
   }
 
   // ── Area STRESS contour (von Mises) ─────────────────────────────────────────
@@ -3280,6 +3301,13 @@ export class Viewport {
     for (const [, line] of this._elemLines) line.material.color.set(0x222840);
     const useLocalZ = (type === 'My' || type === 'Vz');
     const uk = (type === 'N' || type === 'Vy' || type === 'Vz') ? 'F' : 'M';   // display-unit kind of the labels
+    // display options (SkyCiv-like, 15/10/2026): moment diagrams on the TENSION side (sign convention of the solver:
+    // checked on a simply supported beam and a cantilever column) — "Inverter DMF" draws them on the compression side;
+    // value labels: 'global' = only the overall max and min, 'barra' = the extreme of each member, 'nenhum'
+    const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+    const side = (type === 'My' || type === 'Mz') && pref('portico.flipBMD', '0') === '1' ? -1 : 1;
+    const labelMode = pref('portico.diagLabels', 'global');
+    const cand = [];                                     // label candidates { val, pos (three), dir (three), elemMax }
 
     // ── Pass 2: draw diagrams ──────────────────────────────────────────────
     for (const elem of this.app.model.elements.values()) {
@@ -3288,9 +3316,9 @@ export class Viewport {
       const { pts, extremes } = _normDiagram(results.getDiagramData(elem.id, type, 20));
 
       // Perpendicular direction for diagram offset (in Three.js coords)
-      const perpDir = useLocalZ
+      const perpDir = (useLocalZ
         ? new THREE.Vector3(f.ez[0], f.ez[2], f.ez[1])
-        : new THREE.Vector3(f.ey[0], f.ey[2], f.ey[1]);
+        : new THREE.Vector3(f.ey[0], f.ey[2], f.ey[1])).multiplyScalar(side);
 
       const linePoints = [];
       const fillVerts  = [];
@@ -3310,7 +3338,13 @@ export class Viewport {
       }
 
       const avgAbs = pts.reduce((s,p)=>s+Math.abs(p.val),0)/pts.length;
-      const col = maxVal > 1e-12 ? _forceColor(avgAbs/maxVal) : 0xffc107;
+      // axial: compression red, tension blue (SkyCiv convention); other diagrams: magnitude colour scale
+      const avgN = pts.reduce((s, p) => s + p.val, 0) / pts.length;
+      const col = type === 'N' ? (avgN < 0 ? 0xdc2626 : 0x2563eb) : maxVal > 1e-12 ? _forceColor(avgAbs/maxVal) : 0xffc107;
+      // label candidates of this member: its end/sampled values and the analytical inner extremes
+      let best = null;
+      for (const p of [...pts, ...extremes]) if (!best || Math.abs(p.val) > Math.abs(best.val)) best = p;
+      for (const p of [...pts, ...extremes]) cand.push({ val: p.val, pos: p.pos, dir: perpDir, isElemMax: p === best });
 
       const outlineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
       const outline = new THREE.Line(outlineGeo, new THREE.LineBasicMaterial({ color: col }));
@@ -3325,34 +3359,23 @@ export class Viewport {
       this._scene.add(fill);
       this._resultObjects.push(fill);
 
-      // ── Inner-extreme markers (zero-shear peak for moment diagrams) ──────
-      for (const ext of extremes) {
-        if (Math.abs(ext.val) < maxVal * 0.005) continue;  // skip noise
-        const baseP = this.m2t(ext.pos.x, ext.pos.y, ext.pos.z);
-        const tipP  = baseP.clone().addScaledVector(perpDir, ext.val * scale);
-
-        // Small yellow dot at diagram peak
-        const dotGeo = new THREE.SphereGeometry(0.06, 6, 4);
-        const dot    = new THREE.Mesh(dotGeo,
-          new THREE.MeshBasicMaterial({ color: 0xffee58, depthTest: false }));
-        dot.position.copy(tipP);
-        this._scene.add(dot);
-        this._resultObjects.push(dot);
-
-        // Vertical tick line from baseline to peak
-        const tickGeo = new THREE.BufferGeometry().setFromPoints([baseP, tipP]);
-        const tick    = new THREE.Line(tickGeo,
-          new THREE.LineBasicMaterial({ color: 0xffee58, transparent: true, opacity: 0.7 }));
-        this._scene.add(tick);
-        this._resultObjects.push(tick);
-
-        // Value label offset slightly beyond the peak
-        const labelPos = tipP.clone().addScaledVector(
-          perpDir, ext.val >= 0 ? 0.28 : -0.28);
-        const sp = this._makeDiagramLabel(_fmt(toDisp(ext.val, uk)), labelPos);
-        this._scene.add(sp);
-        this._resultObjects.push(sp);
-      }
+    }
+    // ── value labels (peak dot + tick + value) ─────────────────────────────
+    let picks = [];
+    if (labelMode === 'global' && cand.length) {
+      const hi = cand.reduce((a, c) => (c.val > a.val ? c : a)), lo = cand.reduce((a, c) => (c.val < a.val ? c : a));
+      picks = hi === lo ? [hi] : [hi, lo].filter((c) => Math.abs(c.val) >= maxVal * 0.005);
+    } else if (labelMode === 'barra') picks = cand.filter((c) => c.isElemMax && Math.abs(c.val) >= maxVal * 0.05);
+    for (const c of picks) {
+      const baseP = this.m2t(c.pos.x, c.pos.y, c.pos.z);
+      const tipP  = baseP.clone().addScaledVector(c.dir, c.val * scale);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffee58, depthTest: false }));
+      dot.position.copy(tipP); this._scene.add(dot); this._resultObjects.push(dot);
+      const tick = new THREE.Line(new THREE.BufferGeometry().setFromPoints([baseP, tipP]),
+        new THREE.LineBasicMaterial({ color: 0xffee58, transparent: true, opacity: 0.7 }));
+      this._scene.add(tick); this._resultObjects.push(tick);
+      const sp = this._makeDiagramLabel(_fmt(toDisp(c.val, uk)), tipP.clone().addScaledVector(c.dir, c.val >= 0 ? 0.28 : -0.28));
+      this._scene.add(sp); this._resultObjects.push(sp);
     }
     this._showResultsUI(`${type} | ${i18n.t('máx')} = ${_fmt(toDisp(maxVal, uk))} ${ulbl(uk)} (${i18n.t('factor')} ×${+f.toPrecision(3)})`);
     this._drawColorbar(0, maxVal, uk);
