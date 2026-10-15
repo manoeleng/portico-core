@@ -108,6 +108,37 @@ function netSectionRupture(sl, { A, fu, ga2, shape, dims, abaLigada }) {
   return { NRd: Ct * An * fu / ga2, Ct, An, ref, aviso };
 }
 
+// Anexo E — slender-web I/H (h/tw > 5,70·√(E/fy)), doubly symmetric welded section (the section model has one
+// bf/tf, so hc = h, Wxc = Wxt = W and E.5.3-a does not apply). Nominal moments (÷ γa1 by the caller):
+//   E.6.1 tension-flange yielding Wxt·fy;  E.6.2 FLT and E.6.3 FLM with My = kpg·fy·Wxc, Mr = kpg·(fy − σr)·Wxc,
+//   kpg = 1 − ar/(1200 + 300·ar)·(hc/tw − 5,70·√(E/fy)) ≤ 1, ar = hc·tw/Afc (≤ 10).
+//   FLT: λ = Lb/ryc (T = compression flange + 1/3 of the compressed web, h/6), λy = 1,10·√(E/fy),
+//        λr = π·√(E·Cb/(fy − σr)), Mcr = Cb·kpg·π²·E·Wxc/λ²  (Cb enters λr and Mcr, not the inelastic line).
+//   FLM: λ = bf/2tf, λy = 0,38·√(E/fy), λr = 0,95·√(kc·E/(fy − σr)), Mcr = 0,90·kpg·E·kc·Wxc/λ².
+//   E.5.3-b: h/tw ≤ 260 and ≤ 11,7·√(E/fy) (a/h ≤ 1,5) or 0,42·E/fy (a/h > 1,5 or no stiffeners); a = member.a.
+function slenderWebBending({ E, fy, sr, kc, W, h, tw, bf, tf, lamF, Lb, Cb, a, laminado }) {
+  if (laminado) return { erro: 'Anexo E vale só para perfil soldado (E.5.2)' };
+  if (!(h > 0 && tw > 0 && bf > 0 && tf > 0)) return { erro: 'faltam d, bf, tf, tw para o Anexo E' };
+  const lam = h / tw, aRel = a > 0 ? a / h : Infinity;
+  const limB = aRel <= 1.5 ? 11.7 * Math.sqrt(E / fy) : 0.42 * E / fy;
+  if (lam > 260 || lam > limB) return { erro: `h/tw acima do limite de E.5.3-b (260 e ${limB.toFixed(1)}, a/h ${aRel <= 1.5 ? '≤' : '>'} 1,5)` };
+  const Afc = bf * tf, hc = h, ar = hc * tw / Afc;
+  if (ar > 10) return { erro: `ar = hc·tw/Afc = ${ar.toFixed(2)} > 10 (E.6.2)` };
+  const kpg = Math.min(1, 1 - ar / (1200 + 300 * ar) * (hc / tw - 5.70 * Math.sqrt(E / fy)));
+  const My = kpg * fy * W, Mr = kpg * (fy - sr) * W;
+  const lin = (l, ly, lr) => My - (My - Mr) * (l - ly) / (lr - ly);
+  // E.6.2 FLT
+  const hT = h / 6, ryc = Math.sqrt((tf * bf ** 3 / 12 + hT * tw ** 3 / 12) / (Afc + hT * tw));
+  const l = Lb / ryc, ly = 1.10 * Math.sqrt(E / fy), lr = Math.PI * Math.sqrt(E * Cb / (fy - sr));
+  const MnFLT = l <= ly ? My : l <= lr ? lin(l, ly, lr) : Cb * kpg * Math.PI ** 2 * E * W / (l * l);
+  const ramoFLT = l <= ly ? 'FLT (E.6.2): λ ≤ λy' : l <= lr ? 'FLT (E.6.2): λy < λ ≤ λr' : 'FLT (E.6.2): λ > λr (elástica)';
+  // E.6.3 FLM
+  const lyF = 0.38 * Math.sqrt(E / fy), lrF = 0.95 * Math.sqrt(kc * E / (fy - sr));
+  const MnFLM = lamF <= lyF ? My : lamF <= lrF ? lin(lamF, lyF, lrF) : 0.90 * kpg * E * kc * W / (lamF * lamF);
+  return { kpg, ar, ryc, lambdaFLT: l, MnFLT, MnFLM,
+    cand: [[W * fy, 'escoamento da mesa tracionada (E.6.1)'], [MnFLT, ramoFLT], [MnFLM, 'FLM (E.6.3)']] };
+}
+
 function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   // cold-formed sections (NBR 6355 catalogue or flagged) are checked by NBR 14762:2010
   if (sec.coldFormed || sec.shape === 'Ue') {
@@ -268,17 +299,29 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     const MnFLM = lamF <= lpF ? Mpl : lamF <= lrF ? interp(Mpl, Mr, lamF, lpF, lrF) : McrF;
     // FLA (Tab. D.1)
     const lpW = 3.76 * Math.sqrt(E / fy), lrW = 5.70 * Math.sqrt(E / fy);
-    let MnFLA = lamW <= lpW ? Mpl : interp(Mpl, fy * W, lamW, lpW, lrW);
+    const MnFLA = lamW <= lpW ? Mpl : interp(Mpl, fy * W, lamW, lpW, lrW);
     const slenderWeb = lamW > lrW;
-    if (slenderWeb) { MnFLA = 0; avisos.push(`Alma esbelta (h/tw = ${lamW.toFixed(1)} > ${lrW.toFixed(1)}): Anexo E fora do escopo — flexão NÃO verificada.`); }
     const cap = 1.5 * W * fy;                                      // 5.4.2.2
-    const cand = [[MnFLT, ramoFLT], [MnFLM, 'FLM'], [MnFLA, 'FLA'], [cap, '1,5·W·fy (5.4.2.2)']];
+    let cand = [[MnFLT, ramoFLT], [MnFLM, 'FLM'], [MnFLA, 'FLA'], [cap, '1,5·W·fy (5.4.2.2)']];
+    let slenderBlocked = false, anexoE = null;
+    if (slenderWeb) {
+      anexoE = slenderWebBending({ E, fy, sr, kc, W, h: hWeb, tw, bf, tf, lamF, Lb, Cb, a: member.a,
+        laminado: sec.fabricacao === 'laminado' });
+      if (anexoE.erro) { slenderBlocked = true; avisos.push(`Alma esbelta (h/tw = ${lamW.toFixed(1)} > ${lrW.toFixed(1)}): ${anexoE.erro} — flexão NÃO verificada.`); }
+      else {
+        cand = anexoE.cand;
+        avisos.push(`Alma esbelta (h/tw = ${lamW.toFixed(1)} > ${lrW.toFixed(1)}): momento resistente pelo Anexo E (kpg = ${anexoE.kpg.toFixed(4)}).`);
+      }
+    }
     const unk = cand.some(([v]) => !isFinite(v));
     const [Mn, ramo] = cand.filter(([v]) => isFinite(v)).reduce((a, b) => b[0] < a[0] ? b : a);
-    flexaoX = ratObj(Mz, Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ramo, Mpl, Mr, Mcr,
-      Lp: lp * ry, Lr: lr * ry, Cb, MRdFLT: MnFLT / ga1, MRdFLM: MnFLM / ga1,
-      formula: 'MRd = min(FLT, FLM, FLA)/γa1 ≤ 1,5·W·fy/γa1 (Anexo D)' });
-    if (slenderWeb || unk) flexaoX.ratio = Infinity;
+    flexaoX = anexoE && !anexoE.erro
+      ? ratObj(Mz, Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ramo, kpg: anexoE.kpg, Cb, MRdFLT: anexoE.MnFLT / ga1, MRdFLM: anexoE.MnFLM / ga1,
+          formula: 'MRd = min(Wxt·fy, FLT, FLM)/γa1 com kpg (Anexo E, E.6.1–E.6.3)' })
+      : ratObj(Mz, Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ramo, Mpl, Mr, Mcr,
+          Lp: lp * ry, Lr: lr * ry, Cb, MRdFLT: MnFLT / ga1, MRdFLM: MnFLM / ga1,
+          formula: 'MRd = min(FLT, FLM, FLA)/γa1 ≤ 1,5·W·fy/γa1 (Anexo D)' });
+    if (slenderBlocked || unk) flexaoX.ratio = Infinity;
     // minor axis: FLM only (D.2.8-c, D.2.8-g)
     const Wy = Sy, Mply = Zy * fy, Mry = (fy - sr) * Wy;
     const McrFy = (welded ? 0.90 * E * kc : 0.69 * E) * Wy / (lamF * lamF);
