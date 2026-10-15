@@ -32,7 +32,11 @@
 //
 // LACUNAS (always reported as warnings; never silent):
 //   · Ndist / Mdist have no closed formula in the 2010 edition (9.3: elastic stability analysis,
-//     e.g. CUFSM/DimPerfil): they are INPUTS (options.Ndist [kN], options.Mdist / options.MdistY [kN·m]).
+//     e.g. CUFSM/DimPerfil): INPUTS options.Ndist [kN], options.Mdist / options.MdistY [kN·m]; when absent, Ndist and
+//     Mdist (strong axis) come from the finite strip method of js/design/fsm.js (centreline, square corners; validated:
+//     plate k = 4, Euler ±0,2 %, DimPerfil Ue 100×50×17×3 Ndist −0,9 %). MdistY (weak axis) stays an input. options.fsm = false switches the FSM off (old LACUNA path).
+//   · Anexo C (MRD) with options.metodo = 'MRD': Nc,Rd = min(Nc,Re; Nc,Rℓ; Nc,Rdist)/1,20 and MRd = min(MRe; MRℓ;
+//     MRdist)/1,10 (strong axis), Nℓ/Ndist/Mℓ/Mdist by FSM (or options.Nl/Ndist/Ml/Mdist), Ne/Me of 9.7.2/9.8.2.2.
 //   · Shear lag (9.4), MSE (9.7.2 b / 9.8.2.1 b),
 //     Anexo B (cold-work fy), Anexo C (MRD), Anexo F (purlin with panel on the tension flange),
 //     Vz (shear parallel to the flanges) and Ue weak-axis bending with the lips compressed
@@ -53,6 +57,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { finalize } from './aisc360.js?v=7';
+import { criticalLoadsChannel } from '../fsm.js?v=7';
 
 const PI2 = Math.PI * Math.PI;
 const fix = (x) => +(+x).toPrecision(8);
@@ -304,6 +309,42 @@ function shearRd(h, t, fy, E, kv = 5.0) {
   return { V, regime, ht, l1, l2 };
 }
 
+// ── Anexo C (MRD) — characteristic resistances (kN, cm), γ applied by the caller ────────────────────────
+// C.3: Nc,Re = χ(λ0)·A·fy; Nc,Rℓ = Nc,Re (λℓ ≤ 0,776) | (1 − 0,15/λℓ^0,8)·Nc,Re/λℓ^0,8, λℓ = √(Nc,Re/Nℓ);
+//      Nc,Rdist = A·fy (λdist ≤ 0,561) | (1 − 0,25/λdist^1,2)·A·fy/λdist^1,2, λdist = √(A·fy/Ndist)
+export function mrdCompressao14762({ A, fy, Ne, Nl, Ndist }) {
+  const l0 = Math.sqrt(A * fy / Ne), NcRe = chiComp(l0) * A * fy;
+  let NcRl = NcRe, ll = null; if (Nl > 0) { ll = Math.sqrt(NcRe / Nl); if (ll > 0.776) NcRl = (1 - 0.15 / ll ** 0.8) * NcRe / ll ** 0.8; }
+  let NcRdist = Infinity, ld = null; if (Ndist > 0) { ld = Math.sqrt(A * fy / Ndist); NcRdist = ld <= 0.561 ? A * fy : (1 - 0.25 / ld ** 1.2) * A * fy / ld ** 1.2; }
+  return { lambda0: l0, NcRe, lambdaL: ll, NcRl, lambdaDist: ld, NcRdist, NcRk: Math.min(NcRe, NcRl, NcRdist) };
+}
+// C.4: MRe = χFLT(λ0)·W·fy, λ0 = √(W·fy/Me); MRℓ = MRe (λℓ ≤ 0,776) | (1 − 0,15/λℓ^0,8)·MRe/λℓ^0,8, λℓ = √(MRe/Mℓ);
+//      MRdist = W·fy (λdist ≤ 0,673) | (1 − 0,22/λdist)·W·fy/λdist, λdist = √(W·fy/Mdist)
+export function mrdFlexao14762({ W, fy, Me, Ml, Mdist }) {
+  const l0 = Math.sqrt(W * fy / Me), MRe = chiFLT(l0) * W * fy;
+  let MRl = MRe, ll = null; if (Ml > 0) { ll = Math.sqrt(MRe / Ml); if (ll > 0.776) MRl = (1 - 0.15 / ll ** 0.8) * MRe / ll ** 0.8; }
+  let MRdist = Infinity, ld = null; if (Mdist > 0) { ld = Math.sqrt(W * fy / Mdist); MRdist = ld <= 0.673 ? W * fy : (1 - 0.22 / ld) * W * fy / ld; }
+  return { lambda0: l0, MRe, lambdaL: ll, MRl, lambdaDist: ld, MRdist, MRk: Math.min(MRe, MRl, MRdist) };
+}
+
+const _fsmCache = new Map();
+// FSM critical loads of a channel (kN, kN·cm), cached by geometry; dims in cm, E in kN/cm²
+function fsmChannel(g, E) {
+  const key = [g.bw, g.bf, g.D, g.t, E, g.A, g.Wx].map(v => (+v || 0).toFixed(4)).join('|');
+  if (!_fsmCache.has(key)) {
+    let r = null;
+    try { r = criticalLoadsChannel({ bw: g.bw * 10, bf: g.bf * 10, D: g.D * 10, t: g.t * 10 }, { E: E * 10, nu: 0.3 }); } catch { r = null; }
+    // by critical STRESS (σcr = N/A, M/W of the centreline model) times the catalogue A / W, so λ = √(fy/σcr) does not
+    // mix geometries (square-corner centreline vs rounded catalogue section)
+    const Wm = r ? r.model.Ix / r.model.zmax : 0;
+    const N = (v) => v > 0 ? v / r.model.A * g.A / 10 : null;          // MPa · cm² / 10 → kN
+    const M = (v) => v > 0 && g.Wx > 0 ? v / Wm * g.Wx / 10 : null;    // MPa · cm³ / 10 → kN·cm
+    _fsmCache.set(key, r && { Nl: N(r.Nl), Ndist: N(r.Ndist), Ml: M(r.Ml), Mdist: M(r.Mdist), aNdist: r.aNdist, aMdist: r.aMdist });
+  }
+  return _fsmCache.get(key);
+}
+const FSM_NOTE = 'faixas finitas (js/design/fsm.js: linha média, cantos vivos, convertido pela tensão crítica para A/W do catálogo; local = 1º e distorcional = 2º mínimo da curva de assinatura; validado contra placa k = 4, Euler e DimPerfil)';
+
 // 9.6.2 c: Ct of PROFILES (items 3 bolted, 4 welded). Lengths in cm. Returns { Ct, ref } or { erro }.
 export function ctPerfil14762({ Ct, ligacao, todosConectados, nDirecao, x, Lc, d, g, tipo = 'U', soldas }) {
   if (Ct != null) return { Ct: Math.min(Ct, 1), ref: 'informado' };
@@ -460,11 +501,27 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
         }
         det.dist = dist;
         if (dist.dispensada) det.NcRd = det.NcRdGlobal;
-        else if (options.Ndist > 0) {
-          const ld = Math.sqrt(A * fy / options.Ndist), cd = chiDistN(ld);
-          Object.assign(dist, { Ndist: options.Ndist, lambdaDist: ld, chiDist: cd, NcRdDist: cd * A * fy / gamC });
-          det.NcRd = Math.min(det.NcRdGlobal, dist.NcRdDist);
-        } else why = `flambagem distorcional não dispensada (${dist.motivo || 'D/bw abaixo da Tab. 11'}) e options.Ndist não informado (9.7.3: análise de estabilidade elástica — LACUNA).`;
+        else {
+          const fs = options.Ndist > 0 || options.fsm === false ? null : fsmChannel(g, E);
+          const Nd = options.Ndist > 0 ? options.Ndist : fs?.Ndist;
+          if (Nd > 0) {
+            const ld = Math.sqrt(A * fy / Nd), cd = chiDistN(ld);
+            Object.assign(dist, { Ndist: +Nd.toFixed(3), fonte: options.Ndist > 0 ? 'informado' : 'faixas finitas', lambdaDist: ld, chiDist: cd, NcRdDist: cd * A * fy / gamC });
+            det.NcRd = Math.min(det.NcRdGlobal, dist.NcRdDist);
+            if (fs) avisos.push(`Ndist = ${Nd.toFixed(1).replace('.', ',')} kN (meia-onda ${(fs.aNdist / 10).toFixed(1).replace('.', ',')} cm) por ${FSM_NOTE} — 9.7.3.`);
+          } else why = `flambagem distorcional não dispensada (${dist.motivo || 'D/bw abaixo da Tab. 11'}): Ndist não informado e o mínimo distorcional da curva de assinatura (faixas finitas) não é distinto — informe options.Ndist (9.7.3).`;
+        }
+      }
+    }
+    // Anexo C (MRD): replaces 9.7 when options.metodo = 'MRD' (Nℓ, Ndist by FSM unless given)
+    if (!why && options.metodo === 'MRD' && det.Ne > 0) {
+      const fsC = options.fsm === false ? null : fsmChannel(g, E);
+      const Nl = options.Nl > 0 ? options.Nl : fsC?.Nl, Nd = g.ue ? (options.Ndist > 0 ? options.Ndist : fsC?.Ndist) : null;
+      if (!(Nl > 0) || (g.ue && !(Nd > 0))) why = 'MRD (Anexo C): Nℓ/Ndist não disponíveis (informe options.Nl/Ndist).';
+      else {
+        const m = mrdCompressao14762({ A, fy, Ne: det.Ne, Nl, Ndist: Nd });
+        det.mrd = m; det.NcRd = m.NcRk / gamC;
+        avisos.push(`Compressão pelo MRD (Anexo C): Nℓ = ${Nl.toFixed(1)} kN${Nd ? `, Ndist = ${Nd.toFixed(1)} kN` : ''}${fsC ? ` (${FSM_NOTE})` : ''}; Nc,Rk = min(Nc,Re ${m.NcRe.toFixed(1)}; Nc,Rℓ ${m.NcRl.toFixed(1)}; Nc,Rdist ${isFinite(m.NcRdist) ? m.NcRdist.toFixed(1) : '—'}) kN.`);
       }
     }
     if (!why && lamHard > 200) why = `KL/r = ${lamHard.toFixed(0)} > 200 (9.7.4): os valores calculados ficam em axial.* apenas como informação.`;
@@ -475,8 +532,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     if (why) { axial = unverified(Nabs, why, { modo: 'compressão', ...info }); warnUnv(Nabs, 'Compressão', why); }
     else {
       NRd = det.NcRd;
-      axial = ratObj(Nabs, NRd, { modo: 'compressão', ...info,
-        formula: 'Nc,Rd = min(χ·Aef·fy/1,20 (9.7.2); χdist·A·fy/1,20 (9.7.3)); λ0 = √(A·fy/Ne), A bruta' });
+      axial = ratObj(Nabs, NRd, { modo: 'compressão', ...info, ...(det.mrd ? { mrd: det.mrd } : {}),
+        formula: det.mrd ? 'Nc,Rd = min(Nc,Re; Nc,Rℓ; Nc,Rdist)/1,20 (Anexo C, MRD)' : 'Nc,Rd = min(χ·Aef·fy/1,20 (9.7.2); χdist·A·fy/1,20 (9.7.3)); λ0 = √(A·fy/Ne), A bruta' });
     }
   }
   if (N < 0) avisos.push('Esforços devem vir de análise com 2ª ordem/imperfeições (NBR 14762:2010 8.1).');
@@ -529,11 +586,14 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     out.dist = dist;
     let MRd = Math.min(out.MRdEsc, out.MRdFLT);
     if (!dist.dispensada) {
-      if (options.Mdist > 0) {
-        const Md = options.Mdist * 100, ld = Math.sqrt(g.Wx * fy / Md), cd = chiDistM(ld);
-        Object.assign(dist, { Mdist: options.Mdist, lambdaDist: ld, chiDist: cd });
+      const fsM = options.Mdist > 0 || options.fsm === false ? null : fsmChannel(g, E);
+      const MdIn = options.Mdist > 0 ? options.Mdist : (fsM?.Mdist > 0 ? fsM.Mdist / 100 : null);   // kN·m
+      if (fsM && MdIn) avisos.push(`Mdist = ${MdIn.toFixed(2).replace('.', ',')} kN·m (meia-onda ${(fsM.aMdist / 10).toFixed(1).replace('.', ',')} cm) por ${FSM_NOTE} — 9.8.2.3.`);
+      if (MdIn > 0) {
+        const Md = MdIn * 100, ld = Math.sqrt(g.Wx * fy / Md), cd = chiDistM(ld);
+        Object.assign(dist, { Mdist: +MdIn.toFixed(4), fonte: options.Mdist > 0 ? 'informado' : 'faixas finitas', lambdaDist: ld, chiDist: cd });
         out.MRdDist = cd * g.Wx * fy / gamF; MRd = Math.min(MRd, out.MRdDist);
-      } else return { ...out, why: `flambagem distorcional não dispensada (${dist.motivo || 'D/bw abaixo da Tab. 14'}) e options.Mdist não informado (9.8.2.3 — LACUNA).` };
+      } else return { ...out, why: `flambagem distorcional não dispensada (${dist.motivo || 'D/bw abaixo da Tab. 14'}): Mdist não informado e o mínimo distorcional (faixas finitas) não é distinto — informe options.Mdist (9.8.2.3).` };
     }
     out.MRd = MRd;
     out.ramo = MRd === out.MRdEsc ? 'escoamento (9.8.2.1)' : MRd === out.MRdFLT ? (out.anexoF ? 'painel na mesa tracionada (Anexo F)' : 'FLT (9.8.2.2)') : 'distorcional (9.8.2.3)';
@@ -579,6 +639,18 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   };
 
   const fx = flexX(), fyr = flexY();
+  // Anexo C (MRD) for strong-axis bending: replaces 9.8.2 (C.1); with the Anexo F declared, the smaller governs
+  if (options.metodo === 'MRD' && isCh && g && !fx.why && fx.Me > 0) {
+    const fsF = options.fsm === false ? null : fsmChannel(g, E);
+    const Ml = options.Ml > 0 ? options.Ml * 100 : fsF?.Ml, Md = g.ue ? (options.Mdist > 0 ? options.Mdist * 100 : fsF?.Mdist) : null;   // kN·cm
+    if (Ml > 0 && (!g.ue || Md > 0)) {
+      const m = mrdFlexao14762({ W: g.Wx, fy, Me: fx.Me, Ml, Mdist: Md });
+      const MRdC = m.MRk / gamF;
+      fx.mrd = m;
+      if (!(fx.anexoF && fx.MRdFLT < MRdC)) { fx.MRd = MRdC; fx.ramo = 'MRD (Anexo C)'; }
+      avisos.push(`Flexão pelo MRD (Anexo C): Mℓ = ${(Ml / 100).toFixed(2)} kN·m${Md ? `, Mdist = ${(Md / 100).toFixed(2)} kN·m` : ''}${fsF ? ` (${FSM_NOTE})` : ''}; MRk = min(MRe ${(m.MRe / 100).toFixed(2)}; MRℓ ${(m.MRl / 100).toFixed(2)}; MRdist ${isFinite(m.MRdist) ? (m.MRdist / 100).toFixed(2) : '—'}) kN·m.`);
+    } else avisos.push('MRD (Anexo C) na flexão: Mℓ/Mdist não disponíveis — mantido 9.8.2.');
+  }
   const mkFlex = (f, D, eixo) => {
     if (f.why) { warnUnv(D, `Flexão ${eixo}`, f.why); return unverified(D / 100, f.why, { eixo }); }
     const { MRd, why, ...rest } = f;

@@ -104,10 +104,10 @@ for (const c of D.casos['BR-14762-CB'].casos) ok(`Cb Mmax=${c.Mmax}`, cbMoments(
     assert('DIST-01 Tab. 11 não dispensa (bw/t = 33,3 fora do domínio)', d.dispensada === false);
     assert('DIST-01 Nc,Rd = min(global, dist) com Ndist informado', Math.abs(r.axial.capacity - Math.min(r.axial.NcRdGlobal, d.NcRdDist)) < 1e-6);
   }
-  const r0 = run('DIST-01-semNdist', base);
+  const r0 = run('DIST-01-semNdist', { ...base, options: { fsm: false } });   // FSM desligado: caminho da LACUNA
   if (r0) assert('ROB distorcional não dispensado e sem Ndist → não verificado (ratio=Infinity + aviso)', r0.axial.ratio === Infinity && r0.axial.verificado === false && hasAviso(r0, /Ndist/));
   // flexão: Tab. 14 também não cobre bw/t = 33 → sem Mdist não verificado
-  const rf = run('DIST-flex', { demands: { Mz: 1 }, mat, sec: secOf(c.perfil), member: { L: 1, Lb: 1, Cb: 1 } });
+  const rf = run('DIST-flex', { demands: { Mz: 1 }, mat, sec: secOf(c.perfil), member: { L: 1, Lb: 1, Cb: 1 }, options: { fsm: false } });
   if (rf) assert('ROB flexão x: distorcional não dispensada e sem Mdist → Infinity + aviso', rf.flexaoX.ratio === Infinity && hasAviso(rf, /Mdist/));
 }
 
@@ -277,7 +277,7 @@ for (const id of ['BR-14762-NE-449-13', 'BR-14762-NE-449-14']) {
   const rb = run('CAT-b', { demands: { N: -3, Mz: 0.2 }, mat: { Fy: 250000, E: 2e8 }, sec: cfSection('Ue 100x50x17x1,20'), member: { L: 3, Lx: 3, Ly: 3, Lz: 3, Lb: 1, Cb: 1 } });
   if (rb) assert('Catálogo Ue 100x50x17x1,20 verificado sem exceção (dispensa por Tab. 11/14)', Number.isFinite(rb.ratioMax) && rb.axial.verificado !== false && rb.flexaoX.verificado !== false, `ratioMax=${rb.ratioMax}, estado=${rb.state}`);
   // Ue 200x75x25x3,00: bf/bw = 0,375 < 0,4 (fora da Tab. 11/14) e sem Ndist/Mdist → não verificado (a norma só dispensa dentro das tabelas)
-  const rd = run('CAT-c', { demands: { N: -20, Mz: 0.3 }, mat: { Fy: 250000, E: 2e8 }, sec: cfSection('Ue 200x75x25x3,00'), member: { L: 3, Lx: 3, Ly: 3, Lz: 3, Lb: 3, Cb: 1 } });
+  const rd = run('CAT-c', { demands: { N: -20, Mz: 0.3 }, mat: { Fy: 250000, E: 2e8 }, sec: cfSection('Ue 200x75x25x3,00'), member: { L: 3, Lx: 3, Ly: 3, Lz: 3, Lb: 3, Cb: 1 }, options: { fsm: false } });
   if (rd) assert('Catálogo Ue 200x75x25x3,00 (fora das Tab. 11/14, sem Ndist/Mdist) → Infinity + aviso', rd.axial.ratio === Infinity && rd.flexaoX.ratio === Infinity && hasAviso(rd, /Tab\. 11 não cobre/) && hasAviso(rd, /Tab\. 14 não cobre/));
 }
 
