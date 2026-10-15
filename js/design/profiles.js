@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // profiles.js — CATALOG of tabulated commercial profiles (#66).
 //
-// Library of standard profiles (European IPE, HEA, HEB I-shapes; Brazilian Gerdau W/HP with tabulated properties; typical pipes and
+// Library of standard profiles (European IPE, HEA, HEB I-shapes; Brazilian Gerdau W/HP with tabulated properties; Brazilian welded VS/CVS/CS; typical pipes and
 // boxes) with their nominal DIMENSIONS. Section properties (A, I, S, Z, J, Cw…) are
 // derived from the shape with `section_props.fromShape`, so the catalog gives
 // normalized NAMES + exact geometry and the design uses consistent plastic moduli /
@@ -14,6 +14,7 @@
 
 import { fromShape } from './section_props.js?v=7';
 import { cfNames, cfSection } from './profiles_cf.js?v=7';
+import { VS, CVS, CS } from './profiles_nbr5884.js?v=7';
 
 // [h, b, tw, tf] en mm.
 const IPE = {
@@ -172,6 +173,13 @@ export const CATALOG = {
   'RHS/SHS': buildFamily(RHS, 'box', ['h', 'b', 't']),
 };
 
+// Welded I-shapes VS/CVS/CS (profiles_nbr5884.js): geometry from the user's library, properties from
+// fromShape (no fillet radii in welded shapes); marked 'soldado' for the NBR 8800 FLM/local buckling.
+for (const [fam, table] of [['VS', VS], ['CVS', CVS], ['CS', CS]]) {
+  CATALOG[fam] = buildFamily(table, 'I', ['d', 'bf', 'tw', 'tf']);
+  for (const p of Object.values(CATALOG[fam])) p.fabricacao = 'soldado';
+}
+
 // Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
 CATALOG['Ue (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('Ue')).map(n => [n, { shape: 'Ue', cf: true }]));
 
@@ -205,7 +213,8 @@ export function profileToSection(name) {
         lambdaFlange: p.dims.bf / (2 * p.dims.tf), lambdaWeb: t.h / p.dims.tw,
         fabricacao: 'laminado' } };
   }
+  const design = { shape: p.shape, dims: { ...p.dims }, profile: name };
+  if (p.fabricacao) design.fabricacao = p.fabricacao;
   return { A: g.A, Iz: g.Iz, Iy: g.Iy, J: g.J,
-    Avy: g.Avz_web, Avz: g.Avy_flange,
-    design: { shape: p.shape, dims: { ...p.dims }, profile: name } };
+    Avy: g.Avz_web, Avz: g.Avy_flange, design };
 }

@@ -298,7 +298,13 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 
 ### 8.1 Perfis (`profiles.js` + `profiles.csv`)
 - [x] W laminados (W150×13 … W610×174) e HP (HP200×53 … HP310×125) — forma `I` (81 W + 7 HP Gerdau, propriedades tabeladas — `226f3b2`).
-- [ ] Soldados VS, CVS, CS (NBR 5884) — forma `I`. A NBR 5884:2005 já está no acervo (Tab. B.1–B.4 escaneadas): transcrever e conferir linha a linha.
+- [x] Soldados VS, CVS, CS — forma `I`, fabricação `soldado` (15/10/2026). Geometria copiada da
+      biblioteca do usuário (`Detalhador/data/perfis.json`: 98 VS, 90 CVS, 108 CS), propriedades por
+      `fromShape`; nome = d x bf (tf/tw). Amostra de 13 perfis conferida contra a NBR 5884:2005 Tab. B.1–B.3
+      (A, Ix, Iy, Zx, It ≤ 0,21 %) em `tests/test_profiles_nbr5884.mjs`. **A série da biblioteca não é a
+      da 2005:** tem alturas 200/225 (tw 5) e VS 1500 que a 2005 não tem; faltam os VS 150–350 da 2005.
+      Corrigido VS 750 x 320 tf 12,3 → 12,5 (Tab. B.3). Massa da biblioteca não usada (CS 400x400 (19/16)
+      constava com 65 kg/m).
 - [ ] Tubos circulares e retangulares — `pipe` / `box`.
 - [ ] U laminado e cantoneiras — `channel` / `angle`.
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
