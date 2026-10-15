@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // nbr8800.js — STEEL design per ABNT NBR 8800:2024 (PLANO_BRASIL 7.1).
 //
-//   · 5.2.2-a tension          Nt,Rd = Ag·fy/γa1   (net-section rupture 5.2.2-b NOT checked)
+//   · 5.2.2 tension            Nt,Rd = Ag·fy/γa1; net-section rupture Ct·An·fu/γa2 when member.secaoLiquida.An is given
 //   · 5.3     compression      Nc,Rd = χ·Aef·fy/γa1;  λ0 = √(Ag·fy/Ne)  (5.3.3.2)
 //               Ne = min(Nex, Ney, Nez) for doubly symmetric I (5.3.5.1)
 //               Aef by effective width (5.3.4.2, Tab. 4/5) — the 2024 edition has NO Q factor
@@ -61,6 +61,53 @@ function angleBuckling(dims, sec, E, G, L, Lt) {
   return { Ne: (lo + hi) / 2, Iu, Iv, Ixx, Iyy, A, rmin: Math.sqrt(Iv / A), u0, v0, r02, Nu, Nv, Nz };
 }
 
+// 5.2.2-b / 5.2.3–5.2.5: net-section rupture Nt,Rd = Ct·An·fu/γa2. Input member.secaoLiquida (SI, m):
+//   An (5.2.4, required — the hole pattern is not in the model; An = Ag when there are no holes, 5.2.4.2) and
+//   Ct directly, or caso: 'a' (all elements connected, 1,00) | 'b' (transverse welds only, Ac/Ag) |
+//   'c' (open section, 1 − ec/ℓc; default when lc is given) | 'd' (plate, longitudinal welds on both edges) |
+//   'e' (tube with a concentric gusset, [1 + (ec/ℓc)^3,2]^−10). ec defaults, for a single angle, to the distance
+//   from the centroid to the back of the connected leg (Fig. 4); Ac to the connected leg (b·t). Except for tubes and
+//   plates, Ct need not be taken below Ac/Ag (last paragraph of 5.2.5).
+function netSectionRupture(sl, { A, fu, ga2, shape, dims, abaLigada }) {
+  if (!sl || !(sl.An > 0)) return null;
+  if (!(fu > 0)) return { NRd: Infinity, Ct: 1, ref: '', aviso: 'Tração: seção líquida informada, mas o material não tem fu — 5.2.2-b NÃO verificada.' };
+  const An = Math.min(sl.An, A);
+  const tube = shape === 'pipe' || shape === 'tube' || shape === 'rhs' || shape === 'chs' || shape === 'box';
+  let conn = null;   // single angle: connected leg a, outstanding o, thickness t
+  if (shape === 'angle' && dims.d > 0 && dims.b > 0 && dims.t > 0) {
+    const big = Math.max(dims.d, dims.b), small = Math.min(dims.d, dims.b);
+    const a = abaLigada === 'menor' ? small : big, o = abaLigada === 'menor' ? big : small, t = dims.t;
+    const Ag = t * (a + o - t);
+    conn = { ec: (a * t * t / 2 + (o - t) * t * (t + (o - t) / 2)) / Ag, Ac: a * t };
+  }
+  const caso = sl.caso ?? (sl.Ct != null ? null : sl.lc > 0 ? (tube ? 'e' : 'c') : null);
+  let Ct, ref, aviso = null;
+  const ec = sl.ec ?? conn?.ec, Ac = sl.Ac ?? conn?.Ac;
+  if (sl.Ct != null) { Ct = sl.Ct; ref = 'informado'; }
+  else if (caso === 'a') { Ct = 1; ref = '5.2.5-a'; }
+  else if (caso === 'b' && Ac > 0) { Ct = Ac / A; ref = '5.2.5-b'; }
+  else if (caso === 'c' && ec >= 0 && sl.lc > 0) { Ct = 1 - ec / sl.lc; ref = '5.2.5-c'; }
+  else if (caso === 'd' && sl.lc > 0 && sl.b > 0 && sl.t > 0) {
+    Ct = 3 * sl.lc ** 2 / (3 * sl.lc ** 2 + sl.b ** 2) * (1 - sl.t / (2 * sl.lc)); ref = '5.2.5-d';
+  } else if (caso === 'e' && ec >= 0 && sl.lc > 0) { Ct = (1 + (ec / sl.lc) ** 3.2) ** -10; ref = '5.2.5-e'; }
+  else if (!tube && shape !== 'rect' && Ac > 0) {   // no Ct, ℓc or case: the code's own lower bound (safe side)
+    Ct = Ac / A; ref = 'Ac/Ag, limite inferior de 5.2.5';
+    aviso = 'Tração: sem Ct nem ℓc — adotado Ct = Ac/Ag (limite inferior de 5.2.5); informe ℓc (ou caso: \'a\' se a força chega a todos os elementos).';
+  } else {
+    return { NRd: Infinity, Ct: 1, An, ref: '', aviso: 'Tração: seção líquida informada sem Ct, ec/ℓc ou caso — ruptura (5.2.2-b) NÃO verificada.' };
+  }
+  if (!tube && shape !== 'rect' && caso !== 'd' && sl.Ct == null && Ac > 0 && Ct < Ac / A) { Ct = Ac / A; ref += ', ≥ Ac/Ag'; }
+  if (!(Ct > 0 && Ct <= 1)) {
+    const c = Math.min(Math.max(Ct, 0), 1);
+    aviso = `Tração: Ct = ${Ct.toFixed(3)} fora de [0; 1] (ec > ℓc ou Ct informado) — limitado a ${c.toFixed(3)}.`;
+    Ct = c;
+  }
+  if (!aviso && !tube && shape !== 'angle' && shape !== 'rect' && caso === 'c' && !(Ac > 0)) {
+    aviso = 'Tração: Ac não informado — piso Ct ≥ Ac/Ag (5.2.5) não aplicado (a favor da segurança).';
+  }
+  return { NRd: Ct * An * fu / ga2, Ct, An, ref, aviso };
+}
+
 function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   // cold-formed sections (NBR 6355 catalogue or flagged) are checked by NBR 14762:2010
   if (sec.coldFormed || sec.shape === 'Ue') {
@@ -112,7 +159,13 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     const slT = Math.max(L / rz, L / ry);
     if (slT > 300) avisos.push(`Esbeltez de barra tracionada ${slT.toFixed(0)} > 300 (5.2.8.1).`);
     axial = ratObj(Nabs, NRd, { modo: 'tração', formula: 'Nt,Rd = Ag·fy/γa1 (5.2.2-a)' });
-    if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (5.2.2-b) não verificada — o modelo não tem área líquida.');
+    const net = netSectionRupture(member.secaoLiquida, { A, fu: mat.Fu, ga2, shape, dims, abaLigada: member.cantoneira?.abaLigada });
+    if (net && net.NRd < NRd) {
+      NRd = net.NRd;
+      axial = ratObj(Nabs, NRd, { modo: 'tração (seção líquida)', formula: `Nt,Rd = Ct·An·fu/γa2 (5.2.2-b), Ct = ${net.Ct.toFixed(3)} (${net.ref})` });
+    }
+    if (net) { axial.secaoLiquida = { An: net.An, Ct: +net.Ct.toFixed(4), NRd: +net.NRd.toFixed(4), ref: net.ref }; if (net.aviso) avisos.push(net.aviso); }
+    else if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (5.2.2-b) não verificada — informe member.secaoLiquida.An (e Ct ou ec/ℓc).');
   } else {
     const Nex = Math.PI ** 2 * E * Iz / (Lx * Lx);
     const Ney = Math.PI ** 2 * E * Iy / (Ly * Ly);
