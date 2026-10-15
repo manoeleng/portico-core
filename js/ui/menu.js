@@ -128,6 +128,7 @@ export class MenuBar {
       case 'combos-norma':   a.createCodeCasesAndCombos();     break;
       case 'diag-estabilidad': a.runStabilityDiagnosis();    break;
       case 'assistant':      a.assistantDialog();            break;
+      case 'warehouse':      a.warehouseDialog();            break;
       case 'res-deformed':   a.setResultType('deformed');    break;
       case 'res-N':          a.setResultType('N');           break;
       case 'res-Vy':         a.setResultType('Vy');          break;

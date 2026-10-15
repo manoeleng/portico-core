@@ -7119,6 +7119,82 @@ class App {
     } finally { this._hideProgress(); }
   }
 
+  // ── Warehouse generator form (Forecast/CalcSteel-style, PLANO_BRASIL) ──────────────────────────────
+  // Floating side panel (the 3D stays visible): every change rebuilds the spec, runs the deterministic
+  // generator with the Brazil preset (NBR 6123 wind, NBR 8681 combinations, Gerdau / NBR 6355 catalogues)
+  // and reloads the model — live preview, no hand-written JSON. «Gerar» keeps it; «Cancelar» restores.
+  async warehouseDialog() {
+    document.getElementById('wh-panel')?.remove();
+    const libs = await this._loadAssistantLibraries('brasil');
+    const { generateModel } = await import('../assistant/generator.js?v=7');
+    const { cfNames } = await import('./design/profiles_cf.js?v=7');
+    const prev = this.serializer.toJSON(this.model), prevName = this._fileName;
+    const W = libs.perfiles.map(p => p.nombre), UE = cfNames().filter(n => n.startsWith('Ue'));
+    const ACOS = libs.materiales.filter(m => /acero/i.test(m.tipo)).map(m => m.nombre);
+    const opt = (list, sel) => list.map(v => `<option ${v === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    const num = (id, label, v, step = 0.1, min = 0) => `<div class="prop-field"><label>${label}</label><input type="number" id="${id}" value="${v}" step="${step}" min="${min}"></div>`;
+    const sel = (id, label, html) => `<div class="prop-field"><label>${label}</label><select id="${id}">${html}</select></div>`;
+    const sec = (title) => `<div style="margin:10px 0 4px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase">${title}</div>`;
+    const t = (k) => i18n.t(k);
+    const el = document.createElement('div');
+    el.id = 'wh-panel';
+    el.style.cssText = 'position:fixed;left:12px;top:70px;width:340px;max-height:calc(100vh - 90px);overflow:auto;z-index:9000;background:var(--bg-elev,#fff);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:0 12px 12px;font-size:12px';
+    el.innerHTML = `
+<div style="position:sticky;top:0;background:var(--accent,#16a34a);color:#fff;margin:0 -12px 8px;padding:10px 12px;font-weight:600;display:flex;justify-content:space-between">
+  <span>${t('Generador de nave industrial (galpón)')}</span><span id="wh-close" style="cursor:pointer">✕</span></div>
+${sec(t('1. Geometría principal'))}
+<div class="prop-row cols2">${num('wh-span', t('Vano (m)'), 15, 0.5, 4)}${num('wh-len', t('Largo (m)'), 30, 1, 4)}</div>
+<div class="prop-row cols2">${num('wh-h', t('Altura del pilar (m)'), 6, 0.25, 2)}${num('wh-sep', t('Separación de pórticos (m)'), 5, 0.25, 1)}</div>
+${sec(t('2. Pilares'))}
+<div class="prop-row cols3">${sel('wh-ctype', t('Tipo'), `<option value="simples">${t('Simple')}</option><option value="treliçado">${t('Reticulado')}</option>`)}${num('wh-cw', t('Ancho (m)'), 0.5, 0.05, 0.2)}${num('wh-cmod', t('Modulación (m)'), 0.5, 0.05, 0.2)}</div>
+${sec(t('3. Cubierta (cercha)'))}
+<div class="prop-row cols3">${sel('wh-truss', t('Cercha'), '<option>warren</option><option>pratt</option><option>howe</option>')}${num('wh-slope', t('Pendiente (%)'), 10, 1, 1)}${num('wh-psp', t('Separación de correas (m)'), 1.8, 0.1, 0.6)}</div>
+${sec(t('4. Arriostramientos'))}
+${sel('wh-brace', t('Cubierta y fachadas'), `<option value="extremidades">${t('Solo en los extremos')}</option><option value="todos">${t('En todos los vanos')}</option><option value="sem">${t('Sin arriostramiento')}</option>`)}
+${sec(t('5. Perfiles y materiales'))}
+${sel('wh-mat', t('Acero'), opt(ACOS, 'MR250'))}
+${sel('wh-scol', t('Pilar (cordones)'), opt(W, 'W 250 x 32,7'))}
+${sel('wh-schord', t('Cordones de la cercha'), opt(W, 'W 150 x 13,0'))}
+${sel('wh-sdiag', t('Montantes y diagonales'), opt(W, 'W 150 x 13,0'))}
+${sel('wh-sterca', t('Correas'), `<option value="">${t('Automática (d ≥ L/40)')}</option>` + opt(UE, ''))}
+<div class="prop-row cols2">${num('wh-rod', t('Tirante redondo (mm)'), 12, 1, 12)}${sel('wh-slace', t('Celosía del pilar'), opt(W, 'W 150 x 13,0'))}</div>
+${sec(t('6. Cargas y viento (NBR 6123)'))}
+<div class="prop-row cols2">${num('wh-cm', t('Peso de cubierta (kN/m²)'), 0.15, 0.05, 0)}${num('wh-cv', t('Sobrecarga de cubierta (kN/m²)'), 0.25, 0.05, 0)}</div>
+<div class="prop-row cols3">${num('wh-v0', 'V0 (m/s)', 35, 1, 0)}${sel('wh-cat', t('Categoría'), '<option>I</option><option>II</option><option>III</option><option selected>IV</option><option>V</option>')}${sel('wh-s3', t('Grupo S3'), '<option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>')}</div>
+<small id="wh-status" style="display:block;margin:8px 0;color:var(--text-muted)"></small>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+  <button type="button" id="wh-cancel" class="btn-secondary">${t('Cancelar')}</button>
+  <button type="button" id="wh-ok" class="btn-primary">✓ ${t('Generar modelo')}</button></div>`;
+    document.body.appendChild(el);
+    const $ = (id) => el.querySelector('#' + id), v = (id) => $(id).value, n = (id) => parseFloat($(id).value);
+    const spec = () => ({
+      project: 'galpao', typology: 'galpão', sections: { material: v('wh-mat'), columns: v('wh-scol') },
+      warehouse: { span_m: n('wh-span'), length_m: n('wh-len'), column_height_m: n('wh-h'), frame_spacing_m: n('wh-sep'),
+        slope_pct: n('wh-slope'), truss_type: v('wh-truss'), purlin_spacing_m: n('wh-psp'), bracing: v('wh-brace'),
+        column_type: v('wh-ctype'), column_width_m: n('wh-cw'), column_module_m: n('wh-cmod'),
+        chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
+        purlin_section: v('wh-sterca') || undefined, bracing_rod_mm: n('wh-rod') },
+      loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0 },
+      wind: { V0_m_s: n('wh-v0'), categoria: v('wh-cat'), grupoS3: v('wh-s3') },
+    });
+    let last = null, timer = null;
+    const preview = () => {
+      try {
+        const sp = spec(); last = generateModel(sp, libs);
+        this._loadJSON(JSON.stringify(last), 'galpao.s3d');
+        const ws = (last._warnings || []).filter(w => w.type !== 'info').length;
+        $('wh-status').textContent = `${last._generado?.resumen || ''} · ${last.loadCases.length} ${t('casos')} · ${last.combinations.length} ${t('combinaciones')}${ws ? ` · ${ws} ${t('avisos')}` : ''}`;
+      } catch (e) { $('wh-status').textContent = e.message; }
+    };
+    el.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(preview, 350); });
+    el.addEventListener('change', () => { clearTimeout(timer); timer = setTimeout(preview, 50); });
+    const restore = () => { this._loadJSON(prev, prevName || 'nuevo'); el.remove(); };
+    $('wh-close').onclick = restore; $('wh-cancel').onclick = restore;
+    $('wh-ok').onclick = () => { if (last) { this.markDirty(); this._showWarnings(last._warnings || []); } el.remove(); };
+    this._whSpec = spec;   // exposed for tests
+    preview();
+  }
+
   /** Feedback bar after generating from the assistant: ✓ Yes / ✗ Not what I asked for.
    *  The "no" sends POST /api/assistant/feedback marking the record as incorrect. */
   _offerAssistantFeedback(logId) {
@@ -7589,9 +7665,10 @@ class App {
   // Assistant preset: 'brasil' (presets/brasil — NBR 6120/6123/15421/8681, Gerdau and NBR materials) or
   // 'generico' (assistant/ — the core's code-agnostic examples). Default: Brasil when the UI is in PT.
   _assistantPreset() { return this._asisPreset || (i18n.getLocale?.() === 'pt' ? 'brasil' : 'generico'); }
-  async _loadAssistantLibraries() {
-    const preset = this._assistantPreset();
-    if (this._asisLibs && this._asisLibs.preset === preset) return this._asisLibs;
+  async _loadAssistantLibraries(presetOverride) {
+    const preset = presetOverride || this._assistantPreset();
+    this._asisLibsByPreset = this._asisLibsByPreset || {};
+    if (this._asisLibsByPreset[preset]) return (this._asisLibs = this._asisLibsByPreset[preset]);
     const base = preset === 'brasil' ? 'presets/brasil/' : 'assistant/';
     const [reglas, pTxt, mTxt, sTxt] = await Promise.all([
       fetch(base + 'rules.json').then(r => r.json()),
@@ -7601,6 +7678,7 @@ class App {
     ]);
     // quote-aware CSV (the Brazil libraries have commas inside quoted fields)
     this._asisLibs = { preset, reglas, perfiles: parseCSV(pTxt), materiales: parseCSV(mTxt), sobrecargas: parseCSV(sTxt) };
+    this._asisLibsByPreset[preset] = this._asisLibs;
     return this._asisLibs;
   }
 
