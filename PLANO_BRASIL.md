@@ -21,7 +21,7 @@ norma):** vento NBR 6123 no galpão FEITO (15/10/2026: X e Y × cada Cpi, Tab. 6
 do autor; "traga o seu serviço") — decisão do Manoel.
 
 **Pendências técnicas abertas** (detalhes nas notas de cada fase):  na 8800 (ruptura da seção líquida 5.2.2-b e alma esbelta pelo Anexo E FEITAS em 15/10/2026) resta o **bug contra a segurança** da fabricação não informada (aviso diz "adotado soldado", mas FLM/Tab. 4 usam as fórmulas de laminado — confirmado pela revisão, aguardando o Manoel autorizar a correção `welded = fabricacao !== 'laminado'`);
- seção não retangular e torção de perfis abertos (17.5.2) na
+ seção não retangular na 6118 — a torção de seção composta de retângulos (17.5.1.4.2) e de perfis abertos de parede fina (17.5.2) está FEITA como funções puras (`torsionCompositeRects`, `openSectionTorsion` em `nbr6118.js`, 15/10/2026, revisão FECHADA; teste `tests/test_nbr6118_torsion_open.mjs` por cálculo manual; premissas: paredes biapoiadas por padrão, mola uniforme 4·0,15·GJ/L com garfo nas extremidades, divisão em retângulos informada pelo usuário) e entra no `checkNBR6118` junto com a seção não retangular, na
 6118 (ELS de madeira FEITO 15/10/2026); Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da
 aba; campos `type="number"` com vírgula (decisão de produto). Fora do plano: o caminho AISC 360 tem a mesma
 limitação da cantoneira que foi corrigida na NBR 8800.

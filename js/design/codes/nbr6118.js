@@ -191,6 +191,53 @@ export function torsionCheck({ TSd, b, h, c1, fck, fcd, fywd, theta = 45 }) {
 }
 
 
+// ── Torsion of a section made of rectangles (17.5.1.4.2) ─────────────────────────────────────────
+// TSdi = TSd·ai³·bi/Σ(aj³·bj) (ai = smaller side, bi = larger side); each rectangle checked alone with its own
+// equivalent hollow section (17.5.1.4.1, torsionCheck). rects: [{ b, h }] in m. ratio = max TSdi/TRd2,i
+// (concrete diagonal only — the reinforcement of each rectangle is reported as required areas).
+export function torsionCompositeRects({ TSd, rects, c1, fck, fcd, fywd, theta = 45 }) {
+  const k = rects.map(r => { const a = Math.min(r.b, r.h), bb = Math.max(r.b, r.h); return a ** 3 * bb; });
+  const sum = k.reduce((x, y) => x + y, 0);
+  const parts = rects.map((r, i) => {
+    const TSdi = TSd * k[i] / sum;
+    const t = torsionCheck({ TSd: TSdi, b: r.b, h: r.h, c1, fck, fcd, fywd, theta });
+    return { ...r, share: k[i] / sum, TSdi, ...(t || {}), ratio: t ? TSdi / t.TRd2 : Infinity };
+  });
+  return { parts, ratio: Math.max(...parts.map(q => q.ratio)) };
+}
+
+// ── Thin-walled open sections: uniform torsion × flexo-torsion (17.5.2) ─────────────────────────────
+// 17.5.2.2: cracked stiffness 0,15 of the elastic one for uniform torsion and 0,50 for flexo-torsion; the
+// designer may neglect one mechanism if the one kept is not less stiff than the neglected.
+// 17.5.2.3 (opposite parallel walls, T at midspan): r = T/θ, θ = (a1 + a2)/z, ai = deflection of wall i under
+// F = T/z with HALF its elastic stiffness. Wall boundary condition (member.paredes.apoio): 'biapoiada'
+// a = F·L³/(48·EI/2) or 'biengastada' a = F·L³/(192·EI/2). Uniform torsion spring for T at midspan with both
+// ends restrained to torsion: two halves in parallel → 4·(0,15·G·J)/L.
+// 17.5.2.4: TRd = ΔFRd,mín·z, ΔFRd = FRd − FSd of each wall (wall bending resistance and the share of the
+// transverse load of the wall, without torsion).
+// Units: kN, m. E, G in kN/m²; I1, I2 = wall second moments about their own bending axis (with bf of 14.6.2.2).
+// Member ends restrained against torsion and free to warp (fork supports) — the basis of 17.5.2.3; 'biapoiada' is the
+// default (the softer, safe-side wall model); 'biengastada' must be declared and FRd made consistent with it.
+export function openSectionTorsion({ T, L, z, E, G, J, I1, I2, apoio = 'biapoiada', FRd, FSd }) {
+  const c = apoio === 'biengastada' ? 192 : 48;
+  const F = T / z;
+  const a1 = F * L ** 3 / (c * 0.5 * E * I1), a2 = F * L ** 3 / (c * 0.5 * E * I2);
+  const theta = (a1 + a2) / z;
+  // r = T/θ does not depend on T: z²·c·0,5·E/(L³·(1/I1 + 1/I2)) (also valid for T = 0)
+  const rFlexo = z * z * c * 0.5 * E / (L ** 3 * (1 / I1 + 1 / I2));   // kN·m/rad
+  const rUnif = 4 * 0.15 * G * J / L;                        // kN·m/rad
+  const mecanismo = rFlexo >= rUnif ? 'flexo-torção' : 'torção uniforme';
+  const out = { F, a1, a2, theta, rFlexo, rUnif, mecanismo, apoio };
+  if (FRd && FSd) {
+    const dF = FRd.map((fr, i) => fr - FSd[i]);
+    out.dFRdMin = Math.min(...dF);
+    out.TRd = out.dFRdMin * z;
+    out.ratio = out.TRd > 0 ? T / out.TRd : Infinity;
+  }
+  return out;
+}
+
+
 // ── Columns: local second-order effects (15.8) ─────────────────────────────────
 // h = depth in the bending direction (m); Nd compression (kN); M1dA = larger end moment (kN·m,
 // absolute); rMBA = MB/MA signed (+ same face in tension = single curvature); le (m).
