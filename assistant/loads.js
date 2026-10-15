@@ -144,6 +144,39 @@ export function windLoad(ficha, reglas, h_techo) {
 // Wind perpendicular to the LONG side a (α = 90°): A windward, B leeward → presiones '1' (A) and '4' (B),
 // the keys the generator uses for the frame. Tables come from rules.loads.wind (preset Brasil).
 const _band = (v, edges) => edges.findIndex(e => v <= e);
+/**
+ * Drag coefficient Ca of a rectangular-plan building (NBR 6123:2023 6.1.2, Fig. 4 low turbulence / Fig. 5 high
+ * turbulence, 6.1.3.1), from the ratified table w.ca_paralelepipedica: bilinear interpolation in log(ℓ1/ℓ2) ×
+ * log(h/ℓ1), the axes of the figures. ℓ1 = plan dimension perpendicular to the wind, ℓ2 = parallel. No extrapolation:
+ * h/ℓ1 < 0,5 uses the 0,5 row (Ca grows with h/ℓ1 — safe side); outside the table, or a cell without curves on both
+ * sides (null), returns Ca = null with the reason.
+ */
+export function caEdificio(w, { h, l1, l2, altaTurbulencia = false }) {
+  const T = w?.ca_paralelepipedica;
+  if (!T) return { Ca: null, aviso: 'Tabela de Ca (NBR 6123 Fig. 4/5) ausente das regras.' };
+  // 6.1.3.1-a: high turbulence only when depth/width > 1/3, i.e. ℓ1/ℓ2 < 3 (b — neighbourhood — is the user's declaration)
+  const alta = altaTurbulencia && l1 / l2 < 3;
+  const F = alta ? T.fig5 : T.fig4, fig = alta ? 'Fig. 5' : 'Fig. 4';
+  const xs = T.x_l1_l2, ys = F.y_h_l1;                 // xs descending (4,0 → 0,2), ys descending
+  const rx = l1 / l2; let ry = h / l1; const avisos = [];
+  const br = (v, n = 3) => String(+(+v).toFixed(n)).replace('.', ',');
+  if (altaTurbulencia && !alta) avisos.push(`Alta turbulência pedida, mas ℓ1/ℓ2 = ${br(l1 / l2)} ≥ 3 (6.1.3.1-a: profundidade/largura > 1/3): usada a Fig. 4.`);
+  if (!(rx > 0 && ry > 0)) return { Ca: null, aviso: 'Ca: dimensões inválidas.' };
+  if (ry < Math.min(...ys)) { avisos.push(`h/ℓ1 = ${br(ry)} < ${br(Math.min(...ys))}: usada a linha h/ℓ1 = ${br(Math.min(...ys))} da ${fig} (a favor da segurança).`); ry = Math.min(...ys); }
+  if (ry > Math.max(...ys) + 1e-9) return { Ca: null, aviso: `Ca: h/ℓ1 = ${br(ry, 2)} acima da ${fig} (máx. ${br(Math.max(...ys))}).` };
+  if (rx > Math.max(...xs) + 1e-9 || rx < Math.min(...xs) - 1e-9) return { Ca: null, aviso: `Ca: ℓ1/ℓ2 = ${br(rx)} fora da ${fig} (${br(Math.min(...xs))} a ${br(Math.max(...xs))}).` };
+  const seg = (arr, v) => { for (let i = 0; i < arr.length - 1; i++) if (v <= arr[i] + 1e-12 && v >= arr[i + 1] - 1e-12) return i; return -1; };
+  const i = seg(ys, ry), j = seg(xs, rx);
+  const L = Math.log10;
+  const u = (L(ry) - L(ys[i])) / (L(ys[i + 1]) - L(ys[i])), t = (L(rx) - L(xs[j])) / (L(xs[j + 1]) - L(xs[j]));
+  const c = [F.ca[i][j], F.ca[i][j + 1], F.ca[i + 1][j], F.ca[i + 1][j + 1]];
+  // corners with zero weight may be null (point on a grid line next to an empty cell)
+  const wts = [(1 - u) * (1 - t), (1 - u) * t, u * (1 - t), u * t];
+  if (c.some((v, k) => v == null && wts[k] > 1e-9)) return { Ca: null, aviso: `Ca: (ℓ1/ℓ2 = ${br(rx)}, h/ℓ1 = ${br(ry)}) cai numa região da ${fig} sem curvas dos dois lados — informe Ca.` };
+  const Ca = c.reduce((s, v, k) => s + (wts[k] > 1e-9 ? v * wts[k] : 0), 0);
+  return { Ca: +Ca.toFixed(3), fig, l1_l2: +rx.toFixed(4), h_l1: +(h / l1).toFixed(4), avisos };
+}
+
 function windLoadNBR6123(ficha, w, h_techo) {
   const notas = [];
   const ub = ficha.location || {}, g = ficha.geometry || {}, wf = ficha.wind || {};
@@ -207,11 +240,12 @@ function windLoadNBR6123(ficha, w, h_techo) {
     return { '1': f(cpeW.A), '4': f(cpeW.B), C: fe(cpeW.C), D: fe(cpeW.D), EFI: f(cpeR.EFI), GHJ: f(cpeR.GHJ), EG: fe(cpeR.EG), FH: fe(cpeR.FH),
       A1B1: fe(cpeW.A1B1), A2B2: fe(cpeW.A2B2), A3B3: fe(cpeW.A3B3), IJ: fe(cpeR.IJ) }; };
   const porCpi = cpiSet.map(ci => ({ cpi: ci, presiones: set(ci) }));
+  const ca = caEdificio(w, { h, l1: a, l2: b, altaTurbulencia: !!wf.altaTurbulencia });   // α = 90°: wind ⊥ long side a
   const presiones = porCpi.reduce((a, b) => Math.abs(b.presiones.EFI) > Math.abs(a.presiones.EFI) ? b : a).presiones;
   return {
     V: V0, V0, S1, S2: +S2.toFixed(4), S3, Vk: +Vk.toFixed(3), categoria: cat, classe, q_Nm2: +q.toFixed(2),
     classe_empena: classeEmp, S2_empena: +S2e.toFixed(4), q_empena_Nm2: +qe.toFixed(2),
-    cpi: cpiSet, cpe_paredes: cpeW, cpe_telhado: cpeR, presiones, presiones_por_cpi: porCpi, x0_m: +x0.toFixed(3), a_m: a, b_m: b,
+    cpi: cpiSet, cpe_paredes: cpeW, cpe_telhado: cpeR, presiones, presiones_por_cpi: porCpi, x0_m: +x0.toFixed(3), a_m: a, b_m: b, ca,
     _formula: 'Vk = V0·S1·S2·S3; q = 0,613·Vk² [N/m²]; p = q·(Cpe − Cpi) (NBR 6123:2023)',
     _notas: notas,
   };

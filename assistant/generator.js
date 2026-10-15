@@ -8,7 +8,7 @@
 // Axis convention: Z-up (X east, Y north, Z vertical).
 // ──────────────────────────────────────────────────────────────────────────────
 
-import { snowLoad, windLoad, responseSpectrum } from './loads.js';
+import { snowLoad, windLoad, responseSpectrum, caEdificio } from './loads.js';
 import { nbrCombinations } from '../js/design/combinations_nbr.js';
 import { cfNames, cfSection } from '../js/design/profiles_cf.js';
 
@@ -583,8 +583,32 @@ function generateModelByTypology(spec, libs) {
     // Wind in +X: net wall pressure (zone 1 windward − zone 4 leeward) as a
     // horizontal line load (globalX) on the columns of the x=min face.
     if (ub.latitude_deg == null && !ub.city && !(spec.wind?.V0_m_s > 0)) addWarning('omitted', 'Wind enabled without location (latitude/city): used the default basic speed.');
-    const vi = windLoad(spec, reglas, h_techo);
-    const pNet_kNm2 = ((vi.presiones['1'] || 0) - (vi.presiones['4'] || 0)) / 1000; // N/m²→kN/m²
+    // preset Brasil, 3D: the plan of windLoad (a ≥ b, S2 class of each façade) comes from the resolved plan unless given
+    const nbrPlan = reglas.loads?.wind?.metodo === 'NBR6123' && !is2D && !(spec.wind?.a_m > 0 && spec.wind?.b_m > 0);
+    const vi = windLoad(nbrPlan ? { ...spec, wind: { ...(spec.wind || {}), a_m: Math.max(Lx_inf, Ly_inf), b_m: Math.min(Lx_inf, Ly_inf) } } : spec, reglas, h_techo);
+    let pNet_kNm2 = ((vi.presiones['1'] || 0) - (vi.presiones['4'] || 0)) / 1000; // N/m²→kN/m²
+    // NBR 6123:2023 6.1.2: the global force on a rectangular-plan building is Fa = Ca·q·Ae (Fig. 4/5), not the
+    // difference of the wall Cpe (those are for the cladding/elements). Ca per wind direction from the real plan:
+    // wind X hits the face x = 0 → ℓ1 = Ly (⊥ wind), ℓ2 = Lx; wind Y → ℓ1 = Lx, ℓ2 = Ly. 2D: the plan of windLoad.
+    const nbrW = reglas.loads?.wind?.metodo === 'NBR6123';
+    const br = (v) => String(v).replace('.', ',');
+    const caDir = (l1, l2) => caEdificio(reglas.loads.wind, { h: h_techo, l1, l2, altaTurbulencia: !!spec.wind?.altaTurbulencia });
+    // q of the façade hit: class by its own frontal dimension (5.3.2) — long side a → q, short side b → q_empena
+    const qFace = (width) => (width >= Math.max(Lx_inf, Ly_inf) - 1e-9 ? vi.q_Nm2 : (vi.q_empena_Nm2 ?? vi.q_Nm2));
+    const pNbr = (ca, dir, qN = vi.q_Nm2) => {
+      if (ca?.Ca > 0) {
+        for (const n of ca.avisos || []) addWarning('info', `Vento ${dir}: ${n}`);
+        addWarning('info', `Vento NBR 6123 (6.1.2) ${dir}: Ca = ${br(ca.Ca)} (${ca.fig}, ℓ1/ℓ2 = ${br(ca.l1_l2)}, h/ℓ1 = ${br(ca.h_l1)}) × q = ${br(qN)} N/m² (classe pela fachada atingida) nos pilares a barlavento; q do topo em toda a altura (a favor da segurança).`);
+        return ca.Ca * qN / 1000;
+      }
+      addWarning('omitted', `Vento NBR 6123 ${dir}: ${ca?.aviso || 'Ca indisponível'} — usada a diferença de Cpe das paredes (Tab. 6), que NÃO é a força global de 6.1.2; informe Ca.`);
+      return null;
+    };
+    if (nbrW) {
+      const p = pNbr(is2D ? vi.ca : caDir(Ly_inf, Lx_inf), 'X', is2D ? vi.q_Nm2 : qFace(Ly_inf));
+      if (p != null) pNet_kNm2 = p;
+      addWarning('omitted', 'Vento NBR 6123: excentricidade das forças de arrasto (6.1.4: ea = 0,075·a e eb = 0,075·b; 0,15 com vizinhança) NÃO gerada — considere a torção (casos com a força deslocada) no projeto.');
+    }
     const lcW = { id: ++cnt.loadCases, name: 'Viento X', loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _presion_neta_muro_kNm2: +pNet_kNm2.toFixed(4) };
     if (pNet_kNm2 !== 0) for (let k = 0; k < nNiv; k++) for (let j = 0; j < ejesY.length; j++) {
       // column of the windward face (i=0) at level k→k+1
@@ -592,7 +616,21 @@ function generateModelByTypology(spec, libs) {
       const w = pNet_kNm2 * (is2D ? anchoTrib2D : tributario(ejesY, j) * factorPlanta(k + 1).sy);
       if (eid != null && w !== 0) lcW.loads.push({ type: 'dist', elemId: eid, dir: 'globalX', w: +w.toFixed(6) });
     }
+    // preset Brasil, 3D: wind on the other façade too (NBR 6123: each façade), face y = 0, Ca with ℓ1 = Lx
+    let lcYwind = null;
+    if (nbrW && !is2D) {
+      let pY = pNbr(caDir(Lx_inf, Ly_inf), 'Y', qFace(Lx_inf));
+      if (pY == null) pY = ((vi.presiones['1'] || 0) - (vi.presiones['4'] || 0)) / 1000;
+      const lcY = { id: ++cnt.loadCases, name: 'Viento Y', loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _presion_neta_muro_kNm2: +pY.toFixed(4) };
+      if (pY !== 0) for (let k = 0; k < nNiv; k++) for (let i = 0; i < ejesX.length; i++) {
+        const eid = elementoPilar.get(`${k},${i},0`);
+        const w = pY * tributario(ejesX, i) * factorPlanta(k + 1).sx;
+        if (eid != null && w !== 0) lcY.loads.push({ type: 'dist', elemId: eid, dir: 'globalY', w: +w.toFixed(6) });
+      }
+      lcYwind = lcY;
+    }
     loadCases.push(lcW); lcWId = lcW.id;
+    if (lcYwind) loadCases.push(lcYwind);
   }
   if (cargas.seismic && reglas.loads?.seismic?.metodo === 'NBR15421') {
     // NBR 15421:2023 spectrum (preset Brasil): ag, ground class, occupancy category and R from the spec.
