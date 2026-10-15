@@ -756,8 +756,7 @@
     "III": 1.5
    },
    "default_params": {
-    "soil": "D",
-    "R": 3
+    "soil": "D"
    },
    "_R_nota": "R/Ω0/Cd (Tab. 6, detalhamento usual): pórtico de concreto 3/3/2,5; pórtico de aço momento-resistente 3,5/3/3; aço contraventado em treliça 3,25/2/3,25."
   }
