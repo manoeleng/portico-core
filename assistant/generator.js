@@ -1895,7 +1895,7 @@ export function generateWarehouse(spec, libs) {
       }
     }
   }
-  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, do beiral até a terça abaixo da cumeeira (T1) e diagonais até a terça da cumeeira nos pórticos (T2) — Manual CBCA de galpões 2.10–2.11, Fig. 77. Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1} (hipótese de projeto); na verificação da terça use Lx = vão do pórtico. LIMITAÇÃO: as terças do modelo têm a alma vertical (o PORTICO ainda não tem ângulo de rotação da seção) e a telha carrega os banzos — a componente da carga no eixo de menor inércia (g·senθ) e as forças nas correntes não saem da análise: calcule-as como no CBCA 2.11.`);
+  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, do beiral até a terça abaixo da cumeeira (T1) e diagonais até a terça da cumeeira nos pórticos (T2) — Manual CBCA de galpões 2.10–2.11, Fig. 77. Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1} (hipótese de projeto); na verificação da terça use Lx = vão do pórtico. As terças têm a alma perpendicular ao pano (ângulo β = ±θ; a da cumeeira, alma vertical). LIMITAÇÃO: a telha carrega os banzos — a componente da carga no eixo de menor inércia da terça (g·senθ) e as forças nas correntes não saem da análise: calcule-as como no CBCA 2.11.`);
   if (comContrav) {
     // pin both ends of the truss web and of the purlins (ry, rz released; torsion kept): chords stay continuous
     const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
@@ -1913,6 +1913,14 @@ export function generateWarehouse(spec, libs) {
       if (isPurlin && secTerca && a.z > H + 1e-6) e.secId = secTerca.id;            // purlins on the top chord (biapoiadas)
       else if (isPurlin && secTerca && Math.abs(a.x) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;   // eave purlins
       else if (isPurlin && secTerca && Math.abs(a.x - luz) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;
+      // roll angle β of the purlin (solver/timoshenko.js localAxes): web perpendicular to its roof slope, i.e. local y
+      // along the slope normal n = (∓sinθ, 0, cosθ). Member along ±Y: default triad ez = (±1, 0, 0), ey = Z →
+      // β = atan2(n·ez, n·ey). Ridge purlin (x = luz/2): web vertical (β = 0).
+      if (isPurlin && secTerca && e.secId === secTerca.id) {
+        const th = Math.atan(2 * hR / luz), sx = a.x < luz / 2 - 1e-6 ? -1 : a.x > luz / 2 + 1e-6 ? 1 : 0;
+        const b0 = Math.atan2(sx * Math.sin(th) * Math.sign(b.y - a.y), Math.cos(th)) * 180 / Math.PI;
+        if (Math.abs(b0) > 1e-9) e.beta = +b0.toFixed(4);
+      }
     }
     // X bracing (tension-only rods, pinned) in the two end bays: roof plane (top chord) and both side walls
     const nBays = Yf.length - 1;
@@ -1940,10 +1948,10 @@ export function generateWarehouse(spec, libs) {
     if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : modoContrav === 'escolhidos' ? `nos vãos ${bays.map(b => b + 1).join(', ')} (de ${nBays})` : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
-  // purlins and sag rods: the roofing loads the truss chords and the purlin web is vertical (no section roll yet), so
-  // their analysis forces are not design forces — excluded from the strength check (listed as not verified)
+  // purlins and sag rods: the roofing loads the truss chords (not the purlins), so their analysis forces are not
+  // design forces — excluded from the strength check (listed as not verified)
   for (const e of elements) {
-    if (e.secId === 7) e.designExcluded = 'Corrente: força não sai da análise (alma da terça vertical, telha nos banzos) — calcular pelo Manual CBCA de galpões 2.11.';
+    if (e.secId === 7) e.designExcluded = 'Corrente: força não sai da análise (telha carrega os banzos, não as terças) — calcular pelo Manual CBCA de galpões 2.11.';
     else if (e.secId === 5) e.designExcluded = 'Terça: a telha carrega os banzos no modelo — verificar a terça à parte (NBR 14762, flexão oblíqua, Lx = vão, Ly = Lb pelas correntes).';
   }
   // material of each member by its function

@@ -269,6 +269,8 @@ export class Model {
       if (el.compressionOnly) el.cable = false;    // mutually exclusive
     }
     if (props.L0factor !== undefined) el.L0factor = +props.L0factor || 1;
+    // Roll angle β (degrees): rotation of the local y, z axes about x (localAxes in solver/timoshenko.js).  0 → removed.
+    if (props.beta !== undefined) { const b = +props.beta || 0; if (b) el.beta = b; else delete el.beta; }
     // Rigid end zone / end offset (#87): lengths (m) per end.
     if (props.rigidEnd !== undefined) {
       const re = props.rigidEnd;

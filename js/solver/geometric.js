@@ -77,7 +77,7 @@ export function assembleKgInto(writer, model, nodeIndex, uGlobal) {
     const mat = model.materials.get(elem.matId), sec = model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) continue;
 
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     const T  = transformMatrix(ex, ey, ez);
     const ed = [...dofs(nodeIndex, elem.n1), ...dofs(nodeIndex, elem.n2)];
 

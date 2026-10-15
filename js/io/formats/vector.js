@@ -31,6 +31,7 @@ const bzFloat = (line, start, len) => { const s = (line.substr(start, len) || ''
 // ── EXPORT: neutral model → .dat text ─────────────────────────────────────────
 function write(neutral) {
   const W = neutral.meta.exportWarnings = neutral.meta.exportWarnings || [];
+  if (neutral.members.some((e) => +e.beta)) W.push('VECTOR: ângulo β das barras exportado como está — convenção de sinal do VECTOR não conferida; revise a orientação das seções');
   const nodes = neutral.nodes, members = neutral.members;
   const matById = new Map(neutral.materials.map(m => [m.id, m]));
   const secById = new Map(neutral.sections.map(s => [s.id, s]));

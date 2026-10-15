@@ -25,28 +25,34 @@ const _unit = (v) => { const n = Math.hypot(...v) || 1; return [v[0]/n, v[1]/n, 
 
 // Element local triad, matching localAxes() in js/solver/timoshenko.js (VERT=0.9994,
 // ez = ex×ref, ey = ez×ex). geomTransf's vecxz is ez.
-function localFrame(ni, nj) {
+// betaDeg: PORTICO roll angle β (rotation of y, z about x, right-hand rule).
+function localFrame(ni, nj, betaDeg = 0) {
   const ex = _unit([nj.x - ni.x, nj.y - ni.y, nj.z - ni.z]);
   const ref = Math.abs(ex[2]) > 0.9994 ? [1, 0, 0] : [0, 0, 1];
-  const ez = _unit(_cross(ex, ref));
-  const ey = _cross(ez, ex);
+  let ez = _unit(_cross(ex, ref));
+  let ey = _cross(ez, ex);
+  const b = (+betaDeg || 0) * Math.PI / 180;
+  if (b) {
+    const c = Math.cos(b), s = Math.sin(b);
+    [ey, ez] = [ey.map((v, i) => c * v + s * ez[i]), ez.map((v, i) => -s * ey[i] + c * v)];
+  }
   return { ex, ey, ez };
 }
 
-// Local z axis same as PORTICO (global Z unless near-vertical member → global X).
-function localZ(ni, nj) { return localFrame(ni, nj).ez; }
+// Local z axis same as PORTICO (global Z unless near-vertical member → global X), rotated by β.
+function localZ(ni, nj, betaDeg = 0) { return localFrame(ni, nj, betaDeg).ez; }
 
 // A PORTICO distributed load {w, dir} → local intensities [Wx, Wy, Wz] for eleLoad.
 // In PORTICO a positive `w` on 'gravity'/'globalZ' points DOWN (global −Z), matching
 // _toLocalDistLoad() in the assembler; global/local dirs pass straight through.
-function beamUniformLocal(ni, nj, w, dir) {
+function beamUniformLocal(ni, nj, w, dir, betaDeg = 0) {
   if (dir === 'localX') return [w, 0, 0];
   if (dir === 'localY') return [0, w, 0];
   if (dir === 'localZ') return [0, 0, w];
   const g = dir === 'globalX' ? [w, 0, 0]
           : dir === 'globalY' ? [0, w, 0]
           : [0, 0, -w];   // 'gravity' and 'globalZ' → global −Z
-  const { ex, ey, ez } = localFrame(ni, nj);
+  const { ex, ey, ez } = localFrame(ni, nj, betaDeg);
   return [_dot(g, ex), _dot(g, ey), _dot(g, ez)];
 }
 
@@ -71,7 +77,7 @@ function write(neutral) {
     const s = secById.get(e.sec) || {}, m = matById.get(e.mat) || {};
     const ni = nodeById.get(e.ni), nj = nodeById.get(e.nj); if (!ni || !nj) continue;
     if (!warnedRel && (e.releases || []).some(Boolean)) { W.push('OpenSees elasticBeamColumn no soporta liberaciones de extremo (se ignoran)'); warnedRel = true; }
-    const lz = localZ(ni, nj);
+    const lz = localZ(ni, nj, e.beta);
     L.push(`geomTransf Linear ${e.id} ${num(lz[0])} ${num(lz[1])} ${num(lz[2])}`);
     const massPerL = (m.rho || 0) * (s.A || 0);
     L.push(`element elasticBeamColumn ${e.id} ${e.ni} ${e.nj} ${num(s.A)} ${num(m.E)} ${num(m.G || 0)} ${num(s.J)} ${num(s.Iy)} ${num(s.Iz)} ${e.id}` + (massPerL > 0 ? ` -mass ${num(massPerL)}` : ''));
@@ -98,7 +104,7 @@ function write(neutral) {
         if (!warnedTrap) { W.push('OpenSees eleLoad -beamUniform es uniforme: la carga trapecial se exportó con su intensidad media'); warnedTrap = true; }
         w = 0.5 * (w + (+ld.w2 || 0));
       }
-      const [wx, wy, wz] = beamUniformLocal(ni, nj, w, ld.dir || 'gravity');
+      const [wx, wy, wz] = beamUniformLocal(ni, nj, w, ld.dir || 'gravity', e.beta);
       // 3D -beamUniform argument order is Wy Wz Wx (local).
       L.push(`    eleLoad -ele ${e.id} -type -beamUniform ${num(wy)} ${num(wz)} ${num(wx)}`);
     }
@@ -110,7 +116,7 @@ function write(neutral) {
         const q = (mm.rho || 0) * (s.A || 0) * G;   // force/length, downward
         if (!(q > 0)) continue;
         const ni = nodeById.get(e.ni), nj = nodeById.get(e.nj); if (!ni || !nj) continue;
-        const [wx, wy, wz] = beamUniformLocal(ni, nj, q, 'gravity');
+        const [wx, wy, wz] = beamUniformLocal(ni, nj, q, 'gravity', e.beta);
         L.push(`    eleLoad -ele ${e.id} -type -beamUniform ${num(wy)} ${num(wz)} ${num(wx)}`);
       }
       if ((neutral.areas || []).length) W.push('El peso propio de los elementos de área no se exporta a OpenSees (sólo el de las barras)');

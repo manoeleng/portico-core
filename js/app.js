@@ -51,7 +51,7 @@ import { resolveSectionProps } from './design/section_props.js?v=7';
 import { autoDetectDiaphragms, computeFloorCR } from './solver/diaphragm.js?v=7';
 import { interstoryDrifts, buildStoryLevels } from './solver/drift.js?v=7';
 import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements } from './model/discretize.js?v=7';
-import { localAxes, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
+import { localAxes, mirroredBeta, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
 import { blockCells, cornerGridIndices } from './model/mesher.js?v=7';
 import { coonsGridFromCorners } from './model/mesh_map.js?v=7';
 import { meshPolygonIntoModel } from './model/mesh_free.js?v=7';
@@ -839,6 +839,7 @@ class App {
         if (e.releases && e.releases.some(x => x)) upd.releases = [...e.releases];
         if (e.cable) upd.cable = true;
         if (e.compressionOnly) upd.compressionOnly = true;
+        if (+e.beta) upd.beta = e.beta;                      // roll angle β
         if (e.L0factor != null && e.L0factor !== 1) upd.L0factor = e.L0factor;
         if (Object.keys(upd).length) this.model.updateElement(ne.id, upd);
         // Element loads (all dist/temp from all cases) → copy.
@@ -892,6 +893,11 @@ class App {
       const pk = `${Math.min(a, b)}-${Math.max(a, b)}`; if (pares.has(pk)) continue; pares.add(pk);
       const ne = this.model.addElement(a, b, e.matId, e.secId);
       if (ne && e.releases && e.releases.some(x => x)) this.model.updateElement(ne.id, { releases: [...e.releases] });
+      if (ne) {   // roll angle β of the image (recomputed: the reflection reverses the default local triad)
+        const bm = mirroredBeta(this.model.nodes.get(e.n1), this.model.nodes.get(e.n2), e.beta || 0,
+          this.model.nodes.get(a), this.model.nodes.get(b), eje === 'X' ? 0 : eje === 'Y' ? 1 : 2);
+        if (bm) this.model.updateElement(ne.id, { beta: bm });
+      }
       if (ne) nEl++;
     }
     this._afterCopia(nEl);
@@ -1042,7 +1048,7 @@ class App {
     const mat = this.model.materials.get(elem.matId), sec = this.model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) { this.toast('Elemento incompleto', 'warn'); return; }
 
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     // What the SOLVER assembles, not a textbook beam of length L: elemLocalK/M carry
     // the rigid end zone, the elastic foundation and the end springs. Showing the bare
     // matrix for a member that has any of them is showing a structure nobody solved.
@@ -3630,7 +3636,7 @@ class App {
     const n1 = model.nodes.get(el.n1), n2 = model.nodes.get(el.n2);
     const mat = model.materials.get(el.matId), sec = model.sections.get(el.secId);
     if (!n1 || !n2 || !mat || !sec) return out;
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, el.beta);
     // Same stiffness the modal solve assembled (rigid end zone, foundation, end
     // springs); a bare stiffnessMatrix(L) would recover forces for a structure whose
     // modes were never computed.
@@ -6231,6 +6237,17 @@ class App {
     if (floating.length > 0) {
       const list = floating.slice(0, 5).join(', ') + (floating.length > 5 ? '…' : '');
       warnings.push(`⚠ ${floating.length} ${i18n.t('nodo(s) sin elements:')} [${list}]`);
+    }
+    // sections whose principal axes are inclined to the geometric ones (Z, angle: Iyz ≠ 0) — the frame element uses
+    // Iy, Iz about the geometric axes and ignores Iyz (review of the roll angle β)
+    {
+      const used = new Set([...model.elements.values()].map(e => e.secId)), incl = [];
+      for (const sc of model.sections.values()) {
+        if (!used.has(sc.id)) continue;
+        const cf = sc.design?.cfProps, shp = String(cf?.shape || sc.design?.shape || '').toLowerCase();
+        if ((cf && Math.abs(+cf.Izy || 0) > 0) || shp === 'z' || shp === 'l' || shp === 'angle') incl.push(sc.name);
+      }
+      if (incl.length) warnings.push(`⚠ ${i18n.t('Sección con ejes principales inclinados (Z, angular): el análisis usa Iy, Iz geométricos e ignora el producto de inercia — flechas y flexión oblicua aproximadas. Gire la barra (β) hasta los ejes principales con Iu, Iv si importa:')} ${incl.slice(0, 5).join(', ')}${incl.length > 5 ? '…' : ''}`);
     }
 
     // No supports

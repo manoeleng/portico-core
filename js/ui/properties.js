@@ -2021,7 +2021,7 @@ export class PropertiesPanel {
       const n2 = model.nodes.get(elem.n2);
       if (n1 && n2) {
         try {
-          const { ey, ez } = localAxes(n1, n2);
+          const { ey, ez } = localAxes(n1, n2, elem.beta);
           const gname = v => {
             const ax = ['X', 'Y', 'Z']; let b = 0;
             for (let k = 1; k < 3; k++) if (Math.abs(v[k]) > Math.abs(v[b])) b = k;
@@ -2091,9 +2091,12 @@ export class PropertiesPanel {
 
       <div class="prop-section">
         <div class="prop-title">Sección</div>
-        <div class="prop-row cols1">
+        <div class="prop-row cols2">
           <div class="prop-field"><label>Sección</label>
             <select id="e-sec">${secOptions}</select>
+          </div>
+          <div class="prop-field"><label title="${i18n.t('Giro de los ejes locales y, z alrededor del eje x de la barra (regla de la mano derecha, de n1 a n2). 0 = orientación por defecto.')}">${i18n.t('Ángulo β (°)')}</label>
+            <input type="number" id="e-beta" value="${+elem.beta || 0}" step="1">
           </div>
         </div>
       </div>
@@ -2218,7 +2221,8 @@ export class PropertiesPanel {
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
       const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
       const layer = +sel.querySelector('#e-layer')?.value || elem.layer || 1;
-      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer });
+      const beta = parseFloat(String(sel.querySelector('#e-beta')?.value ?? '0').replace(',', '.')) || 0;
+      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, beta });
       this.app.renderLayers?.();
       this.app.viewport.refreshElem(this.app.model.elements.get(elem.id));
       this.app.markDirty();

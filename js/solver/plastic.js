@@ -37,7 +37,7 @@ function plasticAssemble(model, nodeIndex, releasesByElem, freeMap, nF) {
     const n1 = model.nodes.get(el.n1), n2 = model.nodes.get(el.n2);
     const mat = model.materials.get(el.matId), sec = model.sections.get(el.secId);
     if (!n1 || !n2 || !mat || !sec) continue;
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, el.beta);
     // Same stiffness the linear solver assembles: rigid end zone (#87), elastic
     // foundation and end springs included. A hinge forms on the force this K gives.
     let Ke = elemLocalK(el, mat, sec, L);

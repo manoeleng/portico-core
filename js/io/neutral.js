@@ -46,7 +46,7 @@ export function modelToNeutral(model) {
     members.push({
       id: ei, ni: nodeIdx.get(e.n1), nj: nodeIdx.get(e.n2),
       mat: matIdx.get(e.matId) || 1, sec: secIdx.get(e.secId) || 1,
-      releases: (e.releases || Array(12).fill(0)).slice(), beta: 0,
+      releases: (e.releases || Array(12).fill(0)).slice(), beta: +e.beta || 0,   // PORTICO β (localAxes)
     });
   }
   // Areas (membrane/plate/shell): 3–4 nodes + material + thickness + behavior.

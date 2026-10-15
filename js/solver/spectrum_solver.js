@@ -59,7 +59,7 @@ export function buildSpectrumElemData(model, nodeIndex) {
     const n1 = model.nodes.get(elem.n1), n2 = model.nodes.get(elem.n2);
     const mat = model.materials.get(elem.matId), sec = model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) continue;
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     const KeM = elemLocalK(elem, mat, sec, L);
     const TM = transformMatrix(ex, ey, ez);
     const Ke = new Float64Array(144), T = new Float64Array(144);

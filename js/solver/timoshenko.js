@@ -23,7 +23,10 @@ const unit = v => { const n=norm(v); return v.map(x=>x/n); };
  * - ey: "up" reference (global Z projected perpendicular to ex) or global X for vertical elements
  * - ez: ex × ey (right-hand)
  */
-export function localAxes(n1, n2) {
+// betaDeg: roll angle β of the member (degrees) — rotation of the local y, z axes about the member axis x, right-hand
+// rule about +x (from n1 to n2), applied after the reference triad below. β = 0 keeps the default orientation
+// (positive = counter-clockwise when looking from n2 back to n1, i.e. with +x pointing at the viewer).
+export function localAxes(n1, n2, betaDeg = 0) {
   const d = [n2.x-n1.x, n2.y-n1.y, n2.z-n1.z];
   const L = norm(d);
   if (L < 1e-12) throw new Error(`Elemento de longitud cero entre nodos ${n1.id} y ${n2.id}`);
@@ -34,10 +37,34 @@ export function localAxes(n1, n2) {
   const isVert = Math.abs(ex[2]) > VERT;
   const ref = isVert ? [1,0,0] : [0,0,1];  // global X or global Z
 
-  const ez = unit(cross(ex, ref));  // local z perpendicular to ex and ref
-  const ey = cross(ez, ex);          // local y (right-hand: ey = ez×ex)
+  let ez = unit(cross(ex, ref));    // local z perpendicular to ex and ref
+  let ey = cross(ez, ex);            // local y (right-hand: ey = ez×ex)
+  const b = (+betaDeg || 0) * Math.PI / 180;
+  if (b) {                           // roll: ey' = cosβ·ey + sinβ·ez, ez' = −sinβ·ey + cosβ·ez
+    const c = Math.cos(b), s = Math.sin(b);
+    const y2 = [c*ey[0] + s*ez[0], c*ey[1] + s*ez[1], c*ey[2] + s*ez[2]];
+    const z2 = [-s*ey[0] + c*ez[0], -s*ey[1] + c*ez[1], -s*ey[2] + c*ez[2]];
+    ey = y2; ez = z2;
+  }
 
   return { ex, ey, ez, L };
+}
+
+/**
+ * Roll angle of a MIRRORED member. The image of the member (m1 → m2, images of n1 → n2) by the reflection that flips
+ * the global coordinate `axis` (0 = X, 1 = Y, 2 = Z) has its section's y axis along R·y; the default triad of the
+ * image is not the image of the default triad (a reflection reverses cross products), so β is recomputed:
+ * β' = atan2(y'·ez0, y'·ey0) with the image's β = 0 triad (vertical mirror plane, non-vertical member: β' = −β).
+ * Only y' = R·y is kept (z' = ex' × y'): the exact mirror image of a mono-symmetric section (a Ue opening to the
+ * other side) is not a rotation of it. Stiffness and forces are exact whenever Iyz = 0 (Ue, I, tubes); the drawn
+ * opening side of a Ue/U/L keeps the original hand.
+ */
+export function mirroredBeta(n1, n2, betaDeg, m1, m2, axis) {
+  const y = localAxes(n1, n2, betaDeg).ey.slice(); y[axis] = -y[axis];
+  const { ey, ez } = localAxes(m1, m2, 0);
+  const b = Math.atan2(y[0]*ez[0] + y[1]*ez[1] + y[2]*ez[2], y[0]*ey[0] + y[1]*ey[1] + y[2]*ey[2]) * 180 / Math.PI;
+  const r = +b.toFixed(6);
+  return Math.abs(r) < 1e-9 || Math.abs(Math.abs(r) - 360) < 1e-9 ? 0 : r;
 }
 
 // ── 12×12 local stiffness matrix (Timoshenko) ─────────────────────────────

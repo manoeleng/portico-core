@@ -62,7 +62,7 @@ export function assembleSparseGlobal(model, nodeIndex, { withMass = false } = {}
     const sec = model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) continue;
 
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     let Ke = elemLocalK(elem, mat, sec, L);   // includes rigid end zone (#87)
     const hasRelease = elem.releases?.some(r => r !== 0);
     if (hasRelease) Ke = applyReleases(Ke, elem.releases.map(r => r !== 0));

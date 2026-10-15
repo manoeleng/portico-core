@@ -6,6 +6,7 @@
 //   Transform: m2t(x,y,z) → (x, z, y)   t2m(v) → {x:v.x, y:v.z, z:v.y}
 // ──────────────────────────────────────────────────────────────────────────────
 import { panelFrame, panelMembers } from '../model/panel_loads.js?v=7';
+import { localAxes } from '../solver/timoshenko.js?v=7';
 import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -3826,12 +3827,12 @@ export class Viewport {
       });
       const mesh = new THREE.Mesh(geo, mat);
 
-      // Orient mesh so ExtrudeGeometry +Z points along the element axis
-      const axis = new THREE.Vector3(dx / L, dz / L, dy / L); // model→Three.js
-      const ref  = Math.abs(axis.y) < 0.99
-        ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-      const side = new THREE.Vector3().crossVectors(axis, ref).normalize();
-      const up   = new THREE.Vector3().crossVectors(side, axis).normalize();
+      // Orient the mesh with the SOLVER's local triad (localAxes, roll angle β included): profile height (shape y)
+      // along local y — the depth that gives Iz —, shape x along −z (right-handed with the extrusion along x).
+      // Model → Three.js swaps y and z (a reflection): the basis is mapped vector by vector.
+      const la   = localAxes(n1, n2, elem.beta);
+      const T3   = (v) => new THREE.Vector3(v[0], v[2], v[1]);
+      const side = T3(la.ez).negate(), up = T3(la.ey), axis = T3(la.ex);
       const rm   = new THREE.Matrix4().makeBasis(side, up, axis);
       mesh.applyMatrix4(rm);
       mesh.position.copy(this.m2t(n1.x, n1.y, n1.z));
@@ -3853,8 +3854,9 @@ export class Viewport {
   // along local +X, height (h) along local +Y.
   _sectionShape(sec) {
     const dz    = sec.design || {};
-    const d     = dz.dims || dz;                       // catalog uses .dims; manual edits sit on design
-    const shape = String(dz.shape || '').toLowerCase();
+    const cf    = dz.cfProps;                          // NBR 6355 cold-formed (profiles_cf.js): real shape + dims
+    const d     = cf?.dims || dz.dims || dz;           // catalog uses .dims; manual edits sit on design
+    const shape = String(cf ? 'cf-' + cf.shape + (cf.shape === 'Z' ? cf.lip : '') : dz.shape || '').toLowerCase();
 
     // Round shapes use arcs (centered at origin).
     if (shape === 'circle' && d.D > 0) {
@@ -3872,15 +3874,17 @@ export class Viewport {
       return S;
     }
 
-    // Polygonal profiles (auto-centered on their bounding box).
+    // Polygonal profiles, centred on the CENTROID of the area (the member axis of the analysis passes through it —
+    // a channel, angle or cold-formed profile is not centred on its bounding box).
     const poly = this._sectionOutline(shape, d);
     if (poly) {
-      let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
-      for (const [x, y] of poly.outline) {
-        if (x < minx) minx = x; if (x > maxx) maxx = x;
-        if (y < miny) miny = y; if (y > maxy) maxy = y;
-      }
-      const cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
+      const ac = (pts) => { let A = 0, x = 0, y = 0;
+        for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length], k = x1 * y2 - x2 * y1; A += k; x += (x1 + x2) * k; y += (y1 + y2) * k; }
+        return [A / 2, A ? x / (3 * A) : 0, A ? y / (3 * A) : 0]; };
+      let [A0, sx, sy] = ac(poly.outline); A0 = Math.abs(A0); sx *= A0; sy *= A0;
+      let At = A0;
+      for (const h of (poly.holes || [])) { let [Ah, hx, hy] = ac(h); Ah = Math.abs(Ah); At -= Ah; sx -= hx * Ah; sy -= hy * Ah; }
+      const cx = At > 0 ? sx / At : 0, cy = At > 0 ? sy / At : 0;
       const S = new THREE.Shape(poly.outline.map(([x, y]) => new THREE.Vector2(x - cx, y - cy)));
       for (const h of (poly.holes || [])) {
         S.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x - cx, y - cy))));
@@ -3904,6 +3908,19 @@ export class Viewport {
   // Returns { outline:[[x,y]…], holes:[[[x,y]…]] } (raw, un-centered coords in m)
   // for the polygonal profiles, or null if the shape isn't a recognized polygon.
   _sectionOutline(shape, d) {
+    // NBR 6355 cold-formed profiles: mid-line path (outer dims − t; lips D − t/2, the Z45 lip measured on the mid-line)
+    // thickened by ±t/2 with mitred corners. Ue/Z: web vertical (height bw along y).
+    if (shape.startsWith('cf-')) {
+      const t = d.t, h = (d.bw || 0) - t, b = (d.bf || 0) - t, c = (d.D || 0) - t / 2;
+      let mid = null;
+      if (shape === 'cf-ue') mid = [[b, -h / 2 + c], [b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b, h / 2 - c]];
+      else if (shape === 'cf-z90') mid = [[-b, -h / 2 + c], [-b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b, h / 2 - c]];
+      else if (shape === 'cf-z45') { const e = d.D / Math.SQRT2; mid = [[-b - e, -h / 2 + e], [-b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b + e, h / 2 - e]]; }
+      else if (shape === 'cf-cr') mid = [[-b / 2 - c, 0], [-b / 2, 0], [-b / 2, h], [b / 2, h], [b / 2, 0], [b / 2 + c, 0]];
+      else if (shape === 'cf-l') { const a = d.b - t / 2; mid = [[a, 0], [0, 0], [0, a]]; }
+      if (!mid || !(t > 0)) return null;
+      return { outline: this._thickenPath(mid, t) };
+    }
     if (shape === 'box' || shape === 'hss' || shape === 'rhs' || shape === 'tube-rect') {
       const { b, h, t } = d;
       if (!(b > 0 && h > 0 && t > 0 && t < Math.min(b, h) / 2)) return null;
@@ -3954,6 +3971,18 @@ export class Viewport {
                holes: (d.holes || []).map(h => h.map(p => [p[0], p[1]])) };
     }
     return null;
+  }
+
+  // Open thin-walled mid-line path → closed outline offset ±t/2 (mitred joints).
+  _thickenPath(pts, t) {
+    const n = pts.length, h = t / 2;
+    const nor = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [-dy / L, dx / L]; };
+    const side = (sg) => pts.map((p, i) => {
+      if (i === 0 || i === n - 1) { const m = i === 0 ? nor(pts[0], pts[1]) : nor(pts[n - 2], pts[n - 1]); return [p[0] + sg * h * m[0], p[1] + sg * h * m[1]]; }
+      const m1 = nor(pts[i - 1], p), m2 = nor(p, pts[i + 1]), mx = m1[0] + m2[0], my = m1[1] + m2[1], k = (mx * m1[0] + my * m1[1]) || 1;
+      return [p[0] + sg * h * mx / k, p[1] + sg * h * my / k];     // miter: offset along the bisector, h / cos(φ/2)
+    });
+    return [...side(1), ...side(-1).reverse()];
   }
 
   // ── Load visualization ────────────────────────────────────────────────────

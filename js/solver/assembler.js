@@ -58,7 +58,7 @@ export function assembleK(model, nodeIndex) {
     const sec = model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) continue;
 
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     let Ke = elemLocalK(elem, mat, sec, L);   // includes rigid end zone (#87) if any
     const Me = elemLocalM(elem, mat, sec, L);
 
@@ -212,7 +212,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
         const sec = model.sections.get(elem.secId);
         if (!n1 || !n2) continue;
 
-        const { ex, ey, ez, L } = localAxes(n1, n2);
+        const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
         const T = transformMatrix(ex, ey, ez);
         const hasRelease = elem.releases?.some(r => r !== 0);
         const relBool    = hasRelease ? elem.releases.map(r => r !== 0) : null;
@@ -262,7 +262,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
         const sec = model.sections.get(elem.secId);
         if (!n1 || !n2 || !mat || !sec) continue;
 
-        const { ex, ey, ez, L } = localAxes(n1, n2);
+        const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
         const T  = transformMatrix(ex, ey, ez);
         const EA = mat.E * sec.A * (sec.mod?.A ?? 1);
         const Nt = EA * (mat.alpha ?? 0) * (load.dT || 0);
@@ -290,7 +290,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
       const sec = model.sections.get(elem.secId);
       if (!n1 || !n2 || !mat || !sec) continue;
 
-      const { ex, ey, ez, L } = localAxes(n1, n2);
+      const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
       const T  = transformMatrix(ex, ey, ez);
       const ed = [...dofs(nodeIndex, elem.n1), ...dofs(nodeIndex, elem.n2)];
       const hasRel_sw  = elem.releases?.some(r => r !== 0);

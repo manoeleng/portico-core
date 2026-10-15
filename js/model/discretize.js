@@ -41,6 +41,7 @@ export function splitElement(model, elemId, nParts) {
   for (let k = 0; k < nParts; k++) {
     const e = model.addElement(chain[k], chain[k + 1], elem.matId, elem.secId);
     if (!e) continue;
+    if (+elem.beta) e.beta = elem.beta;                 // roll angle β kept on every segment
     newIds.push(e.id);
   }
   // Releases: end 1 → first sub-element; end 2 → last
@@ -85,6 +86,7 @@ function splitElementAtNode(model, elemId, nodeId) {
   const e1 = model.addElement(elem.n1, nodeId, elem.matId, elem.secId);
   const e2 = model.addElement(nodeId, elem.n2, elem.matId, elem.secId);
   const newIds = [e1, e2].filter(Boolean).map(e => e.id);
+  if (+elem.beta) for (const e of [e1, e2]) if (e) e.beta = elem.beta;   // roll angle β
   if (elem.releases && e1 && e2) {
     for (let i = 0; i < 6; i++) { e1.releases[i] = elem.releases[i] || 0; e2.releases[6 + i] = elem.releases[6 + i] || 0; }
   }
@@ -324,6 +326,7 @@ export function joinElements(model, elemIds) {
   for (const mid of midNodes) model.nodes.delete(mid);
 
   const merged = model.addElement(startId, endId, ref.matId, ref.secId);
+  if (+ref.beta) merged.beta = ref.beta;                // roll angle β of the reference member
   for (let i = 0; i < 6; i++) {
     merged.releases[i]     = relA[i] ? 1 : 0;
     merged.releases[6 + i] = relB[i] ? 1 : 0;

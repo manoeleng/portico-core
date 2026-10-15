@@ -383,7 +383,7 @@ export class Results {
     const sec = this.model.sections.get(elem.secId);
     if (!n1 || !n2 || !mat || !sec) return null;
 
-    const { ex, ey, ez, L } = localAxes(n1, n2);
+    const { ex, ey, ez, L } = localAxes(n1, n2, elem.beta);
     const Ke_local = elemLocalK(elem, mat, sec, L);   // includes rigid end zone (#87)
     const T        = transformMatrix(ex, ey, ez);
 
