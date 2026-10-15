@@ -149,16 +149,19 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
     } else d.paragraph([{ text: stripTags(deflex?.note || i18n.t('Sin datos de deformaciones de vigas.')), italic: true, color: '5C6A7D' }]);
 
     // ── 7. Seismic drifts ──
-    d.heading(i18n.t('7. Derivas sísmicas de entrepiso (NCh433)'), 1);
+    const nbrD = drift?.code === 'NBR15421:2023', limTxt = nbrD ? `·/${fmt(drift.limit, 3)}` : '·/0.002';
+    d.heading(nbrD ? i18n.t('7. Derivas sísmicas de entrepiso (NBR 15421)') : i18n.t('7. Derivas sísmicas de entrepiso (NCh433)'), 1);
     if (drift?.dirs?.length) {
       for (const D of drift.dirs) {
         d.heading(`${i18n.t('Dirección sísmica')} ${D.dir}`, 3);
-        d.table([i18n.t('Piso'), 'Z (m)', 'h (m)', 'δ/h (CM)', '·/0.002', 'δ/h (ext.)', '·/0.002'],
+        d.table([i18n.t('Piso'), 'Z (m)', 'h (m)', 'δ/h (CM)', limTxt, 'δ/h (ext.)', limTxt],
           D.stories.map(st => [String(st.piso), fmt(st.z, 2), fmt(st.h, 2),
             st.driftCM == null ? '—' : fmt(st.driftCM, 5), st.ratioCM == null ? '—' : fmt(st.ratioCM, 2),
             fmt(st.driftExt, 5), fmt(st.ratioExt, 2)]));
       }
-      d.paragraph([{ text: i18n.t('Límite NCh433: 0.002 (2/1000·h). Calculada con los desplazamientos del espectro de respuesta.'), color: '5C6A7D', size: 9 }]);
+      d.paragraph([{ text: nbrD
+        ? `${i18n.t('Límite NBR 15421:2023 (8.10, Tabla 9), categoría de uso')} ${drift.categoria}: ${fmt(drift.limit, 3)}·h. ${i18n.t('Desplazamientos del espectro multiplicados por Cd/I (9.5) =')} ${fmt(drift.amp, 3)}.`
+        : i18n.t('Límite NCh433: 0.002 (2/1000·h). Calculada con los desplazamientos del espectro de respuesta.'), color: '5C6A7D', size: 9 }]);
     } else d.paragraph([{ text: stripTags(drift?.note || i18n.t('Sin datos de derivas sísmicas.')), italic: true, color: '5C6A7D' }]);
 
     // ── 8. Limitations ──
@@ -240,6 +243,17 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
     const espectros = [...app._spectrumResults.values()].filter(e => e?.params);
     if (espectros.length) {
       sismoHTML = espectros.map(({ params: p }) => {
+        if (p.nbr15421) {
+          const n = p.nbr15421;
+          return `<h3>${i18n.t('Espectro de respuesta — dirección')} ${esc(p.direction)}</h3>
+          <table><tbody>
+          <tr><th>${i18n.t('Dirección sísmica')}</th><td>${esc(p.direction)}</td><th>${i18n.t('Método combinación')}</th><td>${esc(p.method)}</td></tr>
+          <tr><th>a<sub>g</sub></th><td>${fmt(n.ag, 3)} g (${i18n.t('zona')} ${esc(n.zona)})</td><th>${i18n.t('Clase de terreno')}</th><td>${esc(n.classe)} (Ca = ${fmt(n.Ca, 2)}, Cv = ${fmt(n.Cv, 2)})</td></tr>
+          <tr><th>${i18n.t('Categoría de uso')}</th><td>${esc(n.categoria)} (I = ${fmt(n.I, 2)})</td><th>R / Cd</th><td>${n.R ? fmt(n.R, 1) : '—'} / ${n.Cd ? fmt(n.Cd, 1) : '—'}</td></tr>
+          </tbody></table>
+          <div class="spec-graph">${reportSpectrumSVG(p.spectrum)}</div>
+          <p class="muted">${i18n.t('Espectro de diseño NBR 15421:2023 (6.3) × I/R (sección 10).')}</p>`;
+        }
         const k = p.nch433 || {};
         const tabla = `<table><tbody>
           <tr><th>${i18n.t('Dirección sísmica')}</th><td>${esc(p.direction)}</td><th>${i18n.t('Método combinación')}</th><td>${esc(p.method)}</td></tr>
@@ -404,11 +418,14 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         return `<h3>${i18n.t('Dirección sísmica')} ${esc(D.dir)}</h3>
         <table style="font-size:9.5px"><thead><tr>
           <th>${i18n.t('Piso')}</th><th>Z (m)</th><th>h (m)</th>
-          <th>δ/h (CM)</th><th>·/0.002</th><th>${i18n.t('Estado CM')}</th>
-          <th>δ/h (ext.)</th><th>·/0.002</th><th>${i18n.t('Estado ext.')}</th>
+          <th>δ/h (CM)</th><th>${drift.code === 'NBR15421:2023' ? `·/${fmt(drift.limit, 3)}` : '·/0.002'}</th><th>${i18n.t('Estado CM')}</th>
+          <th>δ/h (ext.)</th><th>${drift.code === 'NBR15421:2023' ? `·/${fmt(drift.limit, 3)}` : '·/0.002'}</th><th>${i18n.t('Estado ext.')}</th>
         </tr></thead><tbody>${rows || `<tr><td colspan="9" class="muted">${i18n.t('Sin entrepisos.')}</td></tr>`}</tbody></table>`;
       }).join('');
-      driftHTML += `<p class="muted">${i18n.t('Deriva de entrepiso δ/h = desplazamiento relativo entre pisos consecutivos ÷ altura de entrepiso.')}
+      driftHTML += drift.code === 'NBR15421:2023'
+        ? `<p class="muted">${i18n.t('Deriva de entrepiso δ/h = desplazamiento relativo entre pisos consecutivos ÷ altura de entrepiso.')}
+        <b>${i18n.t('Límite NBR 15421:2023 (8.10, Tabla 9), categoría de uso')} ${esc(drift.categoria)}: ${fmt(drift.limit, 3)}·h</b>. ${i18n.t('Desplazamientos del espectro multiplicados por Cd/I (9.5) =')} ${fmt(drift.amp, 3)}.</p>`
+        : `<p class="muted">${i18n.t('Deriva de entrepiso δ/h = desplazamiento relativo entre pisos consecutivos ÷ altura de entrepiso.')}
         <b>${i18n.t('Límite NCh433: 0.002')}</b> ${i18n.t('(2/1000) tanto entre')} <b>${i18n.t('centros de masa')}</b> (Art. 5.9.2) ${i18n.t('como entre')} <b>${i18n.t('nodos externos')}</b> ${i18n.t('del piso (Art. 5.9.3).')}
         ${i18n.t('Calculada con los desplazamientos del espectro de respuesta.')}${drift.hasCM ? '' : ` <i>${i18n.t('Sin diafragmas: se reporta solo la deriva entre nodos externos.')}</i>`}</p>`;
     } else {

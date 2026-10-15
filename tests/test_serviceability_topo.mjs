@@ -2,7 +2,7 @@
 //   node tests/test_serviceability_topo.mjs
 // Oráculo: NBR 6118:2026 Tab. 13.3 (H/1 700, comb. frequente) e NBR 8800:2024 Tab. B.1 (H/400 para
 // 2+ pavimentos; H/300 galpões e edificações de um pavimento), lidas no texto das normas do acervo.
-import { checkTopDrift, topDriftLimit } from '../js/design/serviceability.js';
+import { checkTopDrift, topDriftLimit, driftLimit15421 } from '../js/design/serviceability.js';
 
 let fails = 0;
 const ok = (name, got, exp, tol) => { const e = Math.abs(got - exp) / (Math.abs(exp) || 1); const p = e <= tol; if (!p) fails++; console.log(`${p ? '✓' : '✗'} ${name}: got=${got} exp=${exp}`); };
@@ -20,6 +20,12 @@ assert('1d. norma sem limite → null', topDriftLimit('NCh433') === null);
   ok('3. galpão razão 1,125', r.ratio, 1.125, 1e-3); }
 { const r = checkTopDrift({ delta: 0.01, H: 10, code: 'NCh433' });
   assert('4. sem limite → não verificado (NaN), nunca aprova em silêncio', Number.isNaN(r.ratio) && r.limit === null); }
+
+// NBR 15421:2023 8.10 Tab. 9 (pág. 20 do PDF do acervo): Δx ≤ 0,020/0,015/0,010·hsx (categorias I/II/III)
+ok('5a. NBR 15421 cat. I', driftLimit15421('I'), 0.020, 1e-12);
+ok('5b. NBR 15421 cat. II', driftLimit15421('II'), 0.015, 1e-12);
+ok('5c. NBR 15421 cat. III', driftLimit15421('III'), 0.010, 1e-12);
+assert('5d. categoria inexistente → null', driftLimit15421('IV') === null);
 
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

@@ -32,7 +32,7 @@ import { buildShearStories, runShearHistory, shearFreqs } from './solver/shear_b
 import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
-import { driftLimit } from './design/serviceability.js?v=7';
+import { driftLimit, driftLimit15421 } from './design/serviceability.js?v=7';
 import { parseNum } from './utils/num.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
 import { designCurve15421 } from './design/spectra/nbr15421.js?v=7';
@@ -5978,14 +5978,16 @@ class App {
         drawGraph();
       };
 
-      $('sp-gen').addEventListener('click', genNCh433);
+      let nbrParams = curLc?.spec?.nbr15421 || null;               // NBR 15421 parameters of the curve, if generated here
+      $('sp-gen').addEventListener('click', () => { nbrParams = null; genNCh433(); });
       $('sp15-gen').addEventListener('click', () => {
         try {
           const R = parseFloat($('sp15-R').value), Cd = parseFloat($('sp15-Cd').value);
-          const { text, nota } = designCurve15421({ ag: parseFloat($('sp15-ag').value), classe: $('sp15-classe').value,
+          const { text, nota, base } = designCurve15421({ ag: parseFloat($('sp15-ag').value), classe: $('sp15-classe').value,
             categoria: $('sp15-cat').value, R: R > 0 ? R : null, Cd: Cd > 0 ? Cd : null });
           $('sp-spectrum').value = text; $('sp-unit').value = '9.81';
           $('sp15-info').textContent = nota;
+          nbrParams = { ...base.params };                               // kept with the case (drift: Tab. 9, × Cd/I)
           $('sp-spectrum').dispatchEvent(new Event('input'));   // redraw + mark unsaved
         } catch (e) { $('sp15-info').textContent = e.message; }
       });
@@ -6001,6 +6003,7 @@ class App {
         $('sp-zeta').value = sp.zeta ?? 0.05;
         $('sp-unit').value = String(sp.saFactor || 9.81);
         $('sp-spectrum').value = sp.rawText || '';
+        nbrParams = sp.nbr15421 || null;
         drawGraph();
         const st = $('sp-status'); if (st) { st.textContent = `${i18n.t('● Caso')} «${lc.name}» ${i18n.t('cargado (guardado). «Aceptar»/«Calcular» guarda los cambios.')}`; st.style.color = 'var(--ok,#3fb950)'; }
       });
@@ -6053,7 +6056,7 @@ class App {
         return {
           spectrum, saFactor: parseFloat($('sp-unit').value) || 9.81,
           direction: $('sp-dir').value, zeta: parseFloat($('sp-zeta').value) || 0.05,
-          method: $('sp-method').value, rawText, nch433,
+          method: $('sp-method').value, rawText, nch433: nbrParams ? null : nch433, nbr15421: nbrParams,
           targetLcId, createNew: targetLcId == null,
         };
       };
@@ -6150,6 +6153,7 @@ class App {
     specLc.spec = {   // parameters used (saved in the .s3d)
       method: params.method, zeta: params.zeta,
       saFactor: params.saFactor, rawText: params.rawText,
+      ...(params.nbr15421 ? { nbr15421: params.nbr15421 } : {}),
     };
     this.markDirty();
     return specLc;
@@ -8754,11 +8758,18 @@ class App {
     // Limit from the code layer (js/design/serviceability.js), not a hardcoded 0.002; the
     // drift math is the generic primitive (js/solver/drift.js). Here we only assemble the
     // report shape: CM (diaphragm master) and external drift side by side, per direction.
-    const limit = driftLimit('NCh433');
-    const out = { limit, dirs: [], note: '', hasCM: false };
+    // NBR 15421:2023 (curve generated in the spectrum dialog): Tab. 9 limit by category and the analysis
+    // displacements × Cd/I (9.5); otherwise NCh433 (0,002). The code is taken from the spectrum cases used.
     const spec = this._spectrumResults;
+    const nbr = ['espX', 'espY'].map(k => spec?.get(k)?.params?.nbr15421).find(Boolean) || null;
+    const nbrLim = nbr ? driftLimit15421(nbr.categoria) : null;
+    const amp = nbr ? (nbr.Cd && nbr.I ? nbr.Cd / nbr.I : null) : 1;
+    const limit = nbr ? nbrLim : driftLimit('NCh433');
+    const out = { limit, dirs: [], note: '', hasCM: false, code: nbr ? 'NBR15421:2023' : 'NCh433', amp,
+      categoria: nbr?.categoria ?? null };
     const dirDefs = [['X', 0, 'espX'], ['Y', 1, 'espY']].filter(([, , k]) => spec?.get(k)?.result);
     if (!dirDefs.length) { out.note = i18n.t('Las derivas usan los resultados sísmicos: ejecute Análisis Modal (F6) y Espectro de Respuesta (F7) en X y/o Y.'); return out; }
+    if (nbr && !amp) { out.note = i18n.t('NBR 15421: informe Cd en el diálogo del espectro — los desplazamientos deben multiplicarse por Cd/I (9.5).'); return out; }
 
     out.hasCM = this.model.diaphragms.size > 0;
     if (!out.hasCM) out.note = i18n.t('Sin diafragmas rígidos: la deriva entre centros de masa requiere definir diafragmas (Análisis → diafragmas). Se reporta solo la deriva entre nodos externos por nivel de Z.');
@@ -8769,7 +8780,7 @@ class App {
 
     for (const [dir, idx, key] of dirDefs) {
       const res = spec.get(key).result;
-      const dispH = id => { try { return Math.abs(res.getNodeDisp(id)[idx]); } catch { return 0; } };
+      const dispH = id => { try { return amp * Math.abs(res.getNodeDisp(id)[idx]); } catch { return 0; } };
       const dExt = interstoryDrifts(buildStoryLevels(this.model, dispH, { mode: 'ext' }));
       const dCM = out.hasCM ? interstoryDrifts(buildStoryLevels(this.model, dispH, { mode: 'cm' })) : [];
       const stories = dExt.map((se, i) => {

@@ -2489,6 +2489,12 @@ export const EN = {
   "Categoría de uso": "Occupancy category",
   "Generar curva NBR": "Generate NBR curve",
   "Sa(T) según NBR 15421:2023 (6.3) × I/R (sección 10). Sin R: espectro elástico.": "Sa(T) per NBR 15421:2023 (6.3) × I/R (section 10). Without R: elastic spectrum.",
+  "7. Derivas sísmicas de entrepiso (NBR 15421)": "7. Seismic story drifts (NBR 15421)",
+  "Límite NBR 15421:2023 (8.10, Tabla 9), categoría de uso": "NBR 15421:2023 limit (8.10, Table 9), occupancy category",
+  "Desplazamientos del espectro multiplicados por Cd/I (9.5) =": "Spectrum displacements multiplied by Cd/I (9.5) =",
+  "NBR 15421: informe Cd en el diálogo del espectro — los desplazamientos deben multiplicarse por Cd/I (9.5).": "NBR 15421: enter Cd in the spectrum dialog — displacements must be multiplied by Cd/I (9.5).",
+  "zona": "zone",
+  "Espectro de diseño NBR 15421:2023 (6.3) × I/R (sección 10).": "NBR 15421:2023 design spectrum (6.3) × I/R (section 10).",
 };
 
 export default EN;

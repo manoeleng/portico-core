@@ -2236,6 +2236,12 @@ export const PT = {
   "Categoría de uso": "Categoria de utilização",
   "Generar curva NBR": "Gerar curva NBR",
   "Sa(T) según NBR 15421:2023 (6.3) × I/R (sección 10). Sin R: espectro elástico.": "Sa(T) pela NBR 15421:2023 (6.3) × I/R (seção 10). Sem R: espectro elástico.",
+  "7. Derivas sísmicas de entrepiso (NBR 15421)": "7. Deslocamentos relativos de pavimento (NBR 15421)",
+  "Límite NBR 15421:2023 (8.10, Tabla 9), categoría de uso": "Limite NBR 15421:2023 (8.10, Tabela 9), categoria de utilização",
+  "Desplazamientos del espectro multiplicados por Cd/I (9.5) =": "Deslocamentos do espectro multiplicados por Cd/I (9.5) =",
+  "NBR 15421: informe Cd en el diálogo del espectro — los desplazamientos deben multiplicarse por Cd/I (9.5).": "NBR 15421: informe Cd no diálogo do espectro — os deslocamentos devem ser multiplicados por Cd/I (9.5).",
+  "zona": "zona",
+  "Espectro de diseño NBR 15421:2023 (6.3) × I/R (sección 10).": "Espectro de projeto NBR 15421:2023 (6.3) × I/R (seção 10).",
 };
 
 export default PT;

@@ -122,3 +122,8 @@ export function checkTopDrift({ delta, H, code, singleStory = false, allow }) {
     formula: `Δtopo/H ≤ 1/${Math.round(1 / lim)} (${code}${singleStory ? ', um pavimento' : ''})`,
   };
 }
+
+// NBR 15421:2023 8.10 Tab. 9 — story drift limit Δx/hsx by occupancy category (I, II, III). Δx are the
+// amplified displacements of 9.5 (elastic analysis displacement × Cd/I).
+const DRIFT_15421 = { I: 0.020, II: 0.015, III: 0.010 };
+export function driftLimit15421(categoria) { return DRIFT_15421[categoria] ?? null; }
