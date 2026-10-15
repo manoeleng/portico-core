@@ -125,11 +125,20 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
       // the connected leg (taken as the larger leg); flexural-torsional only when b/t > 0,71·√(E/fy).
       const cfg = member.cantoneira || {};
       const big = Math.max(dims.d, dims.b), small = Math.min(dims.d, dims.b);
-      const Ix1 = dims.b >= dims.d ? ang.Ixx : ang.Iyy, rx1 = Math.sqrt(Ix1 / ang.A), L1 = member.L ?? Math.max(Lx, Ly);
+      // connected leg: the larger one by default; member.cantoneira.abaLigada = 'menor' for unequal legs connected
+      // by the smaller one (then Lx1,eq has the lower bounds of 5.3.5.4.2 / 5.3.5.4.3, last paragraph)
+      const ligMenor = cfg.abaLigada === 'menor' && big / small > 1 + 1e-9;
+      const connHoriz = ligMenor ? dims.b < dims.d : dims.b >= dims.d;     // b = horizontal leg, d = vertical leg
+      const Ix1 = connHoriz ? ang.Ixx : ang.Iyy, rx1 = Math.sqrt(Ix1 / ang.A), L1 = member.L ?? Math.max(Lx, Ly);
       const lim71 = 0.71 * Math.sqrt(E / fy), btMax = big / dims.t;
       const lr = L1 / rx1;
       const Leq = { plana: lr <= 80 ? 72 * rx1 + 0.75 * L1 : 32 * rx1 + 1.25 * L1,          // 5.3.5.4.2
-                    espacial: lr <= 75 ? 60 * rx1 + 0.80 * L1 : 45 * rx1 + L1 };           // 5.3.5.4.3
+                    espacial: lr <= 75 ? 60 * rx1 + 0.80 * L1 : 45 * rx1 + L1 };           // 5.3.5.4.3 (b: "> 75")
+      if (ligMenor) {   // not less than 0,95 (0,82)·Lx1·rx1/rmín nor the value above + 4 (6)·[(be/bs)² − 1]·rx1
+        const inc = (big / small) ** 2 - 1;
+        Leq.plana = Math.max(Leq.plana + 4 * inc * rx1, 0.95 * L1 * rx1 / ang.rmin);
+        Leq.espacial = Math.max(Leq.espacial + 6 * inc * rx1, 0.82 * L1 * rx1 / ang.rmin);
+      }
       const NeEq = (k) => Math.PI ** 2 * E * Ix1 / (Leq[k] * Leq[k]);
       const aplicavel = (k) => big / small <= 1.7 && Leq[k] / rx1 <= 200;                     // 5.3.5.4.1-d/e
       const NeFT = btMax > lim71 ? ang.Ne : Infinity;                                       // 5.3.5.4.4
@@ -141,7 +150,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
         if (!aplicavel(tr)) { Ne = 0; avisos.push(`Cantoneira fora das condições de 5.3.5.4.1 (abas ${(big / small).toFixed(2)} > 1,7 ou Lx1,eq/rx1 > 200): tratar como flexo-compressão (5.3.5.4.5) — NÃO verificado.`); }
         else {
           Ne = Math.min(NeEq(tr), NeFT);
-          avisos.push(`Cantoneira ligada por uma aba (suposta a MAIOR — ligada pela menor, abas desiguais, exige os limites de 5.3.5.4.2/5.3.5.4.3 não implementados), treliça ${tr}: Lx1,eq = ${Leq[tr].toFixed(3)} m (5.3.5.4.${tr === 'plana' ? 2 : 3}), rx1 = ${(rx1 * 100).toFixed(2)} cm${isFinite(NeFT) ? '; b/t > 0,71·√(E/fy): flexo-torção considerada (5.3.5.4.4)' : ''}.`);
+          avisos.push(`Cantoneira ligada pela aba ${ligMenor ? 'MENOR (limites inferiores de Lx1,eq do último parágrafo de 5.3.5.4.2/5.3.5.4.3)' : 'maior (member.cantoneira.abaLigada = \'menor\' se for a menor)'}, treliça ${tr}: Lx1,eq = ${Leq[tr].toFixed(3)} m (5.3.5.4.${tr === 'plana' ? 2 : 3}), rx1 = ${(rx1 * 100).toFixed(2)} cm${isFinite(NeFT) ? '; b/t > 0,71·√(E/fy): flexo-torção considerada (5.3.5.4.4)' : ''}.`);
         }
       } else {
         const cands = [ang.Ne, ...['plana', 'espacial'].filter(aplicavel).map(NeEq)];

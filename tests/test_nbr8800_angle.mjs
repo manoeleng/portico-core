@@ -60,5 +60,22 @@ const run = (b, t, L, trelica) => nbr8800.check({ demands: { N: -10 }, mat, sec:
 { const r = run(0.0508, 0.00635, 3.5, 'plana');
   assert('A5. fora de 5.3.5.4.1 → NÃO verificado', !isFinite(r.axial.ratio) && r.avisos.some(a => /5\.3\.5\.4\.5/.test(a)), r.avisos.join(' | ')); }
 
+// BR-8800-A6 · cantoneira de ABAS DESIGUAIS L 100 (vertical) × 75 (horizontal) × 8, L = 1,5 m, MR250 — cálculo manual
+// independente (NBR 8800:2024 5.3.5.4.2/5.3.5.4.3, último parágrafo; lido na pág. 50–51 do PDF). be/bs = 1,333.
+//   ligada pela MENOR (75): rx1 (eixo ∥ aba de 75) = 31,772 mm, rmín = 16,171 mm, L/rx1 = 47,21
+//     plana:    a) 72·rx1 + 0,75·L = 3 412,6 + 4·(1,333² − 1)·rx1 = 98,8 → 3 511,5 > 0,95·L·rx1/rmín = 2 799,8
+//               Ne = 215,90 kN, χ = 0,5234 → Nc,Rd = 158,910 kN
+//     espacial: 3 106,3 + 6·(…)·rx1 = 148,3 → 3 254,6 > 0,82·L·rx1/rmín = 2 416,6 → Nc,Rd = 174,094 kN
+//   ligada pela MAIOR (100), plana: rx1 = 22,161 mm, L/rx1 = 67,69 → Leq = 2 720,6, Ne = 174,98 kN → Nc,Rd = 136,579 kN
+{
+  const g = fromShape('angle', { d: 0.100, b: 0.075, t: 0.008 });
+  const sU = resolveSectionProps({ A: g.A, Iz: g.Iz, Iy: g.Iy, J: g.J, design: { shape: 'angle', dims: { d: 0.100, b: 0.075, t: 0.008 } } });
+  const runU = (trelica, abaLigada) => nbr8800.check({ demands: { N: -10 }, mat, sec: sU, member: { L: 1.5, Lb: 1.5, cantoneira: { trelica, abaLigada } }, options: { gamma_a1: 1.10 } });
+  ok('A6a. abas desiguais, menor ligada, plana Nc,Rd', runU('plana', 'menor').axial.capacity, 158.910, 0.002);
+  ok('A6b. abas desiguais, menor ligada, espacial Nc,Rd', runU('espacial', 'menor').axial.capacity, 174.094, 0.002);
+  ok('A6c. abas desiguais, maior ligada, plana Nc,Rd', runU('plana').axial.capacity, 136.579, 0.002);
+  assert('A6d. aviso cita a aba menor', runU('plana', 'menor').avisos.some(a => /MENOR/.test(a)));
+}
+
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
