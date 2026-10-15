@@ -244,6 +244,7 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const roleCol = member.role === 'pilar' || member.tipo === 'pilar' || member.isColumn === true;
   const roleBeam = member.role === 'viga' || member.tipo === 'viga';
   const isCol = Nc > 0 && (roleCol || (!roleBeam && nuD >= 0.10));
+  if (Nc > 0 && !roleCol && !roleBeam && !isCol) avisos.push(`Compressão sem papel definido e ν = ${nuD.toFixed(3)} < 0,10: verificado como VIGA (sem M1d,mín/2ª ordem) — marque a seção como pilar se for o caso.`);
   if (isCol && !roleCol) avisos.push(`Compressão preponderante adotada por ν = ${nuD.toFixed(3)} ≥ 0,10 (14.4.1.2 não fixa limite): verificado como pilar.`);
   if (isCol) {
     if (!(member.le > 0 || member.lez > 0 || member.ley > 0)) {
@@ -382,3 +383,37 @@ export const nbr6118 = {
   id: 'NBR6118:2026', family: 'concrete', label: 'ABNT NBR 6118:2026',
   check: (input) => checkNBR6118(input),
 };
+
+// ── ELS helpers (17.3) — pure functions for post-processing; MPa / m / kN·m ─────
+// Mr = α·fct·Ic/yt (17.3.1): α = 1,5 rectangular, 1,3 I/T inverted, 1,2 T/double T;
+// fct = fct,m for deflection (17.3.2) and fctk,inf = 0,7·fct,m for crack formation.
+export function crackingMoment({ b, h, fck, alpha = 1.5, para = 'flecha', barrasLisas = false }) {
+  const fctm = concreteParams(fck).fctm;
+  const fct = para === 'flecha' ? fctm : 0.7 * fctm;
+  const Ic = b * h ** 3 / 12, yt = h / 2;
+  const Mr = alpha * fct * 1000 * Ic / yt;                         // kN·m
+  return barrasLisas ? Mr / 2 : Mr;                                // 17.3.2.1.1: Mr/2 with plain bars
+}
+// Cracked (stage II) inertia of a rectangular section, αe = Es/Ecs (17.3.2.1.1). Compression steel
+// with (αe − 1) (displaced concrete) — homogenized section, neutral axis by first moments.
+export function stage2Inertia({ b, d, As, AsLinha = 0, dLinha = 0, alphaE }) {
+  const a = b / 2, bq = alphaE * As + (alphaE - 1) * AsLinha, c = -(alphaE * As * d + (alphaE - 1) * AsLinha * dLinha);
+  const x = (-bq + Math.sqrt(bq * bq - 4 * a * c)) / (2 * a);
+  return { x, III: b * x ** 3 / 3 + alphaE * As * (d - x) ** 2 + (alphaE - 1) * AsLinha * (x - dLinha) ** 2 };
+}
+// Branson (17.3.2.1.1): (EI)eq = Ecs·{(Mr/Ma)³·Ic + [1 − (Mr/Ma)³]·III} ≤ Ecs·Ic
+export function equivalentStiffness({ Ecs, Ic, III, Mr, Ma }) {
+  const r3 = Ma > 0 ? Math.min((Mr / Ma) ** 3, 1) : 1;
+  return Math.min(Ecs * (r3 * Ic + (1 - r3) * III), Ecs * Ic);
+}
+// Creep of the deflection (17.3.2.1.2): αf = Δξ/(1 + 50ρ'), ξ(t) = 0,68·0,996^t·t^0,32 (t ≤ 70 months), 2 beyond
+export function xiTime(tMonths) { return tMonths > 70 ? 2 : 0.68 * 0.996 ** tMonths * tMonths ** 0.32; }
+export function creepFactor({ t0, t = 1e9, rhoLinha = 0 }) { return (xiTime(t) - xiTime(t0)) / (1 + 50 * rhoLinha); }
+// Crack width (17.3.3.2): wk = min of the two expressions (φ in mm, σs and fct,m in MPa, result in mm)
+export function crackWidth({ phi, eta1 = 2.25, sigmaS, fctm, rhoR, Es = 210000 }) {
+  const w1 = phi / (12.5 * eta1) * (sigmaS / Es) * (3 * sigmaS / fctm);
+  const w2 = phi / (12.5 * eta1) * (sigmaS / Es) * (4 / rhoR + 45);
+  return Math.min(w1, w2);
+}
+// Tab. 13.4: reinforced concrete, frequent combination — CAA I 0,4; II and III 0,3; IV 0,2 mm
+export function crackLimit(caa) { return ({ I: 0.4, II: 0.3, III: 0.3, IV: 0.2 })[String(caa).toUpperCase()] ?? null; }

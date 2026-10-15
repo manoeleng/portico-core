@@ -1,0 +1,25 @@
+{
+  "_fonte": "Carvalho & Figueiredo Filho, Calculo e Detalhamento de Estruturas Usuais de Concreto Armado, Vol. 1, 4a ed. (2014), Cap. 4 (base NBR 6118:2014). Valores lidos das imagens das paginas (OCR ilegivel). Unidades do JSON: cm, cm2, cm4, MPa, kN, kN.m, kN/m.",
+  "casos": {
+    "BR-6118-04a": {
+      "titulo": "Cap.4 Ex.2 (p.215-219): laje pre-moldada b16, secao T adotada b=50 cm, LN na mesa; CA60 (Es=210000), fck=20, flecha imediata e total",
+      "dados": { "fck_MPa": 20, "bf_cm": 50, "hf_cm": 4, "d_cm": 13.9, "As_cm2": 3.615, "alphaE": 9.865, "Ecs_MPa": 21287, "fctm_MPa": 2.21, "vao_m": 5.0, "Ic_cm4": 6507, "Mr_kNm": 1.57, "t0_meses": 0.47,
+        "comb": [ { "nome": "permanente", "p_kNm": 1.55, "Ma_kNm": 4.84, "a_cm": 1.30 }, { "nome": "quase permanente", "p_kNm": 2.15, "Ma_kNm": 6.72, "a_cm": 1.81 }, { "nome": "rara", "p_kNm": 3.55, "Ma_kNm": 11.09, "a_cm": 3.01 } ] },
+      "esperado": { "x_cm": 3.8, "III_cm4": 4552, "xi_t0": 0.53, "alpha_f": 1.47, "a_total_cm": 4.47 },
+      "tol": { "x": 0.01, "III": 0.01, "xi": 0.01, "alpha_f": 0.01, "flecha": 0.02, "total": 0.02 }
+    },
+    "BR-6118-04b": {
+      "titulo": "Cap.4 Ex.3 (p.219-220): idem Ex.2 com laje b20 (h=20, hf=6), d=18, As=3,615 cm2",
+      "dados": { "bf_cm": 50, "hf_cm": 6, "d_cm": 18, "As_cm2": 3.615, "alphaE": 9.865, "Ecs_MPa": 21287, "vao_m": 5.0, "Ic_cm4": 12700, "Mr_kNm": 2.44, "t0_meses": 0.47,
+        "comb": [ { "nome": "permanente", "p_kNm": 1.55, "Ma_kNm": 4.84, "a_cm": 0.69 }, { "nome": "quase permanente", "p_kNm": 2.15, "Ma_kNm": 6.72, "a_cm": 1.00 }, { "nome": "rara", "p_kNm": 3.55, "Ma_kNm": 11.09, "a_cm": 1.69 } ] },
+      "esperado": { "x_cm": 4.4, "III_cm4": 8016, "alpha_f": 1.47, "a_total_cm": 2.47 },
+      "tol": { "x": 0.01, "III": 0.01, "alpha_f": 0.01, "flecha": 0.02, "total": 0.03 }
+    },
+    "BR-6118-04c": {
+      "titulo": "Cap.4 Ex.1 (p.212-215): viga V101 25 x 90, CA-50 (eta1=2,25), phi 12,5, fck=20, secao do apoio, abertura de fissuras",
+      "dados": { "b_cm": 25, "h_cm": 90, "d_cm": 80.47, "As_cm2": 20, "alphaE": 9.865, "phi_mm": 12.5, "eta1": 2.25, "fctm_MPa": 2.21, "rhoR": 0.01755, "Mser_kNm": 322.56, "yst_m": 0.466, "sigma_simplificado_MPa": 245 },
+      "esperado": { "x_cm": 28.6, "III_cm4": 725782, "sigmaS_MPa": 204, "wk_simplificado_mm": 0.142, "wk_exato_mm": 0.118, "limite_mm": 0.3 },
+      "tol": { "x": 0.01, "III": 0.01, "sigmaS": 0.01, "wk": 0.01 }
+    }
+  }
+}
