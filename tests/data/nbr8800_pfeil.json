@@ -1,0 +1,20 @@
+{
+  "_comentario": "Oraculos transcritos de C:/projetos/StructPro-Pro/tests/StructPro.Tests/Fixtures/*.json (Pfeil & Pfeil 9a ed. 2022). Unidades do fixture: cm, cm2, cm3, cm4, cm6, kN/cm2, kN, kN.cm. Propriedades de perfil: laminados-gerdau.csv. Nada aqui e calculado.",
+  "perfis": {
+    "W 150 x 37,1": {"d":16.2,"bf":15.4,"tf":1.16,"tw":0.81,"h":11.9,"A":47.8,"Ix":2244.0,"Wx":277.0,"Zx":313.5,"rx":6.85,"Iy":707.0,"Wy":91.8,"Zy":140.4,"ry":3.84,"It":20.58,"Cw":39930.0},
+    "W 410 x 38,8":  {"d":39.9,"bf":14.0,"tf":0.88,"tw":0.64,"h":35.7,"A":50.3,"Ix":12777.0,"Wx":640.5,"Zx":736.8,"rx":15.94,"Iy":404.0,"Wy":57.7,"Zy":90.9,"ry":2.83,"It":11.69,"Cw":153190.0},
+    "W 530 x 66,0":  {"d":52.5,"bf":16.5,"tf":1.14,"tw":0.89,"h":47.8,"A":83.6,"Ix":34971.0,"Wx":1332.2,"Zx":1558.0,"rx":20.46,"Iy":857.0,"Wy":103.9,"Zy":166.0,"ry":3.2,"It":31.52,"Cw":562854.0},
+    "H 152 x 40,9":  {"A":52.1,"rx":6.27,"ry":3.57},
+    "U 381 x 50,4":  {"A":64.2}
+  },
+  "casos": {
+    "BR-8800-01": {"fixture":"P1-T-A-tracao-Pfeil-2.3.8","fonte":"Pfeil 9a ed., Prob. 2.3.8","perfil":"U 381 x 50,4","fy":25.0,"fu":40.0,"E":20000.0,"Nt_Rd_escoamento_kN":1459.0,"tol":0.01},
+    "BR-8800-02": {"fixture":"P1-CA-compressao-Pfeil-5.8.3","fonte":"Pfeil 9a ed., Prob. 5.8.3","perfil":"H 152 x 40,9","fy":25.0,"E":20000.0,"K":1.0,"L":400.0,"Q":1.0,"Nc_Rd_kN":602.0,"lambda0":1.26,"tol":0.015,
+      "nota":"Pfeil imprime chi=0,509/602 (arredondado); formula 5.3.3.1 da 514/609. Tol 1,5% do fixture, nao afrouxada."},
+    "BR-8800-03": {"fixture":"P1-CB-compressao-curva-Pfeil-5.8.2","fonte":"Pfeil 9a ed., Prob. 5.8.2","perfil":"W 150 x 37,1","fy":25.0,"E":20000.0,"L":300.0,"Q":1.0,"tol":0.01,
+      "pontos":[{"apoio":"engaste-rotula","K":0.70,"lambda0":0.62,"chi":0.851,"Nc_Rd_kN":921.0},{"apoio":"engaste-livre","K":2.0,"lambda0":1.76,"chi":0.283,"Nc_Rd_kN":308.0}]},
+    "BR-8800-04": {"fixture":"C1-A-Pfeil-6.2.4","fonte":"Pfeil 9a ed., Ex. 6.2.4","perfil":"W 530 x 66,0","fy":25.0,"E":20000.0,"Lb":50.0,"Cb":1.0,"Mpl_kNcm":38950.0,"MRd_kNcm":35409.0,"tol":0.01},
+    "BR-8800-05": {"fixture":"C1-C-Pfeil-V3-FLT","fonte":"Pfeil 9a ed., Viga V3 (FLT)","perfil":"W 410 x 38,8","fy":34.5,"E":20000.0,"Lb":250.0,"Cb":1.67,"Lp_cm":120.0,"Lr_cm":342.0,"Mpl_kNcm":25420.0,"Mr_kNcm":15468.0,"Mcr_kNcm":45187.0,"MRd_kNcm":23109.0,"tol":0.01},
+    "BR-8800-06": {"fixture":"P1-V-A-cisalhamento-Pfeil-V3","fonte":"Pfeil 9a ed., Viga V3 (cortante)","perfil":"W 410 x 38,8","fy":34.5,"E":20000.0,"Vsd_kN":61.0,"Vrd_kN":481.0,"regime":"plastificacao","tol":0.01}
+  }
+}

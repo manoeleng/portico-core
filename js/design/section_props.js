@@ -256,6 +256,9 @@ export function resolveSectionProps(sec, opts = {}) {
   for (const k of ['Iyz', 'I1', 'I2', 'theta', 'cx', 'cy', 'perimeter']) if (g[k] !== undefined) out[k] = g[k];
   // RC reinforcement (bars/stirrups) is propagated for concrete design (#70).
   if (dz.rebar) out.rebar = dz.rebar;
+  // Plate dimensions and fabrication are propagated for codes that need them (NBR 8800: Aw = d·tw, λr of welded flanges).
+  if (dz.shape) out.dims = { ...dims };
+  if (dz.fabricacao) out.fabricacao = dz.fabricacao;
   out.rmin = Math.min(out.rz, out.ry);
   // Explicit user overrides (design.Zz, design.Cw, etc.)
   for (const k of ['Sz', 'Sy', 'Zz', 'Zy', 'Cw', 'Avy', 'Avz', 'rz', 'ry', 'lambdaFlange', 'lambdaWeb']) {
