@@ -141,7 +141,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
         if (!aplicavel(tr)) { Ne = 0; avisos.push(`Cantoneira fora das condições de 5.3.5.4.1 (abas ${(big / small).toFixed(2)} > 1,7 ou Lx1,eq/rx1 > 200): tratar como flexo-compressão (5.3.5.4.5) — NÃO verificado.`); }
         else {
           Ne = Math.min(NeEq(tr), NeFT);
-          avisos.push(`Cantoneira ligada por uma aba, treliça ${tr}: Lx1,eq = ${Leq[tr].toFixed(3)} m (5.3.5.4.${tr === 'plana' ? 2 : 3}), rx1 = ${(rx1 * 100).toFixed(2)} cm${isFinite(NeFT) ? '; b/t > 0,71·√(E/fy): flexo-torção considerada (5.3.5.4.4)' : ''}.`);
+          avisos.push(`Cantoneira ligada por uma aba (suposta a MAIOR — ligada pela menor, abas desiguais, exige os limites de 5.3.5.4.2/5.3.5.4.3 não implementados), treliça ${tr}: Lx1,eq = ${Leq[tr].toFixed(3)} m (5.3.5.4.${tr === 'plana' ? 2 : 3}), rx1 = ${(rx1 * 100).toFixed(2)} cm${isFinite(NeFT) ? '; b/t > 0,71·√(E/fy): flexo-torção considerada (5.3.5.4.4)' : ''}.`);
         }
       } else {
         const cands = [ang.Ne, ...['plana', 'espacial'].filter(aplicavel).map(NeEq)];
