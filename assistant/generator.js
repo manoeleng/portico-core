@@ -1949,6 +1949,13 @@ export function generateWarehouse(spec, libs) {
   // material of each member by its function
   const matOfSec = new Map([[secCol.id, idMatCol], [secCord.id, idMatChord], [secDiag.id, idMatWeb], [4, idMatRod], [5, idMatPurl], [6, idMatCol], [7, idMatRod]]);
   for (const e of elements) e.matId = matOfSec.get(e.secId) ?? 1;
+  // layers by function (CYPE "etiquetas"): the generated shed comes split, ready to hide/lock/colour per group
+  const LAYERS = [{ id: 1, name: 'padrão', color: '#64748b' }, { id: 2, name: 'Pilares', color: '#2563eb' }, { id: 3, name: 'Banzos', color: '#dc2626' },
+    { id: 4, name: 'Montantes e diagonais', color: '#f97316' }, { id: 5, name: 'Terças', color: '#16a34a' }, { id: 6, name: 'Contraventamento', color: '#9333ea' },
+    { id: 7, name: 'Travejamento do pilar', color: '#0891b2' }, { id: 8, name: 'Correntes', color: '#ca8a04' }].map(l => ({ ...l, visible: true, locked: false }));
+  const layerOfSec = new Map([[secCol.id, 2], [secCord.id, 3], [secDiag.id, 4], [4, 6], [5, 5], [6, 7], [7, 8]]);
+  for (const e of elements) e.layer = layerOfSec.get(e.secId) ?? 1;
+  const usedLayers = LAYERS.filter(l => l.id === 1 || elements.some(e => e.layer === l.id));
   if (tipoPilar === 'sem') addWarning('info', 'Sem pilares (somente a cobertura): treliças apoiadas no banzo inferior — fixo em x = 0, deslizante em x = vão (rx impedido, apoio em garfo). Vento de paredes e empenas não aplicado; as reações são as ações sobre a estrutura de apoio.');
   if (tipoPilar === 'concreto') addWarning('info', `Pilares de concreto ${secCol.name} cm engastados na base, treliça de aço articulada no topo; sem contraventamento vertical nas paredes (os pilares em balanço resistem).`);
 
@@ -2073,7 +2080,7 @@ export function generateWarehouse(spec, libs) {
 
   return {
     // a single frame is solved as a plane frame (X–Z: uy, rx, rz locked by the solver) but stays in the 3D view
-    version: '1.0', units: 'kN-m', mode: '3D', ...(umPortico ? { planar: true } : {}),
+    version: '1.0', units: 'kN-m', mode: '3D', ...(umPortico ? { planar: true } : {}), layers: usedLayers, activeLayer: 1,
     // only the sections some member uses (roof only: no column section; one frame: no purlin/rod) — lists/quantities
     nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])]
       .filter(q => q && elements.some(e => e.secId === q.id)), diaphragms: [],

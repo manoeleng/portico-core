@@ -2527,6 +2527,21 @@ export const PT = {
   "barra(s) NO verificada(s)": "barra(s) NÃO verificada(s)",
   "contra": "contra",
   "vano": "vão",
+  "🏷 Capas": "🏷 Camadas",
+  "Categorías": "Categorias",
+  "Nueva capa": "Nova camada",
+  "Capa activa: recibe los elementos nuevos": "Camada ativa: recebe as barras novas",
+  "Activa": "Ativa",
+  "Referencia": "Referência",
+  "Visible": "Visível",
+  "Bloqueada (no seleccionable)": "Travada (não selecionável)",
+  "Eliminar capa (sus elementos pasan a la capa padrão)": "Excluir camada (as barras vão para a camada padrão)",
+  "Representar la estructura con los colores de las capas": "Representar a estrutura com as cores das camadas",
+  "Diagonales": "Diagonais",
+  "Capa": "Camada",
+  "Capa a todos": "Camada a todos",
+  "Capa aplicada a": "Camada aplicada a",
+  "Color de la capa": "Cor da camada",
 };
 
 export default PT;

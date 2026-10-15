@@ -860,6 +860,11 @@ export class PropertiesPanel {
             <select id="sel-sec"><option value="">—</option>${secs}</select></div>
           <button class="btn-secondary" id="sel-sec-go" style="font-size:11px">Aplicar</button>
         </div>
+        <div class="prop-row" style="align-items:flex-end;gap:6px;margin-bottom:6px">
+          <div class="prop-field" style="flex:1"><label>${i18n.t('Capa a todos')}</label>
+            <select id="sel-layer"><option value="">—</option>${(this.app.model.layers || []).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select></div>
+          <button class="btn-secondary" id="sel-layer-go" style="font-size:11px">Aplicar</button>
+        </div>
         <div class="prop-row" style="align-items:flex-end;gap:6px;margin-bottom:8px">
           <div class="prop-field" style="flex:1"><label>Discretizar (nº tramos c/u)</label>
             <input type="number" id="sel-disc" value="4" min="2" step="1"></div>
@@ -918,6 +923,7 @@ export class PropertiesPanel {
     const root = this._selRoot(), $ = (i) => root.querySelector(i);
     $('#sel-mat-go')?.addEventListener('click', () => { const v = $('#sel-mat').value; if (v) this.app.setMaterialSelected(v); });
     $('#sel-sec-go')?.addEventListener('click', () => { const v = $('#sel-sec').value; if (v) this.app.setSectionSelected(v); });
+    $('#sel-layer-go')?.addEventListener('click', () => { const v = $('#sel-layer').value; if (v) this.app.setLayerSelected(+v); });
     $('#sel-disc-go')?.addEventListener('click', () => this.app.discretizeSelected(parseInt($('#sel-disc').value, 10)));
     $('#sel-w-go')?.addEventListener('click', () => this.app.setDistLoadSelected(parseFloat($('#sel-w').value), $('#sel-wdir').value, $('#sel-wlc').value));
     $('#sel-w-clr')?.addEventListener('click', () => this.app.setDistLoadSelected(0, $('#sel-wdir').value, $('#sel-wlc').value));
@@ -2034,9 +2040,12 @@ export class PropertiesPanel {
 
       <div class="prop-section">
         <div class="prop-title">Material</div>
-        <div class="prop-row cols1">
+        <div class="prop-row cols2">
           <div class="prop-field"><label>Material</label>
             <select id="e-mat">${matOptions}</select>
+          </div>
+          <div class="prop-field"><label>${i18n.t('Capa')}</label>
+            <select id="e-layer">${(model.layers || []).map(l => `<option value="${l.id}" ${l.id === (elem.layer ?? 1) ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select>
           </div>
         </div>
       </div>
@@ -2169,7 +2178,9 @@ export class PropertiesPanel {
       const rigidEnd = { i: parseFloat(sel.querySelector('#e-rig-i')?.value) || 0, j: parseFloat(sel.querySelector('#e-rig-j')?.value) || 0 };
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
       const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
-      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation });
+      const layer = +sel.querySelector('#e-layer')?.value || elem.layer || 1;
+      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer });
+      this.app.renderLayers?.();
       this.app.viewport.refreshElem(this.app.model.elements.get(elem.id));
       this.app.markDirty();
     };

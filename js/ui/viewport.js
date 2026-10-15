@@ -6,6 +6,7 @@
 //   Transform: m2t(x,y,z) → (x, z, y)   t2m(v) → {x:v.x, y:v.z, z:v.y}
 // ──────────────────────────────────────────────────────────────────────────────
 import { panelFrame } from '../model/panel_loads.js?v=7';
+import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { i18n } from '../i18n/i18n.js?v=7';
@@ -542,6 +543,8 @@ export class Viewport {
     this.refreshGridAxes();
     this.refreshElevationOptions();
     if (this._elevation) this._applyElevationFilter();
+    else this.applyLayers();
+    this.app?.renderLayers?.();   // layer list in the model tree follows the model
     // Refresh ID sprites if they were visible
     if (this._showIds) { this._showIds = false; this.toggleIds(); }
   }
@@ -617,10 +620,10 @@ export class Viewport {
     const geo  = new THREE.BufferGeometry().setFromPoints([
       this.m2t(n1.x, n1.y, n1.z), this.m2t(n2.x, n2.y, n2.z)
     ]);
-    const mat  = new THREE.LineBasicMaterial({ color: COL.ELEM });
+    const mat  = new THREE.LineBasicMaterial({ color: this._elemBaseColor(elem) });
     const line = new THREE.Line(geo, mat);
-    line.userData = { type: 'elem', id: elem.id, n1: elem.n1, n2: elem.n2 };
-    if (this._hiddenElems.has(elem.id)) line.visible = false;   // respects hidden ones on re-render
+    line.userData = { type: 'elem', id: elem.id, n1: elem.n1, n2: elem.n2, locked: elemLocked(this.app.model, elem) };
+    if (this._hiddenElems.has(elem.id) || !elemShown(this.app.model, elem)) line.visible = false;   // hidden / layer / category
     this._scene.add(line);
     this._elemLines.set(elem.id, line);
     this._buildHingeMarkers(elem);
@@ -1379,6 +1382,35 @@ export class Viewport {
       const hg = this._hingeSprites?.get(eid); if (hg) hg.visible = vis;
       const rg = this._rigidEndMarks?.get(eid); if (rg) rg.visible = vis;
     }
+    this.applyLayers();   // layers, categories and hidden members on top of the elevation
+  }
+
+  // ── Layers and categories (CYPE "etiquetas"/"categorias") — the single visibility resolver for members:
+  // elevation plane ∧ not hidden by the user ∧ layer visible ∧ category on. Locked layers: not pickable. ─────────
+  _elemBaseColor(elem) {
+    const m = this.app?.model;
+    return m?.layerView?.colorByLayer ? layerById(m, elem.layer ?? 1).color : COL.ELEM;
+  }
+  applyLayers() {
+    const m = this.app?.model;
+    if (!m) return;
+    const cats = m.layerView?.categories || {}, e = this._elevation, TOL = 0.051;
+    const onPlane = (n) => !e || (e.axis === 'y' ? Math.abs(n.y - e.coord) <= TOL : Math.abs(n.x - e.coord) <= TOL);
+    for (const [eid, line] of this._elemLines) {
+      const el = m.elements.get(eid); if (!el) continue;
+      const n1 = m.nodes.get(el.n1), n2 = m.nodes.get(el.n2);
+      const vis = !!(n1 && n2 && onPlane(n1) && onPlane(n2)) && !this._hiddenElems.has(eid) && elemShown(m, el);
+      line.visible = vis;
+      this._setElemDecorVisible(eid, vis);
+      line.userData.locked = elemLocked(m, el);
+      if (line.userData.locked) this._selected.delete(`elem:${eid}`);
+      if (!this._inResultsMode && !this._selected.has(`elem:${eid}`)) line.material.color.set(this._elemBaseColor(el));
+    }
+    for (const [id, mesh] of this._nodeMeshes) {
+      const n = m.nodes.get(id);
+      mesh.visible = !!n && onPlane(n) && cats.nos !== false;
+    }
+    for (const g of this._areaMeshes.values()) g.visible = cats.placas !== false;
   }
 
   // Fills the elevation selector with the defined grid axes.
@@ -1697,7 +1729,7 @@ export class Viewport {
   _hoverUpdate(e = null) {
     const prev = this._hovered;
     const nodeHits = this._pickNodes();
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible));
+    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
     const diaPlanes = [...this._diaGroups.values()]
       .map(g => g.children.find(c => c.userData.type === 'diaphragm')).filter(Boolean);
     const cmSpheres = [...this._diaGroups.values()]
@@ -1826,7 +1858,7 @@ export class Viewport {
 
   _clickSelect(ctrlHeld = false) {
     const nodeHits = this._pickNodes();
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible));
+    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
     const diaPlanes = [...this._diaGroups.values()]
       .map(g => g.children.find(c => c.userData.type === 'diaphragm')).filter(Boolean);
     const cmSpheres = [...this._diaGroups.values()]
@@ -2345,7 +2377,7 @@ export class Viewport {
     }
     // Elements: both endpoints inside the box.
     for (const [id, line] of this._elemLines) {
-      if (!line.visible) continue;
+      if (!line.visible || line.userData.locked) continue;
       const el = this.app.model.elements.get(id); if (!el) continue;
       const n1 = this.app.model.nodes.get(el.n1), n2 = this.app.model.nodes.get(el.n2);
       if (!n1 || !n2) continue;
@@ -2483,7 +2515,8 @@ export class Viewport {
       const node = this.app.model.nodes.get(id);
       if (node) this._setColor('node', id, this._nodeColor(node), null);
     } else {
-      this._setColor('elem', id, null, COL.ELEM);
+      const el = this.app.model.elements.get(id);
+      this._setColor('elem', id, null, el ? this._elemBaseColor(el) : COL.ELEM);
     }
   }
 
@@ -2948,6 +2981,7 @@ export class Viewport {
       line.visible = true;
     }
     for (const [, grp] of this._suppGroups) grp.visible = true;
+    this.applyLayers();
     this.resetAreaColors();
     this._inResultsMode = false;
     this._results = null;
@@ -3271,7 +3305,7 @@ export class Viewport {
 
   _clickResults(e) {
     const nodeHits = this._pickNodes();   // magnet, includes the deformed markers (#38)
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible));
+    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
     const areaHits = this._raycaster.intersectObjects(this._areaFills());
 
     const showNode = () => { if (this._results) this._showNodeInspector(nodeHits[0].object.userData.id, e.clientX, e.clientY); };
@@ -3927,7 +3961,7 @@ export class Viewport {
   // double arrow along the span direction of the load; clicking the area opens it in Cargas › Panos ──────────
   _drawPanels(model, lc) {
     const panels = lc.panels || [];
-    if (!panels.length) return;
+    if (!panels.length || model.layerView?.categories?.panos === false) return;
     const sel = this._selPanel && this._selPanel.lcId === lc.id ? this._selPanel.id : null;
     const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
     for (const p of panels) {

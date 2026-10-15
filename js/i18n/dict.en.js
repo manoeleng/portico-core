@@ -2782,6 +2782,21 @@ export const EN = {
   "barra(s) NO verificada(s)": "member(s) NOT checked",
   "contra": "against",
   "vano": "span",
+  "🏷 Capas": "🏷 Layers",
+  "Categorías": "Categories",
+  "Nueva capa": "New layer",
+  "Capa activa: recibe los elementos nuevos": "Active layer: receives the new members",
+  "Activa": "Active",
+  "Referencia": "Reference",
+  "Visible": "Visible",
+  "Bloqueada (no seleccionable)": "Locked (not selectable)",
+  "Eliminar capa (sus elementos pasan a la capa padrão)": "Delete layer (its members go to the default layer)",
+  "Representar la estructura con los colores de las capas": "Draw the structure with the layer colours",
+  "Diagonales": "Diagonals",
+  "Capa": "Layer",
+  "Capa a todos": "Layer to all",
+  "Capa aplicada a": "Layer applied to",
+  "Color de la capa": "Layer colour",
 };
 
 export default EN;

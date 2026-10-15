@@ -520,6 +520,20 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .sel-desc td { padding: 3px 0; color: var(--text); font-family: var(--font-mono); word-break: break-word; }
 .sel-desc tr + tr th, .sel-desc tr + tr td { border-top: 1px solid var(--border); }
 .sel-editor { margin-bottom: 10px; }
+/* layers (left model tree) */
+.ly-tbl { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+.ly-tbl col.c-act, .ly-tbl col.c-vis, .ly-tbl col.c-lock, .ly-tbl col.c-del { width: 16px; } .ly-tbl col.c-col { width: 28px; }
+.ly-tbl th { font-weight: 500; color: var(--text-muted); text-align: left; padding: 2px; font-size: 10px; }
+.ly-tbl td { padding: 2px; vertical-align: middle; }
+/* colour swatch: a plain rectangle in the layer colour; the native picker opens on click */
+.ly-tbl input[type=color] { -webkit-appearance: none; appearance: none; width: 24px; height: 14px; padding: 0; border: 1px solid var(--border2); border-radius: 2px; background: none; cursor: pointer; }
+.ly-tbl input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.ly-tbl input[type=color]::-webkit-color-swatch { border: none; border-radius: 1px; }
+.ly-tbl input[type=color]::-moz-color-swatch { border: none; }
+.ly-tbl input.ly-name { width: 100%; box-sizing: border-box; font-size: 11px; padding: 1px 3px; background: var(--bg3); border: 1px solid var(--border2); color: var(--text); border-radius: 3px; }
+.ly-tbl .muted { color: var(--text-muted); font-size: 9px; }
+.ly-tbl .ly-del { border: none; background: none; color: var(--text-muted); cursor: pointer; padding: 0 2px; }
+.ly-colorby, .ly-cat { display: flex; align-items: center; gap: 5px; font-size: 11px; margin: 4px 0 0; }
 .pn-list { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
 .pn-list td { padding: 4px 4px; vertical-align: middle; border-top: 1px solid var(--border); }
 .pn-list tr.pn-on td { background: rgba(245, 158, 11, 0.14); }

@@ -22,6 +22,7 @@ import { assembleSparseGlobal, extractFreeCSR } from './solver/sparse.js?v=7';
 import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
 import { regeneratePanelLoads } from './model/panel_loads.js?v=7';
+import { renderLayersPanel } from './ui/layers_panel.js?v=7';
 import { listMacros, getMacro, insertMacro } from './model/macro_registry.js?v=7';
 import { assembleKgInto } from './solver/geometric.js?v=7';
 import { makeFactor, makeFactorCSR, permRCMcsr } from './solver/linsolve.js?v=7';
@@ -443,6 +444,14 @@ class App {
     for (const id of ids) this.model.updateElement(id, { secId: +secId });
     this.viewport.renderModel(this.model); this.markDirty(); this._updateStats();
     this.toast(`${i18n.t('Sección aplicada a')} ${ids.length} ${i18n.t('elemento(s)')}`, 'ok');
+    this._reselect(ids);
+  }
+  setLayerSelected(layerId) {
+    const ids = this._selElems(); if (!ids.length || !(layerId > 0)) return;
+    this.snapshot();
+    for (const id of ids) this.model.updateElement(id, { layer: layerId });
+    this.viewport.renderModel(this.model); this.markDirty();
+    this.toast(`${i18n.t('Capa aplicada a')} ${ids.length} ${i18n.t('elemento(s)')}`, 'ok');
     this._reselect(ids);
   }
   discretizeSelected(parts) {
@@ -8006,7 +8015,10 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
   }
 
   // Treeview of the project's models + temporaries list (left side panel).
+  renderLayers() { renderLayersPanel(this); }
+
   renderModelTree() {
+    this.renderLayers();
     const box = document.getElementById('mt-models');
     if (box) {
       const only = this._project.models.length <= 1;

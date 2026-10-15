@@ -21,6 +21,11 @@ export class Model {
 
     this.units = 'kN-m';
 
+    // Layers ("etiquetas", CYPE 3D) and categories — js/model/layers.js. Saved in the .s3d.
+    this.layers = [{ id: 1, name: 'padrão', color: '#64748b', visible: true, locked: false }];
+    this.activeLayer = 1;
+    this.layerView = { colorByLayer: false, categories: { nos: true, pilares: true, vigas: true, diagonais: true, placas: true, panos: true } };
+
     // Project mode, defined WHEN CREATING the model (File → New):
     //  '3D' = three-dimensional structure.
     //  '2D' = planar X–Z frame: all nodes with Y=0, out-of-plane DOFs
@@ -172,7 +177,8 @@ export class Model {
       id, n1, n2,
       matId: matId ?? this._firstKey('materials'),
       secId: secId ?? this._firstKey('sections'),
-      releases: Array(12).fill(0)
+      releases: Array(12).fill(0),
+      layer: this.activeLayer || 1,
     };
     this.elements.set(id, elem);
     return elem;
@@ -289,6 +295,7 @@ export class Model {
       if (Object.keys(ef).length) el.endFixity = ef; else delete el.endFixity;
     }
     // Beam on elastic foundation / line spring (1-013): { ky, kz } kN/m per m.
+    if (props.layer !== undefined && +props.layer > 0) el.layer = +props.layer;
     if (props.foundation !== undefined) {
       const f = props.foundation || {};
       const ky = +f.ky || 0, kz = +f.kz || 0;

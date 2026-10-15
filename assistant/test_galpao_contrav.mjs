@@ -298,6 +298,14 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
     && r.elements.filter(e => e.secId === 1 || e.secId === 2).every(e => !e.designExcluded));
 }
 
+// (s) layers by function
+{
+  const s = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 1 } }, BR);
+  const L = (n) => s.layers.find(l => l.name === n)?.id;
+  assert('s1. camadas por função (pilares, banzos, alma, terças, contraventamento, correntes)', ['Pilares', 'Banzos', 'Montantes e diagonais', 'Terças', 'Contraventamento', 'Correntes'].every(n => L(n)), s.layers.map(l => l.name).join(','));
+  assert('s2. barras nas camadas certas', s.elements.filter(e => e.secId === 1).every(e => e.layer === L('Pilares')) && s.elements.filter(e => e.cable && e.secId === 4).every(e => e.layer === L('Contraventamento')) && s.elements.filter(e => e.secId === 7).every(e => e.layer === L('Correntes')));
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

@@ -1,6 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 // Serializer — JSON (.s3d) and CSV import/export
 // ──────────────────────────────────────────────────────────────────────────────
+import { ensureLayers } from './layers.js?v=7';
 import { Model } from './model.js?v=7';
 
 export class Serializer {
@@ -26,6 +27,9 @@ export class Serializer {
       // massSource changes the mass matrix → it MUST take part in the results-cache
       // signature, so it lives here (unlike memoria/analysisParams).
       massSource:   model.massSource || null,
+      layers:       model.layers || null,
+      activeLayer:  model.activeLayer || 1,
+      layerView:    model.layerView || null,
       _counters:   { ...model._cnt }
     };
     // NOTE: `memoria` (#41) and `analysisParams` (#39) are intentionally NOT included
@@ -59,6 +63,10 @@ export class Serializer {
     m.units = obj.units || 'kN-m';
     m.mode  = obj.mode === '2D' ? '2D' : '3D';
     m.planar = obj.planar === true && m.mode === '3D';
+    m.layers = Array.isArray(obj.layers) && obj.layers.length ? obj.layers : null;   // old files: default layer
+    m.activeLayer = obj.activeLayer || 1;
+    m.layerView = obj.layerView || null;
+    ensureLayers(m);
 
     for (const d of arr(obj.materials, 'materials'))  { m.materials.set(d.id, d); }
     for (const d of arr(obj.sections, 'sections'))  { m.sections.set(d.id, d); }
