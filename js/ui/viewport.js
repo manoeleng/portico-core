@@ -1891,7 +1891,7 @@ export class Viewport {
       // surface-load panel → its editor in Cargas › Panos (highlighted)
       const u = this._raycaster.intersectObjects(this._panelFills)[0].object.userData;
       this.clearSelection();
-      this._selPanel = { lcId: u.lcId, id: u.id };
+      this._selPanel = { id: u.id };
       document.getElementById('sb-sel').textContent = `${i18n.t('Paño')} #${u.id}`;
       this.app.panel.openPanelEdit?.(u.id);
       this.app.refreshLoads();
@@ -3960,15 +3960,18 @@ export class Viewport {
   // ── Surface-load panels (CYPE "paño de carga"): translucent area + outline, q label at the centroid and a
   // double arrow along the span direction of the load; clicking the area opens it in Cargas › Panos ──────────
   _drawPanels(model, lc) {
-    const panels = lc.panels || [];
+    const panels = model.panels || [];
     if (!panels.length || model.layerView?.categories?.panos === false) return;
-    const sel = this._selPanel && this._selPanel.lcId === lc.id ? this._selPanel.id : null;
+    const sel = this._selPanel ? this._selPanel.id : null;
     const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
+    const fmt = (v) => (+v).toFixed(2).replace('.', ',');
+    const sym = (d) => d === 'gravity' ? '↓' : d === 'against' ? i18n.t('vento →|') : d === 'normal' ? i18n.t('vento |→') : d === 'globalX' ? '→X' : d === 'globalY' ? '→Y' : '';
     for (const p of panels) {
       const ly = layerById(model, p.layer ?? 1);
       if (ly.visible === false) continue;                          // panel on a hidden layer
       const f = panelFrame(model, p);
       if (!f) continue;
+      const loads = (lc?.panelLoads || []).filter((l) => l.panelId === p.id);
       const pcol = model.layerView?.colorByLayer ? new THREE.Color(ly.color) : new THREE.Color(0xf59e0b);
       const lift = span * 0.002, off = f.n.map((c) => c * lift);   // off the plane: no z-fighting with plates
       const M = (q) => this.m2t(q[0] + off[0], q[1] + off[1], q[2] + off[2]);
@@ -3978,9 +3981,9 @@ export class Viewport {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       const isSel = p.id === sel;
-      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: pcol, transparent: true, opacity: isSel ? 0.38 : 0.18,
+      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: pcol, transparent: true, opacity: isSel ? 0.38 : loads.length ? 0.18 : 0.08,
         side: THREE.DoubleSide, depthWrite: false }));
-      fill.userData = { type: 'panel', lcId: lc.id, id: p.id };
+      fill.userData = { type: 'panel', id: p.id };
       fill.renderOrder = 1;
       const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(f.pts.map(M)),
         new THREE.LineBasicMaterial({ color: isSel ? 0xffffff : pcol }));
@@ -3989,22 +3992,27 @@ export class Viewport {
       const dirT = this.m2t(f.u[0], f.u[1], f.u[2]).normalize(), cT = M(c);
       const a1 = new THREE.ArrowHelper(dirT, cT, L, 0xf59e0b, L * 0.25, L * 0.12);
       const a2 = new THREE.ArrowHelper(dirT.clone().negate(), cT, L, 0xf59e0b, L * 0.25, L * 0.12);
-      const sign = p.dir === 'gravity' ? ' ↓' : p.dir === 'against' ? ' ' + i18n.t('vento →|') : p.dir === 'normal' ? ' ' + i18n.t('vento |→') : p.dir === 'globalX' ? ' →X' : p.dir === 'globalY' ? ' →Y' : '';
-      const lbl = this._makeValSprite(`#${p.id} q=${(+p.q).toFixed(2).replace('.', ',')}${sign}`, '#f59e0b');
+      // label: the panel and every load it carries in the active case
+      const txt = loads.length ? loads.map((l) => `${fmt(l.q)}${sym(l.dir)}`).join(' · ') : i18n.t('sin carga en este caso');
+      const lbl = this._makeValSprite(`#${p.id} ${txt}`, '#f59e0b');
       lbl.position.copy(cT).add(new THREE.Vector3(0, span * 0.015, 0));
       for (const o of [fill, outline, a1, a2, lbl]) { this._scene.add(o); this._loadObjects.push(o); }
-      // load arrows on the area: vertical for gravity, PERPENDICULAR to the panel for wind (follows the slope)
-      const sgq = (+p.q || 0) < 0 ? -1 : 1;
-      const dm = p.dir === 'gravity' ? [0, 0, -1] : p.dir === 'against' ? f.n.map((x) => -x) : p.dir === 'normal' ? f.n
-        : p.dir === 'globalX' ? [1, 0, 0] : p.dir === 'globalY' ? [0, 1, 0] : [0, 0, -1];
-      const dT = this.m2t(dm[0] * sgq, dm[1] * sgq, dm[2] * sgq).normalize(), La = span * 0.045;
-      // load arrows on a grid of points inside the area, set back from the edges (50 % of the reach from the centroid)
-      const [cx2, cy2] = f.c2, gu = 0.5 * f.reachU, gv = 0.5 * f.reachV, pts = [];
-      for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) { const x = cx2 + i * gu, y = cy2 + j * gv; if (f.inside(x, y)) pts.push(f.at(x, y)); }
-      for (const q of pts) {
-        const tip = M(q);
-        const ar = new THREE.ArrowHelper(dT, tip.clone().addScaledVector(dT, -La), La, 0xd97706, La * 0.3, La * 0.15);
-        this._scene.add(ar); this._loadObjects.push(ar);
+      // load arrows on a grid inside the area, set back from the edges: one set per DIRECTION present in the case —
+      // vertical for gravity, PERPENDICULAR to the panel for wind (follows the slope)
+      const [cx2, cy2] = f.c2, gu = 0.5 * f.reachU, gv = 0.5 * f.reachV, gpts = [];
+      for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) { const x = cx2 + i * gu, y = cy2 + j * gv; if (f.inside(x, y)) gpts.push(f.at(x, y)); }
+      const La = span * 0.045, seen = new Set();
+      for (const l of loads) {
+        const sgq = (+l.q || 0) < 0 ? -1 : 1, key = `${l.dir}|${sgq}`;
+        if (seen.has(key)) continue; seen.add(key);
+        const dm = l.dir === 'gravity' ? [0, 0, -1] : l.dir === 'against' ? f.n.map((x) => -x) : l.dir === 'normal' ? f.n
+          : l.dir === 'globalX' ? [1, 0, 0] : l.dir === 'globalY' ? [0, 1, 0] : [0, 0, -1];
+        const dT = this.m2t(dm[0] * sgq, dm[1] * sgq, dm[2] * sgq).normalize();
+        for (const q of gpts) {
+          const tip = M(q);
+          const ar = new THREE.ArrowHelper(dT, tip.clone().addScaledVector(dT, -La), La, 0xd97706, La * 0.3, La * 0.15);
+          this._scene.add(ar); this._loadObjects.push(ar);
+        }
       }
       this._panelFills.push(fill);
     }
@@ -4028,7 +4036,7 @@ export class Viewport {
     this.clearLoads();
     if (this._loadsVisible === false) return;     // hidden by the user
     const lc = model.loadCases.get(lcId);
-    if (lc) this._drawPanels(model, lc);            // surface-load panels: drawn even before their loads exist
+    this._drawPanels(model, lc);                    // surface-load panels (model geometry) with this case's loads
     if (!lc || lc.loads.length === 0) return;
 
     const b    = model.getBounds();

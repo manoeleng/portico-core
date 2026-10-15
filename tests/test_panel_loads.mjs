@@ -129,15 +129,28 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   const { m, corners } = roof();
   const r = panelToDistLoads(m, { id: 4, nodes: corners, q: 1, mode: 'two-way' });
   assert('P4. bidirecional recusado com aviso', r.loads.length === 0 && /bidirecional/.test(r.warnings[0] || ''));
+  // old format (panel inside the case) is migrated: geometry → model.panels, load → lc.panelLoads
   const lc = m.addLoadCase('CM', false);
   lc.loads.push({ type: 'nodal', nodeId: corners[0], F: [0, 0, -1, 0, 0, 0] });
   lc.panels = [{ id: 7, nodes: corners, q: 2, dir: 'gravity', axis: 'Y' }];
   regeneratePanelLoads(m); regeneratePanelLoads(m);
   ok('P4b. regenerar duas vezes não duplica (Σ = 2·60)', total(m, lc.loads.filter((l) => l.type === 'dist')), 120);
-  assert('P4c. carga nodal do usuário preservada', lc.loads.some((l) => l.type === 'nodal'));
-  lc.panels = [];
+  assert('P4c. carga nodal do usuário preservada; formato antigo migrado', lc.loads.some((l) => l.type === 'nodal') && m.panels.length === 1 && lc.panelLoads.length === 1 && !lc.panels);
+  lc.panelLoads = [];
   regeneratePanelLoads(m);
-  assert('P4d. pano removido → suas cargas somem', !lc.loads.some((l) => l.panelId != null));
+  assert('P4d. carga do pano removida → suas cargas de barra somem (o pano continua)', !lc.loads.some((l) => l.panelId != null) && m.panels.length === 1);
+}
+// (9) one panel, several loads: two in the same case (roofing 0,15 + ceiling 0,10) and wind in another case
+{
+  const { m, corners } = roof();
+  m.panels = [{ id: 1, nodes: corners, axis: 'Y', layer: 1 }];
+  const cm = m.addLoadCase('CM', false), v = m.addLoadCase('Vento', false);
+  cm.panelLoads = [{ id: 1, panelId: 1, q: 0.15, dir: 'gravity', area: 'real' }, { id: 2, panelId: 1, q: 0.10, dir: 'gravity', area: 'real' }];
+  v.panelLoads = [{ id: 1, panelId: 1, q: 0.6, dir: 'normal', area: 'real' }];
+  regeneratePanelLoads(m);
+  ok('P9. caso CM: Σ = (0,15 + 0,10)·60 = 15 kN', total(m, cm.loads), 15);
+  assert('P9b. duas cargas distintas no mesmo pano (panelLoadId 1 e 2)', new Set(cm.loads.map((l) => l.panelLoadId)).size === 2);
+  ok('P9c. caso Vento: sucção 0,6·60 = 36 kN para cima', -total(m, v.loads), 36);
 }
 
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);

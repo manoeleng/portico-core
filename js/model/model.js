@@ -24,6 +24,7 @@ export class Model {
     // Layers ("etiquetas", CYPE 3D) and categories — js/model/layers.js. Saved in the .s3d.
     this.layers = [{ id: 1, name: 'padrão', color: '#64748b', visible: true, locked: false }];
     this.activeLayer = 1;
+    this.panels = [];   // surface-load panels (geometry); their loads live in each case (lc.panelLoads) — panel_loads.js
     this.layerView = { colorByLayer: false, categories: { nos: true, pilares: true, vigas: true, diagonais: true, placas: true, panos: true } };
 
     // Project mode, defined WHEN CREATING the model (File → New):

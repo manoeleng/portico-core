@@ -146,7 +146,7 @@ export function panelToDistLoads(model, panel) {
     if (Math.abs(wid(s0l, s0r) - wid(s1l, s1r)) > 1e-3 * Math.max(1, Math.abs(b))) varying++;
     const w = q * b * fArea;                                           // kN/m along the member
     if (!(Math.abs(w) > 0)) continue;
-    const tag = { panelId: panel.id };
+    const tag = { panelId: panel.id, ...(panel.loadId != null ? { panelLoadId: panel.loadId } : {}) };
     const dir = panel.dir || 'gravity';
     if (dir === 'normal' || dir === 'against') {                     // split the normal into global components
       const sg = dir === 'against' ? -1 : 1, c = [sg * n[0] * w, sg * n[1] * w, sg * n[2] * w];
@@ -201,16 +201,45 @@ export function panelFrame(model, panel) {
     at: (x, y) => [p0[0] + u[0] * x + v[0] * y, p0[1] + u[1] * x + v[1] * y, p0[2] + u[2] * x + v[2] * y] };
 }
 
-// Replaces the panel-derived member loads of every case by a fresh expansion of its panels.
-export function regeneratePanelLoads(model) {
-  const warnings = [];
+// ── Panels as model geometry, loads per case (CYPE: the "paño" is a surface of the model; loads are assigned to it in
+// each load case, several per case if needed) ──────────────────────────────────────────────────────────────────────
+//   model.panels    = [{ id, nodes, axis, layer, name? }]
+//   lc.panelLoads   = [{ id, panelId, q, dir, area }]
+// Old files kept the panel inside the case with its single load (lc.panels = [{ id, nodes, q, dir, axis, area, layer }]):
+// migratePanels moves the geometry to model.panels (same contour + axis + layer → one panel) and the load to
+// lc.panelLoads.
+export function migratePanels(model) {
+  if (!Array.isArray(model.panels)) model.panels = [];
   for (const lc of model.loadCases.values()) {
-    if (!Array.isArray(lc.panels) || !lc.panels.length) { if (lc.loads?.some((l) => l.panelId != null)) lc.loads = lc.loads.filter((l) => l.panelId == null); continue; }
-    lc.loads = (lc.loads || []).filter((l) => l.panelId == null);
-    for (const p of lc.panels) {
-      const r = panelToDistLoads(model, p);
-      lc.loads.push(...r.loads);
-      for (const w of r.warnings) warnings.push(`${lc.name} · pano ${p.id}: ${w}`);
+    if (!Array.isArray(lc.panels) || !lc.panels.length) { delete lc.panels; continue; }
+    lc.panelLoads = lc.panelLoads || [];
+    for (const old of lc.panels) {
+      const key = (q) => `${q.nodes.join(',')}|${q.axis || 'edge'}|${q.layer ?? 1}`;
+      let geo = model.panels.find((g) => key(g) === key(old));
+      if (!geo) {
+        geo = { id: model.panels.reduce((m, g) => Math.max(m, g.id), 0) + 1, nodes: [...old.nodes], axis: old.axis || 'edge', layer: old.layer ?? 1 };
+        model.panels.push(geo);
+      }
+      lc.panelLoads.push({ id: lc.panelLoads.reduce((m, l) => Math.max(m, l.id), 0) + 1, panelId: geo.id, q: old.q, dir: old.dir || 'gravity', area: old.area || 'real' });
+    }
+    delete lc.panels;
+  }
+  return model.panels;
+}
+
+// Replaces the panel-derived member loads of every case by a fresh expansion of its panel loads.
+export function regeneratePanelLoads(model) {
+  migratePanels(model);
+  const warnings = [];
+  const geo = new Map(model.panels.map((g) => [g.id, g]));
+  for (const lc of model.loadCases.values()) {
+    if (lc.loads?.some((l) => l.panelId != null)) lc.loads = lc.loads.filter((l) => l.panelId == null);
+    for (const pl of lc.panelLoads || []) {
+      const g = geo.get(pl.panelId);
+      if (!g) { warnings.push(`${lc.name}: carga de pano ${pl.id} sem pano (#${pl.panelId}) — ignorada.`); continue; }
+      const r = panelToDistLoads(model, { ...g, q: pl.q, dir: pl.dir, area: pl.area, mode: pl.mode || 'one-way', loadId: pl.id });
+      (lc.loads = lc.loads || []).push(...r.loads);
+      for (const w of r.warnings) warnings.push(`${lc.name} · pano ${g.id}: ${w}`);
     }
   }
   return warnings;

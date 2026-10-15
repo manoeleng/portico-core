@@ -262,7 +262,7 @@ export class PropertiesPanel {
   // opens a panel of the active case for editing (click on its area in the 3D view)
   openPanelEdit(id) {
     this.app.setPanelCollapsed?.(false);
-    this._panelEdit = id;
+    this._panelEdit = id; this._panelLoadEdit = null;
     if (this._currentVTab !== 'loads') this._switchVTab('loads');
     this._switchLTab('panos');
   }
@@ -272,43 +272,57 @@ export class PropertiesPanel {
     const root = this._ltabContents.panos;
     if (!root) return;
     const t = (k) => i18n.t(k), app = this.app, m = app.model, lc = m.loadCases.get(app._activeLcId);
+    m.panels = m.panels || [];
     const sel = [...(app.viewport?._selected || [])].filter(k => k.startsWith('node:')).map(k => +k.slice(5));
-    const ed = this._panelEdit ? (lc?.panels || []).find(p => p.id === this._panelEdit) : null;
+    const P = m.panels.find(p => p.id === this._panelEdit) || null;           // selected panel (geometry)
+    const loads = P && lc ? (lc.panelLoads || []).filter(l => l.panelId === P.id) : [];
+    const LE = P && lc ? loads.find(l => l.id === this._panelLoadEdit) || null : null;   // load being edited
     const dirL = { gravity: t('Gravitacional ↓ (peso, sobrecarga)'), against: t('Viento: presión (⊥ al paño, hacia adentro)'),
       normal: t('Viento: succión (⊥ al paño, hacia afuera)'), globalX: 'Global +X', globalY: 'Global +Y' };
-    const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
     const dirS = { gravity: '↓', against: t('viento, presión'), normal: t('viento, succión'), globalX: '+X', globalY: '+Y' };
-    const rows = (lc?.panels || []).map(p => `<tr class="${p.id === this._panelEdit ? 'pn-on' : ''}"><td><b>#${p.id}</b></td>
-      <td>q = ${(+p.q).toFixed(2).replace('.', ',')} kN/m² ${esc(dirS[p.dir] || '')}<br><span class="muted">${p.nodes.length} ${t('nodos')} · ${t('vano')} ${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</span></td>
-      <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
-    const v = ed || { q: 1, dir: 'gravity', axis: 'edge', area: 'real' };
+    const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
+    const areaL = { real: t('Superficie del paño (peso de tejas, permanentes)'), projected: t('Proyección horizontal (sobrecargas — NBR 6120 6.4)') };
     const opt = (o, cur) => Object.entries(o).map(([k, l]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
-    root.innerHTML = !lc ? `<p class="panel-hint">${t('No hay caso de carga activo.')}</p>` : `
-      <div class="prop-title" style="margin-top:0">${t('Paños del caso')} ${esc(lc.name)}</div>
-      ${rows ? `<table class="pn-list"><tbody>${rows}</tbody></table>` : `<p class="panel-hint">${t('Sin paños en este caso.')}</p>`}
-      <div class="prop-title">${ed ? `${t('Editar paño')} #${ed.id}` : t('Nueva carga por paño')}</div>
-      <p class="panel-hint" style="margin:0 0 6px">${ed ? `${t('Nodos del contorno')}: ${ed.nodes.join(', ')}`
-        : `${t('Seleccione en orden los nodos del contorno (Ctrl+clic, ≥ 3)')}: <b>${sel.length ? sel.join(', ') : '—'}</b>`}</p>
+    const fmt = (v) => (+v).toFixed(2).replace('.', ',');
+    const layName = (id) => esc((m.layers || []).find(l => l.id === (id ?? 1))?.name || '');
+    const nLoads = (id) => lc ? (lc.panelLoads || []).filter(l => l.panelId === id).length : 0;
+    const rows = m.panels.map(p => `<tr class="${p.id === this._panelEdit ? 'pn-on' : ''}" data-p="${p.id}"><td><b>#${p.id}</b></td>
+      <td>${p.nodes.length} ${t('nodos')} · ${t('vano')} ${esc(axL[p.axis] || p.axis)}<br><span class="muted">${layName(p.layer)} · ${nLoads(p.id)} ${t('carga(s) en el caso')}</span></td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pn-sel" title="${esc(t('Seleccionar'))}">▸</button> <button class="btn-danger pn-del" title="${esc(t('Eliminar paño y sus cargas'))}">✕</button></td></tr>`).join('');
+    const lrows = loads.map(l => `<tr class="${l.id === this._panelLoadEdit ? 'pn-on' : ''}" data-l="${l.id}"><td>q = ${fmt(l.q)} kN/m² ${esc(dirS[l.dir] || '')}<br><span class="muted">${l.area === 'projected' ? t('proyectada') : t('superficie')}</span></td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pl-ed" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pl-del" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
+    const lv = LE || { q: 1, dir: 'gravity', area: 'real' };
+    root.innerHTML = `
+      <div class="prop-title" style="margin-top:0">${t('Paños')}</div>
+      ${rows ? `<table class="pn-list"><tbody>${rows}</tbody></table>` : `<p class="panel-hint">${t('Sin paños en el modelo.')}</p>`}
+      ${P ? `
+      <div class="prop-title">${t('Paño')} #${P.id}</div>
       <div class="prop-row cols2">
-        <div class="prop-field"><label>q (kN/m²)</label><input type="number" id="pn-q" value="${v.q}" step="0.05"></div>
-        <div class="prop-field"><label>${t('Dirección')}</label><select id="pn-dir">${opt(dirL, v.dir)}</select></div>
+        <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pg-axis">${opt(axL, P.axis || 'edge')}</select></div>
+        <div class="prop-field"><label>${t('Capa')}</label><select id="pg-layer">${(m.layers || []).map(l => `<option value="${l.id}" ${l.id === (P.layer ?? 1) ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>
       </div>
+      <div class="prop-title">${t('Cargas del paño en el caso')} ${esc(lc?.name || '—')}</div>
+      ${!lc ? `<p class="panel-hint">${t('No hay caso de carga activo.')}</p>` : `
+      ${lrows ? `<table class="pn-list"><tbody>${lrows}</tbody></table>` : `<p class="panel-hint">${t('Este paño no tiene cargas en este caso.')}</p>`}
       <div class="prop-row cols2">
-        <div class="prop-field"><label>${t('Distribución')}</label><select id="pn-mode"><option value="one-way" selected>${t('Unidireccional')}</option><option value="two-way" disabled>${t('Bidireccional (próximamente)')}</option></select></div>
-        <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pn-axis">${opt(axL, v.axis)}</select></div>
+        <div class="prop-field"><label>q (kN/m²)</label><input type="number" id="pl-q" value="${lv.q}" step="0.05"></div>
+        <div class="prop-field"><label>${t('Dirección')}</label><select id="pl-dir">${opt(dirL, lv.dir)}</select></div>
       </div>
       <div class="prop-row cols1">
-        <div class="prop-field"><label>${t('Capa')}</label><select id="pn-layer">${(m.layers || []).map(l => `<option value="${l.id}" ${l.id === (ed ? (ed.layer ?? 1) : (m.activeLayer || 1)) ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>
+        <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pl-area">${opt(areaL, lv.area || 'real')}</select></div>
       </div>
-      <div class="prop-row cols1">
-        <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pn-area">${opt({ real: t('Superficie del paño (peso de tejas, permanentes)'), projected: t('Proyección horizontal (sobrecargas — NBR 6120 6.4)') }, v.area || 'real')}</select></div>
-      </div>
-      <p class="panel-hint" style="margin:4px 0">${t('Unidireccional: cada barra transversal al vano recibe la faja entre las medias distancias a sus vecinas (o hasta el borde): w = q·b. Las barras paralelas al vano no reciben carga.')}</p>
       <div style="display:flex;gap:6px">
-        ${ed ? `<button class="btn-secondary" id="pn-cancel" style="flex:1">${t('Cancelar')}</button>` : ''}
-        <button class="btn-primary" id="pn-go" style="flex:1" ${!ed && sel.length < 3 ? 'disabled' : ''}>${ed ? t('Actualizar paño') : t('Crear paño con los nodos seleccionados')}</button>
-      </div>`;
-    if (!lc) return;
+        ${LE ? `<button class="btn-secondary" id="pl-cancel" style="flex:1">${t('Cancelar')}</button>` : ''}
+        <button class="btn-primary" id="pl-go" style="flex:1">${LE ? t('Actualizar carga') : t('Agregar carga al paño')}</button>
+      </div>`}` : ''}
+      <div class="prop-title">${t('Nuevo paño')}</div>
+      <p class="panel-hint" style="margin:0 0 6px">${t('Seleccione en orden los nodos del contorno (Ctrl+clic, ≥ 3)')}: <b>${sel.length ? sel.join(', ') : '—'}</b></p>
+      <div class="prop-row cols2">
+        <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pn-axis">${opt(axL, 'edge')}</select></div>
+        <div class="prop-field"><label>${t('Capa')}</label><select id="pn-layer">${(m.layers || []).map(l => `<option value="${l.id}" ${l.id === (m.activeLayer || 1) ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>
+      </div>
+      <button class="btn-secondary" id="pn-go" style="width:100%" ${sel.length < 3 ? 'disabled' : ''}>${t('Crear paño con los nodos seleccionados')}</button>
+      <p class="panel-hint" style="margin:6px 0 0">${t('Unidireccional: cada barra transversal al vano recibe la faja entre las medias distancias a sus vecinas (o hasta el borde): w = q·b. Las barras paralelas al vano no reciben carga.')}</p>`;
     const val = (id) => root.querySelector('#' + id)?.value;
     const apply = () => {
       const w = app._regenPanelLoads();
@@ -316,25 +330,47 @@ export class PropertiesPanel {
       if (!w.length) app.toast?.(t('Paños actualizados'), 'ok');
       this.renderPanels();
     };
-    root.querySelector('#pn-go')?.addEventListener('click', () => {
-      const q = parseFloat(String(val('pn-q')).replace(',', '.'));
-      if (!isFinite(q)) { app.toast?.(t('q inválido'), 'warn'); return; }
-      app.snapshot();
-      lc.panels = lc.panels || [];
-      const props = { q, dir: val('pn-dir'), mode: 'one-way', axis: val('pn-axis'), area: val('pn-area'), layer: +val('pn-layer') || 1 };
-      if (ed) Object.assign(ed, props);
-      else lc.panels.push({ id: lc.panels.reduce((mx, p) => Math.max(mx, p.id), 0) + 1, nodes: sel, ...props });
-      this._panelEdit = null;
-      apply();
-    });
-    root.querySelector('#pn-cancel')?.addEventListener('click', () => { this._panelEdit = null; this.renderPanels(); });
-    root.querySelectorAll('.pn-ed').forEach(b => b.addEventListener('click', () => { this._panelEdit = +b.dataset.p; this.renderPanels(); }));
+    root.querySelectorAll('.pn-sel').forEach(b => b.addEventListener('click', () => {
+      this._panelEdit = +b.closest('tr').dataset.p; this._panelLoadEdit = null;
+      app.viewport._selPanel = { id: this._panelEdit }; app.refreshLoads(); this.renderPanels();
+    }));
     root.querySelectorAll('.pn-del').forEach(b => b.addEventListener('click', () => {
+      const id = +b.closest('tr').dataset.p;
       app.snapshot();
-      lc.panels = lc.panels.filter(p => p.id !== +b.dataset.p);
-      if (this._panelEdit === +b.dataset.p) this._panelEdit = null;
+      m.panels = m.panels.filter(p => p.id !== id);
+      for (const c of m.loadCases.values()) if (c.panelLoads) c.panelLoads = c.panelLoads.filter(l => l.panelId !== id);
+      if (this._panelEdit === id) { this._panelEdit = null; app.viewport._selPanel = null; }
       apply();
     }));
+    root.querySelector('#pg-axis')?.addEventListener('change', (e) => { app.snapshot(); P.axis = e.target.value; apply(); });
+    root.querySelector('#pg-layer')?.addEventListener('change', (e) => { P.layer = +e.target.value || 1; apply(); });
+    root.querySelectorAll('.pl-ed').forEach(b => b.addEventListener('click', () => { this._panelLoadEdit = +b.closest('tr').dataset.l; this.renderPanels(); }));
+    root.querySelectorAll('.pl-del').forEach(b => b.addEventListener('click', () => {
+      const id = +b.closest('tr').dataset.l;
+      app.snapshot();
+      lc.panelLoads = (lc.panelLoads || []).filter(l => !(l.panelId === P.id && l.id === id));
+      if (this._panelLoadEdit === id) this._panelLoadEdit = null;
+      apply();
+    }));
+    root.querySelector('#pl-cancel')?.addEventListener('click', () => { this._panelLoadEdit = null; this.renderPanels(); });
+    root.querySelector('#pl-go')?.addEventListener('click', () => {
+      const q = parseFloat(String(val('pl-q')).replace(',', '.'));
+      if (!isFinite(q)) { app.toast?.(t('q inválido'), 'warn'); return; }
+      app.snapshot();
+      const props = { q, dir: val('pl-dir'), area: val('pl-area') };
+      lc.panelLoads = lc.panelLoads || [];
+      if (LE) Object.assign(LE, props);
+      else lc.panelLoads.push({ id: lc.panelLoads.reduce((mx, l) => Math.max(mx, l.id), 0) + 1, panelId: P.id, ...props });
+      this._panelLoadEdit = null;
+      apply();
+    });
+    root.querySelector('#pn-go')?.addEventListener('click', () => {
+      app.snapshot();
+      const id = m.panels.reduce((mx, p) => Math.max(mx, p.id), 0) + 1;
+      m.panels.push({ id, nodes: sel, axis: val('pn-axis'), layer: +val('pn-layer') || 1 });
+      this._panelEdit = id; this._panelLoadEdit = null; app.viewport._selPanel = { id };
+      apply();
+    });
   }
 
   // active-case selector of the Cargas panel (same list as the toolbar selector, analysis cases only)

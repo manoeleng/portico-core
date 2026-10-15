@@ -2,6 +2,7 @@
 // Serializer — JSON (.s3d) and CSV import/export
 // ──────────────────────────────────────────────────────────────────────────────
 import { ensureLayers } from './layers.js?v=7';
+import { migratePanels } from './panel_loads.js?v=7';
 import { Model } from './model.js?v=7';
 
 export class Serializer {
@@ -28,6 +29,7 @@ export class Serializer {
       // signature, so it lives here (unlike memoria/analysisParams).
       massSource:   model.massSource || null,
       layers:       model.layers || null,
+      panels:       model.panels || [],
       activeLayer:  model.activeLayer || 1,
       layerView:    model.layerView || null,
       _counters:   { ...model._cnt }
@@ -67,6 +69,8 @@ export class Serializer {
     m.activeLayer = obj.activeLayer || 1;
     m.layerView = obj.layerView || null;
     ensureLayers(m);
+    m.panels = Array.isArray(obj.panels) ? obj.panels : [];
+    migratePanels(m);                                    // old files: panels inside the cases
 
     for (const d of arr(obj.materials, 'materials'))  { m.materials.set(d.id, d); }
     for (const d of arr(obj.sections, 'sections'))  { m.sections.set(d.id, d); }

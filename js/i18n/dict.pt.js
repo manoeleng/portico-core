@@ -2554,6 +2554,17 @@ export const PT = {
   "inactivos": "inativos",
   "sin convergencia": "sem convergência",
   "máx.": "máx.",
+  "Paño": "Pano",
+  "carga(s) en el caso": "carga(s) no caso",
+  "Eliminar paño y sus cargas": "Excluir pano e suas cargas",
+  "superficie": "superfície",
+  "Sin paños en el modelo.": "Sem panos no modelo.",
+  "Cargas del paño en el caso": "Cargas do pano no caso",
+  "Este paño no tiene cargas en este caso.": "Este pano não tem cargas neste caso.",
+  "Actualizar carga": "Atualizar carga",
+  "Agregar carga al paño": "Adicionar carga ao pano",
+  "Nuevo paño": "Novo pano",
+  "sin carga en este caso": "sem carga neste caso",
 };
 
 export default PT;

@@ -2809,6 +2809,17 @@ export const EN = {
   "inactivos": "inactive",
   "sin convergencia": "not converged",
   "máx.": "max.",
+  "Paño": "Panel",
+  "carga(s) en el caso": "load(s) in the case",
+  "Eliminar paño y sus cargas": "Delete panel and its loads",
+  "superficie": "surface",
+  "Sin paños en el modelo.": "No panels in the model.",
+  "Cargas del paño en el caso": "Panel loads in the case",
+  "Este paño no tiene cargas en este caso.": "This panel has no loads in this case.",
+  "Actualizar carga": "Update load",
+  "Agregar carga al paño": "Add load to the panel",
+  "Nuevo paño": "New panel",
+  "sin carga en este caso": "no load in this case",
 };
 
 export default EN;
