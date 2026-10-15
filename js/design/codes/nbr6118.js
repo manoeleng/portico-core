@@ -14,9 +14,12 @@
 //                     ρsw,mín = 0,2·fct,m/fywk (17.4.1.1.1)
 //
 // Verifies the GIVEN reinforcement (sec.design.rebar: explicit layers or nTop/nBot+dia —
-// layer depth `d` measured from the compression fiber) and also reports the required As for
-// the beam (single/double reinforcement). Without explicit bars the section is reported as
-// NOT verified (the ρ fallback of concrete.js is not accepted for NBR).
+// layer depth `d` measured from the compression fiber to the bar CENTROID; with nTop/nBot,
+// `cover_mm` is that centroid distance, not the nominal cover) and also reports the required
+// As for the beam (single/double reinforcement). Without explicit bars, with a non-rectangular
+// section or with torsion the result is NOT verified (ratio = ∞, never a silent pass).
+// Detailing limits (As,mín/máx, dimensions) are reported as warnings (avisos). ELS (deflection,
+// cracking) is not part of check(): see the serviceability helpers.
 // Units: kN, m, kN/m² (strengths converted to MPa only inside the empirical expressions).
 // Source transcription: PLANO_BRASIL "Fase 5" fichas (checked against the 2026 PDF).
 // ──────────────────────────────────────────────────────────────────────────────
@@ -73,6 +76,10 @@ function nbrDiagram(b, h, sigcd, lambda, ecu, ec2, fyd, layers, npts = 60) {
     pts.push({ P: N, M: Math.abs(M) });
   }
   const Ast = layers.reduce((s, L) => s + L.As, 0);
+  // uniform compression (reta b, εc2 over the whole section) closes the top of the diagram
+  { let N = sigcd * b * h, M = 0;
+    for (const L of layers) { const fs = Math.min(fyd, ES * ec2) - sigcd; N += fs * L.As; M += fs * L.As * (h / 2 - L.dy); }
+    pts.push({ P: N, M: Math.abs(M) }); }
   pts.push({ P: -fyd * Ast, M: 0 });                   // pure tension (all steel yielding)
   pts.sort((a, b2) => b2.P - a.P);
   return { pts };
@@ -98,7 +105,47 @@ function requiredAs(Md, b, d, dl, sigcd, lambda, ecu, fyd, xdLim) {
   return { asNec: sigcd * b * lambda * xl / fyd + dM / ((d - dl) * fyd), asLinhaNec, xd: xdLim, dominio: dominio(xl), dupla: true };
 }
 
-function shearCheck({ VSd, bw, d, fck, fcd, fctm, fyd, fywk, gc, stir, modelo, thetaDeg, alphaDeg, N }) {
+// Weak-axis layers from the strong-axis description, only when the bar COUNT of every layer is known
+// (layers [{n, dia, d}] or nTop/nBot + dia): the n bars of a layer are spread evenly between the
+// covers across the width b. Returns [] when positions cannot be derived.
+function deriveLayersY(reb, b, cover) {
+  let rows = [];
+  if (Array.isArray(reb.layers) && reb.layers.length) {
+    if (!reb.layers.every(L => +L.n > 0 && +L.dia > 0)) return [];
+    rows = reb.layers.map(L => ({ n: +L.n, Ab: barArea(+L.dia) }));
+  } else if (+reb.dia > 0 || +reb.dia_mm > 0) {
+    const Ab = barArea(+reb.dia_mm || +reb.dia);
+    if (+reb.nTop) rows.push({ n: +reb.nTop, Ab });
+    if (+reb.nBot) rows.push({ n: +reb.nBot, Ab });
+  }
+  const pos = new Map();
+  for (const r of rows) {
+    if (r.n === 1) { pos.set(b / 2, (pos.get(b / 2) || 0) + r.Ab); continue; }
+    for (let i = 0; i < r.n; i++) { const y = +(cover + (b - 2 * cover) * i / (r.n - 1)).toFixed(6); pos.set(y, (pos.get(y) || 0) + r.Ab); }
+  }
+  return [...pos].map(([dy, As]) => ({ As, dy }));
+}
+
+// Neutral-axis depth of the given reinforcement for an axial force Nc (compression +), strain
+// profile with εcu at the top (domains 3/4); bisection on force equilibrium.
+function neutralAxis(b, h, sigcd, lambda, ecu, fyd, layers, Nc) {
+  const f = (x) => {
+    let N = sigcd * b * Math.min(lambda * x, h);
+    for (const L of layers) {
+      const es = ecu * (x - L.dy) / x;
+      let fs = Math.max(-fyd, Math.min(fyd, ES * es));
+      if (es > 0 && L.dy <= lambda * x) fs -= sigcd;
+      N += fs * L.As;
+    }
+    return N - Nc;
+  };
+  let lo = 1e-5, hi = h;
+  if (f(hi) < 0) return h;
+  for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; if (f(m) > 0) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}
+
+function shearCheck({ VSd, bw, d, fck, fcd, fctm, fyd, fywk, gc, stir, modelo, thetaDeg, alphaDeg, N, vcZero = false }) {
   const a = alphaDeg * Math.PI / 180, th = thetaDeg * Math.PI / 180;
   const av2 = 1 - fck / 250;
   const fctd = 0.7 * fctm / gc;                                   // MPa (fctk,inf/γc)
@@ -114,6 +161,7 @@ function shearCheck({ VSd, bw, d, fck, fcd, fctm, fyd, fywk, gc, stir, modelo, t
     Vc = Vc0;
     kSw = 0.9 * d * fywd * 1000 * (Math.sin(a) + Math.cos(a));
   }
+  if (vcZero) Vc = 0;
   const aswS = stir && +stir.dia > 0 && +stir.s > 0 ? (+stir.legs || 2) * barArea(+stir.dia) / (+stir.s / 1000) : 0;
   const Vsw = aswS * kSw;
   const aswMin = 0.2 * fctm / fywk * bw * Math.sin(a);            // m²/m (17.4.1.1.1)
@@ -165,7 +213,9 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const fydK = fyd * 1000;
   if (fck > 40) avisos.push(`fck = ${fck} MPa > 40: ηc = ${P.etac.toFixed(4)} reduz a tensão do bloco (NBR 6118:2026 8.2.10.1).`);
   const b = sec.b, h = sec.h, A = sec.A ?? b * h;
-  if (sec.shape && sec.shape !== 'rect') avisos.push(`Seção "${sec.shape}": a v1 verifica só seção retangular — resultado NÃO verificado.`);
+  let naoVerificado = false;                                      // forces NO CUMPLE (never a silent pass)
+  if (sec.shape && sec.shape !== 'rect') { naoVerificado = true; avisos.push(`Seção "${sec.shape}": a v1 verifica só seção retangular maciça — resultado NÃO verificado.`); }
+  if (Math.abs(demands.T || 0) > 1e-6) { naoVerificado = true; avisos.push('Momento torçor ≠ 0: torção (NBR 6118 17.5) não implementada na v1 — resultado NÃO verificado.'); }
 
   const reb = sec.rebar || (sec.design && sec.design.rebar) || {};
   const cover = (reb.cover_mm ?? options.cover_mm ?? 40) / 1000;
@@ -180,12 +230,16 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const My = Math.abs(demands.My || 0), Mz = Math.abs(demands.Mz || 0);
   const Nc = -N;                                                  // compression +
 
-  // ── columns (compression + member.le): γn (13.2.3) and local 2nd order (15.8) ──
-  let pilar = null;
+  // ── columns (any compression): γn (13.2.3) and local 2nd order (15.8) ──────────
+  // le: member.le / lez / ley; without it the member length L is used (le ≤ L, conservative).
+  let pilar = null, gn = 1.0;
   let MzD = Mz, MyD = My, NcD = Nc;
-  if (Nc > 0 && member.le > 0) {
+  if (Nc > 0) {
+    if (!(member.le > 0 || member.lez > 0 || member.ley > 0)) {
+      avisos.push(`Compressão sem comprimento equivalente (member.le): adotado le = L = ${(member.L || 1).toFixed(2)} m e αb = 1,0 (conservador, 15.6/15.8.2).`);
+    }
+    member = { ...member, le: member.le ?? member.L ?? 1 };
     const bmin = Math.min(b, h);
-    let gn = 1.0;
     if (bmin < 0.19) {
       if (bmin < 0.14) avisos.push(`Menor dimensão ${(bmin * 100).toFixed(1)} cm < 14 cm (13.2.3).`);
       gn = 1.95 - 0.05 * bmin * 100;                                // Tab. 13.1 (b in cm)
@@ -206,8 +260,15 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
     pilar.asMin = asMinP;
   }
 
-  const dTens = hasBars ? Math.max(...layers.map(L => L.dy)) : h - cover;
+  // d = depth of the CENTROID of the tension reinforcement (17.2.4.1); layers below mid-depth
+  const tens = layers.filter(L => L.dy > h / 2);
+  const dTens = tens.length ? tens.reduce((s, L) => s + L.As * L.dy, 0) / tens.reduce((s, L) => s + L.As, 0)
+    : (hasBars ? Math.max(...layers.map(L => L.dy)) : h - cover);
   const d = sec.d ?? dTens;
+  if (hasBars && !pilar) {
+    const top = layers.filter(L => L.dy <= h / 2).reduce((s, L) => s + L.As, 0), bot = tens.reduce((s, L) => s + L.As, 0);
+    if (Math.abs(top - bot) > 0.05 * Math.max(top, bot)) avisos.push('Armadura assimétrica: verificação com a face de maior d tracionada (layers medidos da fibra comprimida); o momento de sentido oposto exige outro arranjo de camadas.');
+  }
   const dl = sec.dLinha ?? sec.dlinha ?? (hasBars ? Math.min(...layers.map(L => L.dy)) : cover);
 
   // ── bending (strong axis, Mz) ────────────────────────────────────────────────
@@ -220,6 +281,15 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const flexao = ratObj(MzD, MRd, { eixo: 'forte (Mz = Msd,x)', asNec: req.asNec, asLinhaNec: req.asLinhaNec,
     xd: +req.xd.toFixed(4), dominio: req.dominio, dupla: !!req.dupla, d, formula: 'MRd por compatibilidade (17.2.2), bloco αc·ηc·fcd, λ·x' });
   if (!hasBars) flexao.ratio = Infinity;
+  // ductility of the GIVEN reinforcement (14.6.4.3 / 17.2.3) — beams (no compression)
+  if (hasBars && !pilar) {
+    const xg = neutralAxis(b, h, sigcd, P.lambda, P.ecu, fydK, layers, Math.max(NcD, 0));
+    flexao.xdArmadura = +(xg / d).toFixed(4);
+    if (xg / d > P.xdLim + 1e-9) {
+      flexao.ratio = Infinity;
+      avisos.push(`Ductilidade: x/d = ${(xg / d).toFixed(3)} > ${P.xdLim} com a armadura dada (14.6.4.3) — reduza a armadura de tração ou use armadura de compressão.`);
+    }
+  }
 
   // minimum / maximum longitudinal steel (17.3.5.2.1 / 17.3.5.2.4)
   const fctksup = 1.3 * P.fctm;
@@ -228,15 +298,17 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const asMin = Math.max(requiredAs(MdMin, b, d, dl, sigcd, P.lambda, P.ecu, fydK, P.xdLim).asNec, 0.0015 * A);
   const asTrac = hasBars ? layers.filter(L => L.dy > h / 2).reduce((s, L) => s + L.As, 0) : 0;
   if (hasBars && asTrac < asMin - 1e-12) avisos.push(`As tracionada ${(asTrac * 1e4).toFixed(2)} cm² < As,mín ${(asMin * 1e4).toFixed(2)} cm² (17.3.5.2.1).`);
-  if (hasBars && rl.Ast > 0.04 * A) avisos.push(`As total ${(rl.Ast * 1e4).toFixed(2)} cm² > 4 % Ac (17.3.5.2.4).`);
+  if (hasBars && !pilar && rl.Ast > 0.04 * A) avisos.push(`As total ${(rl.Ast * 1e4).toFixed(2)} cm² > 4 % Ac (17.3.5.2.4).`);
   if (req.dupla) avisos.push(`x/d acima de ${P.xdLim}: armadura dupla necessária (14.6.4.3).`);
   flexao.asMin = asMin;
 
   // ── weak axis bending (My) ───────────────────────────────────────────────────
   // bar positions across the width are needed for the weak axis: reb.layersY [{n,dia,d}|{As,d}]
   // with d measured from the compressed face in the y direction
+  // or derived when every strong-axis layer gives its bar count (n bars spread evenly across b)
   let MRdy = 0;
-  const lY = Array.isArray(reb.layersY) ? rebarLayers({ layers: reb.layersY }, b, h, cover, 0).layers.filter(L => L.As > 0) : [];
+  let lY = Array.isArray(reb.layersY) ? rebarLayers({ layers: reb.layersY }, b, h, cover, 0).layers.filter(L => L.As > 0) : [];
+  if (!lY.length) lY = deriveLayersY(reb, b, cover);
   if (lY.length) MRdy = pmMomentAt(nbrDiagram(h, b, sigcd, P.lambda, P.ecu, P.ec2, fydK, lY), NcD);
   const flexaoY = ratObj(MyD, MRdy, { eixo: 'fraco (My = Msd,y)' });
   if (MyD > 1e-9 && !lY.length) { flexaoY.ratio = Infinity; avisos.push('My ≠ 0 sem posição das barras no eixo fraco (rebar.layersY): flexão em y NÃO verificada.'); }
@@ -246,7 +318,7 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   let axial;
   if (N < 0) {
     const NRd = 0.85 * P.etac * P.fcd * 1000 * (A - rl.Ast) + Math.min(fydK, ES * 0.002) * rl.Ast;   // εc2 = 2 ‰
-    axial = ratObj(Math.abs(N), NRd, { modo: 'compressão', formula: 'NRd = 0,85·ηc·fcd·Ac + σs(εc2)·As' });
+    axial = ratObj(NcD, NRd, { modo: 'compressão', formula: 'NRd = 0,85·ηc·fcd·Ac + σs(εc2)·As' });
   } else {
     axial = ratObj(N, fydK * rl.Ast, { modo: 'tração', formula: 'NRd = fyd·As' });
   }
@@ -256,8 +328,12 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   if (!hasBars) interaction = ratObj(Infinity, 1, { adim: true, formula: 'não verificado (sem barras)' });
   else if (MyD > 1e-9 && MzD > 1e-9) {
     const al = 1.2;                                                 // 17.2.5, rectangular section
-    const r = Math.pow(MzD / (MRd || 1e-12), al) + Math.pow(MyD / (MRdy || 1e-12), al);
+    const r = (MRd > 1e-12 && MRdy > 1e-12) ? Math.pow(MzD / MRd, al) + Math.pow(MyD / MRdy, al) : Infinity;
     interaction = ratObj(r, 1, { adim: true, modo: 'flexão oblíqua', formula: '(MSd,x/MRd,xx)^1,2 + (MSd,y/MRd,yy)^1,2 ≤ 1 (17.2.5)' });
+  } else if (MzD <= 1e-9) {
+    // pure axial: the radial ray does not cross the polygon away from M = 0
+    const Pmax = Math.max(...diag.pts.map(p => p.P)), Pmin = Math.min(...diag.pts.map(p => p.P));
+    interaction = ratObj(NcD >= 0 ? NcD / Pmax : NcD / Pmin, 1, { adim: true, modo: 'axial', formula: 'NSd/NRd (diagrama, M = 0)' });
   } else {
     interaction = ratObj(pmRatio(diag, NcD, MzD), 1, { adim: true, modo: Nc >= 0 ? 'flexo-compressão' : 'flexo-tração',
       formula: 'diagrama N–M por compatibilidade (17.2.2)' });
@@ -267,18 +343,23 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const modelo = options.modeloCortante === 'II' ? 'II' : 'I';
   const theta = modelo === 'II' ? Math.min(Math.max(options.theta ?? 45, 30), 45) : 45;
   const alpha = options.alpha ?? 90;
-  const sv = shearCheck({ VSd: Vy, bw: b, d, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir, modelo, thetaDeg: theta, alphaDeg: alpha, N });
+  // tension with small eccentricity (e = M/N inside the bars): neutral axis outside → Vc = 0 (17.4.2.2-b)
+  const vcZero = N > 0 && (Mz / N) <= Math.max(d - h / 2, 0);
+  if (vcZero) avisos.push('Tração com pequena excentricidade (LN fora da seção): Vc = 0 (17.4.2.2-b).');
+  const VyD = gn * Vy, VzD = gn * Vz;
+  const sv = shearCheck({ VSd: VyD, bw: b, d, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero });
   const capV = Math.min(sv.VRd2, sv.VRd3);
-  const cortante = ratObj(Vy, capV, { dir: 'Vy', modelo: sv.modelo, VRd2: sv.VRd2, Vc: sv.Vc, Vsw: sv.Vsw, VRd3: sv.VRd3,
+  const cortante = ratObj(VyD, capV, { dir: 'Vy', modelo: sv.modelo, VRd2: sv.VRd2, Vc: sv.Vc, Vsw: sv.Vsw, VRd3: sv.VRd3,
     aswNec: sv.aswNec, aswMin: sv.aswMin, theta, formula: modelo === 'II' ? 'Modelo II (17.4.2.3)' : 'Modelo I (17.4.2.2)' });
   if (!sv.aswS) avisos.push('Sem estribos informados: VRd3 = Vc; a NBR exige armadura transversal mínima (17.4.1.1.1).');
   else if (sv.aswS < sv.aswMin - 1e-12) avisos.push('Armadura transversal abaixo da mínima ρsw,mín = 0,2·fct,m/fywk (17.4.1.1.1).');
   if (N < 0) avisos.push('Flexo-compressão: Vc tomado sem o acréscimo (1 + M0/MSd,máx) — conservador (17.4.2.2-b).');
   const dz = b - cover;
-  const svz = shearCheck({ VSd: Vz, bw: h, d: dz, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir: null, modelo, thetaDeg: theta, alphaDeg: alpha, N });
-  const corteZ = ratObj(Vz, Math.min(svz.VRd2, svz.VRd3), { dir: 'Vz', modelo: svz.modelo });
+  const svz = shearCheck({ VSd: VzD, bw: h, d: dz, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir: null, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero });
+  const corteZ = ratObj(VzD, Math.min(svz.VRd2, svz.VRd3), { dir: 'Vz', modelo: svz.modelo });
 
   if (pilar && !(pilar.z.ok && pilar.y.ok)) { flexao.ratio = Infinity; interaction.ratio = Infinity; }
+  if (naoVerificado) for (const o of [flexao, flexaoY, interaction, cortante, corteZ, axial]) o.ratio = Infinity;
   const bending = flexao.ratio >= flexaoY.ratio ? flexao : flexaoY;
   const shear = cortante.ratio >= corteZ.ratio ? cortante : corteZ;
   return finalize({ material: 'concreto', metodo: 'ABNT NBR 6118:2026', axial, bending, shear, interaction,

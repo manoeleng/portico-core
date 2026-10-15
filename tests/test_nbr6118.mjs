@@ -138,5 +138,49 @@ const cort = (id, dd, V, options, rebar) => run(id, { demands: { N: 0, Vy: V, Vz
   console.log(`${bal.alphab === 1 ? '✓' : '✗'} 03g. balanço: αb = 1,0 (NBR 6118:2026 15.8.2)`); if (bal.alphab !== 1) fails++;
 }
 
+// BR-6118-03b · Kimura (2018), Ex. 16 (pp. 129–131, base NBR 6118:2014): pilar 35×65, C20, CA-50,
+// Nd = 320 tf, le = 7,5 m, MA = 10,5 tf·m, MB = −2,0 tf·m (curvatura reversa), eixo de h = 35 cm.
+// O livro usa 1 tf = 10 kN. Esperados: αb = 0,524; λ = 74,2; λ1 = 50; ν = 0,985; Md,tot = 22,8 tf·m
+// (curvatura aproximada) e 21,1 tf·m (rigidez κ). Itens iguais na 2026 (ficha de pilares).
+{
+  const { columnSecondOrder } = await import('../js/design/codes/nbr6118.js');
+  const base = { h: 0.35, Ac: 0.35 * 0.65, Nd: 3200, M1dA: 105, rMBA: -2.0 / 10.5, le: 7.5, fcdK: 20000 / 1.4 };
+  const c = columnSecondOrder(base), k = columnSecondOrder({ ...base, opts: { metodo: 'kappa' } });
+  const ok3 = (name, got, exp, tol) => { const e = Math.abs(got - exp) / Math.abs(exp); const p = e <= tol; if (!p) fails++; console.log(`${p ? '✓' : '✗'} ${name}: got=${got} exp=${exp}`); };
+  ok3('03h. αb — Kimura Ex.16', c.alphab, 0.524, 0.002);
+  ok3('03i. λ', c.lambda, 74.2, 0.002);
+  ok3('03j. λ1', c.lambda1, 50, 0.002);
+  ok3('03k. ν', c.nu, 0.985, 0.002);
+  ok3('03l. Md,tot curvatura (kN·m) — livro 22,8 tf·m', c.Mdtot, 228, 0.005);
+  ok3('03m. Md,tot rigidez κ (kN·m) — livro 21,1 tf·m', k.Mdtot, 211, 0.005);
+}
+
+// BR-6118-05 · Robustez (revisão do especialista): nenhum caso fora do escopo passa em silêncio
+{
+  const { nbr6118 } = await import('../js/design/codes/nbr6118.js');
+  const mat = { fc: 30e3, fyRebar: 500e3 };
+  const rect = (layers, extra = {}) => ({ shape: 'rect', b: 0.2, h: 0.5, A: 0.1, rebar: { layers, stirrups: { dia: 8, s: 150, legs: 2 } }, ...extra });
+  const ok4 = (name, cond, info = '') => { if (!cond) fails++; console.log(`${cond ? '✓' : '✗'} ${name}${info ? ' · ' + info : ''}`); };
+  const box = nbr6118.check({ demands: { Mz: 50 }, mat, sec: { ...rect([{ As: 10e-4, d: 0.46 }]), shape: 'box' } });
+  ok4('05a. seção não retangular → NÃO atende', box.ratioMax === Infinity);
+  const tor = nbr6118.check({ demands: { Mz: 50, T: 10 }, mat, sec: rect([{ As: 10e-4, d: 0.46 }]) });
+  ok4('05b. torção ≠ 0 → NÃO atende', tor.ratioMax === Infinity);
+  const col = nbr6118.check({ demands: { N: -800, Mz: 10 }, mat, sec: rect([{ As: 6e-4, d: 0.04 }, { As: 6e-4, d: 0.46 }]), member: { L: 3 } });
+  ok4('05c. compressão sem le → pilar calculado com le = L', !!col.pilar && col.pilar.z.M1dmin > 0 && col.avisos.some(a => /le = L/.test(a)));
+  // ductilidade: 20×50, C30, As = 25 cm² a d = 0,46 m. Aço NÃO escoa (domínio 4), então, à mão:
+  //   0,8·σcd·b·x = As·Es·εcu·(d − x)/x, σcd = 0,85·30/1,4 = 18,214 MPa
+  //   2914,2·x² + 1837,5·x − 845,25 = 0 → x = 0,3088 m → x/d = 0,671 (> 0,45)
+  const duc = nbr6118.check({ demands: { Mz: 100 }, mat, sec: rect([{ As: 25e-4, d: 0.46 }]) });
+  ok4('05d. x/d > 0,45 com a armadura dada → NÃO atende', duc.flexao.ratio === Infinity && Math.abs(duc.flexao.xdArmadura - 0.671) < 0.005, String(duc.flexao.xdArmadura));
+  // tirante: N = +500 kN, Mz = 0 → Vc = 0; Vsw (φ8 c/15) = 120,6 kN (revisor, conta à mão)
+  const tir = nbr6118.check({ demands: { N: 500, Vy: 60 }, mat, sec: rect([{ As: 10e-4, d: 0.04 }, { As: 10e-4, d: 0.46 }]) });
+  ok4('05e. tirante → Vc = 0', tir.cortante.Vc === 0 && Math.abs(tir.cortante.capacity - 120.6) / 120.6 < 0.01, String(tir.cortante.capacity));
+  // 20×50, 4φ20 em cada face: barras distribuídas na largura → eixo fraco derivado (M1d,mín nos dois eixos)
+  const ax = nbr6118.check({ demands: { N: -1000 }, mat, sec: rect([{ n: 4, dia: 20, d: 0.04 }, { n: 4, dia: 20, d: 0.46 }]), member: { L: 0.5 } });
+  ok4('05f. pilar curto, N = 1000 kN, M = 0 (só M1d,mín) → atende', Number.isFinite(ax.interaction.ratio) && ax.interaction.ratio < 1, String(ax.interaction.ratio));
+  const axA = nbr6118.check({ demands: { N: -1000 }, mat, sec: rect([{ As: 12.57e-4, d: 0.04 }, { As: 12.57e-4, d: 0.46 }]), member: { L: 0.5 } });
+  ok4('05g. pilar com camadas só por área (posição no eixo fraco desconhecida) → NÃO verificado, com aviso', axA.interaction.ratio === Infinity && axA.avisos.some(a => /eixo fraco/.test(a)));
+}
+
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
