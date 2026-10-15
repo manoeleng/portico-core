@@ -2866,6 +2866,23 @@ export const EN = {
   "Invertir DMF": "Flip BMD",
   "Giro de la sección alrededor del eje longitudinal de la barra (ángulo β, regla de la mano derecha de n1 a n2). +90° gira; 180° invierte el lado abierto de un U/Ue/L (ej.: cordones de cercha hacia adentro).": "Rotation of the section about the member's longitudinal axis (angle β, right-hand rule from n1 to n2). +90° rotates; 180° flips the open side of a U/Ue/L (e.g. truss chords facing inwards).",
   "Rotación β (°) a todos": "Rotation β (°) to all",
+  "Perfil del catálogo": "Catalogue profile",
+  "Todas las familias": "All families",
+  "buscar: U 150 2,65 · W250x32 · 2L 60": "search: U 150 2,65 · W250x32 · 2L 60",
+  "Sección compuesta (2 perfiles NBR 6355)": "Built-up section (2 NBR 6355 profiles)",
+  "perfil base, ej. L 60x2,25": "base profile, e.g. L 60x2,25",
+  "Disposición": "Arrangement",
+  "espalda con espalda": "back to back",
+  "cajón": "box",
+  "Separación g (mm)": "Gap g (mm)",
+  "2L: solo espalda con espalda": "2L: back to back only",
+  "Escriba para buscar o elija una familia.": "Type to search or pick a family.",
+  "Sin resultados": "No results",
+  "Propiedades": "Properties",
+  "catálogo": "catalogue",
+  "masa": "mass",
+  "Formado en frío del catálogo": "Cold-formed from catalogue",
+  "Perfil formado en frío del catálogo: forma, dimensiones y propiedades tabuladas (ver Propiedades). Para cambiarlo, elija otro perfil arriba.": "Cold-formed catalogue profile: tabulated shape, dimensions and properties (see Properties). To change it, pick another profile above.",
 };
 
 export default EN;

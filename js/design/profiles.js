@@ -246,8 +246,37 @@ export function getProfile(name) {
 
 // Resolves a profile to model + design properties ready to assign to a section:
 // { A, Iz, Iy, J, design:{ shape, dims } } (all in m / m² / m⁴).
+// Normalized form for searching ("W 250 x 32,7" ≈ "w250x32.7" ≈ "W250X32,7")
+export const normProfile = (s) => String(s || '').toLowerCase().replace(/[×*]/g, 'x').replace(/\./g, ',').replace(/\s+/g, '');
+/**
+ * Catalogue search (RFEM/ETABS-like): every whitespace-separated token must occur in the normalized name; optional
+ * family filter. Returns [{ name, family }] (at most `limit`), exact matches first.
+ */
+export function searchCatalog(query, family = '', limit = 80) {
+  const toks = String(query || '').trim().split(/\s+/).filter(Boolean).map(normProfile);
+  const out = [];
+  for (const fam of Object.keys(CATALOG)) {
+    if (family && fam !== family) continue;
+    for (const n of Object.keys(CATALOG[fam])) {
+      const nn = normProfile(n);
+      if (toks.every((t) => nn.includes(t))) out.push({ name: n, family: fam, exact: toks.length && nn === toks.join(''), lead: !toks.length || nn.startsWith(toks[0]) });
+    }
+  }
+  out.sort((a, b) => (b.exact - a.exact) || (b.lead - a.lead) || a.name.localeCompare(b.name, 'pt', { numeric: true }));
+  return out.slice(0, limit);
+}
+/** Catalogue profile whose normalized name equals `name` (the user typed it in the name field) or null. */
+export function findProfileByName(name) {
+  const k = normProfile(name);
+  for (const fam of Object.keys(CATALOG)) for (const n of Object.keys(CATALOG[fam])) if (normProfile(n) === k) return n;
+  const q = parseCompositeName(name);
+  return q && compositeSection(q.kind, q.base, q.arr, q.gapMm) ? name.trim() : null;
+}
+
 export function profileToSection(name) {
-  const p = getProfile(name); if (!p) return null;
+  const p = getProfile(name) || (() => { const q = parseCompositeName(name);   // built-up with any gap / arrangement
+    return q && compositeSection(q.kind, q.base, q.arr, q.gapMm) ? { cf: true, composite: true, shape: q.kind } : null; })();
+  if (!p) return null;
   if (p.cf) {
     const q = p.composite ? parseCompositeName(name) : null;
     const c = q ? compositeSection(q.kind, q.base, q.arr, q.gapMm) : cfSection(name);

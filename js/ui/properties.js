@@ -2916,6 +2916,7 @@ export class PropertiesPanel {
           <div class="prop-field"><label>×Iz</label><input type="number" data-m="Iz" value="${sec.mod?.Iz ?? 1}" step="0.05" min="0.01"></div>
           <div class="prop-field"><label>×Iy</label><input type="number" data-m="Iy" value="${sec.mod?.Iy ?? 1}" step="0.05" min="0.01"></div>
         </div>
+        <div class="sd-props"></div>
         ${this._secDesignHTML(sec)}
         <div class="card-actions">
           <button class="btn-danger btn-del-sec" style="flex:1;">Eliminar</button>
@@ -2935,6 +2936,14 @@ export class PropertiesPanel {
         this.app.model.updateSection(sec.id, updates);
         card.querySelector('.sec-card-name').textContent = updates.name || sec.name;
         this.app.markDirty();
+        // name typed as a catalogue designation ("U 150x75x2,65", "w250x32,7", "2L 60x2,25 costas g8") → apply it
+        if (inp.dataset.f === 'name') import('../design/profiles.js?v=7').then(({ findProfileByName, profileToSection }) => {
+          const hit = findProfileByName(updates.name); if (!hit || hit === sec.design?.profile) return;
+          const props = profileToSection(hit); if (!props) return;
+          this.app.model.updateSection(sec.id, { ...props, name: hit });
+          this.app.markDirty(); this.app.viewport.refreshExtrusion?.(); this.renderSections();
+          this.app.toast(`${i18n.t('Perfil')} ${hit} ${i18n.t('aplicado (A, I, J y forma). Recalcule el análisis (F5).')}`, 'ok');
+        }).catch(() => {});
       });
     });
     // Stiffness modifiers (data-m): update sec.mod
@@ -2995,17 +3004,33 @@ export class PropertiesPanel {
     return `
       <div class="prop-section" style="margin-top:6px">
         <div class="prop-title" title="Forma del perfil para el diseño: deriva módulos plásticos, esbelteces, etc. Ver docs/design.md.">Forma (diseño)</div>
-        <div class="prop-row cols1">
-          <div class="prop-field"><label>Perfil tabulado (catálogo)</label>
-            <select class="sd-catalog"><option value="">— elegir perfil comercial —</option></select></div>
+        <div class="prop-field"><label>${i18n.t('Perfil del catálogo')}${sec.design?.profile ? ` — <b>${esc(sec.design.profile)}</b>` : ''}</label></div>
+        <div class="prop-row" style="gap:4px">
+          <select class="sd-fam" style="max-width:46%"><option value="">${i18n.t('Todas las familias')}</option></select>
+          <input type="search" class="sd-search" placeholder="${esc(i18n.t('buscar: U 150 2,65 · W250x32 · 2L 60'))}" style="flex:1;min-width:0">
         </div>
+        <div class="sd-results" style="max-height:170px;overflow:auto;border:1px solid var(--border2);border-radius:4px;margin:4px 0;font-size:11px"></div>
+        <details class="sd-comp" style="margin:4px 0">
+          <summary style="cursor:pointer;font-size:11px">${i18n.t('Sección compuesta (2 perfiles NBR 6355)')}</summary>
+          <div class="prop-row" style="gap:4px;margin-top:4px">
+            <select class="sdc-kind"><option value="2L">2L</option><option value="2U">2U</option><option value="2Ue">2Ue</option></select>
+            <input type="text" class="sdc-base" list="sdc-base-list" placeholder="${esc(i18n.t('perfil base, ej. L 60x2,25'))}" style="flex:1;min-width:0">
+            <datalist id="sdc-base-list"></datalist>
+          </div>
+          <div class="prop-row" style="gap:4px;align-items:flex-end">
+            <div class="prop-field"><label>${i18n.t('Disposición')}</label><select class="sdc-arr"><option value="costas">${i18n.t('espalda con espalda')}</option><option value="caixa">${i18n.t('cajón')}</option></select></div>
+            <div class="prop-field"><label>${i18n.t('Separación g (mm)')}</label><input type="number" class="sdc-gap" value="8" min="0" step="1"></div>
+            <button class="btn-secondary sdc-go" type="button" style="font-size:11px">${i18n.t('Aplicar')}</button>
+          </div>
+        </details>
         <div class="prop-row cols1">
           <div class="prop-field"><label>Forma</label>
             <select class="sd-shape">
+              ${sec.design?.cfProps ? `<option value="${esc(sh)}" selected>${esc(i18n.t('Formado en frío del catálogo'))} (${esc(sh)})</option>` : ''}
               ${opt('generic', 'Genérica (A, I)')}${opt('I', 'Doble T (I)')}${opt('rect', 'Rectángulo macizo')}${opt('circle', 'Círculo macizo')}${opt('pipe', 'Tubo circular')}${opt('box', 'Tubo rectangular')}${opt('channel', 'Canal (C/U)')}${opt('angle', 'Angular (L)')}${opt('tee', 'Tee (T)')}${opt('polygon', 'Polígono libre / con huecos')}
             </select></div>
         </div>
-        <div class="sd-dims">${this._secDimHTML(sh, sec.design || {})}</div>
+        <div class="sd-dims">${sec.design?.cfProps ? `<p class="panel-hint">${i18n.t('Perfil formado en frío del catálogo: forma, dimensiones y propiedades tabuladas (ver Propiedades). Para cambiarlo, elija otro perfil arriba.')}</p>` : this._secDimHTML(sh, sec.design || {})}</div>
         <div class="prop-row">
           <div class="prop-field"><label>ρ armadura (H.A.)</label><input type="number" data-rb="rho" value="${reb.rho ?? ''}" step="0.002" title="Cuantía longitudinal (fallback si no se dan barras explícitas)"></div>
           <div class="prop-field"><label>recubr. (mm)</label><input type="number" data-rb="cover_mm" value="${reb.cover_mm ?? ''}" step="5"></div>
@@ -3028,24 +3053,76 @@ export class PropertiesPanel {
     const dimsBox = card.querySelector('.sd-dims');
     if (!shapeSel) return;
     // Catalog of tabulated profiles (#66): populate and apply on selection.
-    const catSel = card.querySelector('.sd-catalog');
-    if (catSel) import('../design/profiles.js?v=7').then(({ catalogFamilies, catalogNames, profileToSection }) => {
-      let html = '<option value="">— elegir perfil comercial —</option>';
-      for (const fam of catalogFamilies()) html += `<optgroup label="${fam}">` + catalogNames(fam).map(n => `<option value="${n}" ${sec.design?.profile === n ? 'selected' : ''}>${n}</option>`).join('') + '</optgroup>';
-      catSel.innerHTML = html;
-      catSel.addEventListener('change', () => {
-        const name = catSel.value; if (!name) return;
+    // Catalogue: family filter + free-text search (tokens), click a result to apply (RFEM/ETABS-like); built-up
+    // sections of NBR 6355 profiles with any arrangement and gap.
+    const famSel = card.querySelector('.sd-fam'), search = card.querySelector('.sd-search'), results = card.querySelector('.sd-results');
+    if (famSel) import('../design/profiles.js?v=7').then(({ catalogFamilies, searchCatalog, profileToSection, catalogNames }) => {
+      famSel.innerHTML += catalogFamilies().map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+      const apply = (name) => {
         const props = profileToSection(name); if (!props) { this.app.toast(i18n.t('Perfil no encontrado'), 'warn'); return; }
         this.app.snapshot();
-        this.app.model.updateSection(sec.id, props);
-        this.app.markDirty();
+        this.app.model.updateSection(sec.id, { ...props, name: sec.name && !/^(Sec|Sección|Seção)\s*\d*$/i.test(sec.name) ? sec.name : name });
+        this.app.markDirty(); this.app.viewport.refreshExtrusion?.();
         this.renderSections();
         this.app.toast(`${i18n.t('Perfil')} ${name} ${i18n.t('aplicado (A, I, J y forma). Recalcule el análisis (F5).')}`, 'ok');
+      };
+      const list = () => {
+        const q = search.value, fam = famSel.value;
+        if (!q.trim() && !fam) { results.innerHTML = `<div class="panel-hint" style="padding:4px">${i18n.t('Escriba para buscar o elija una familia.')}</div>`; return; }
+        const r = searchCatalog(q, fam, 120);
+        results.innerHTML = r.length ? r.map(x => `<div class="sd-hit" data-n="${esc(x.name)}" style="padding:2px 6px;cursor:pointer;display:flex;justify-content:space-between;gap:6px${x.name === sec.design?.profile ? ';background:var(--accent-dim,rgba(14,165,233,.15))' : ''}"><span>${esc(x.name)}</span><span class="muted" style="font-size:10px">${esc(x.family)}</span></div>`).join('')
+          : `<div class="panel-hint" style="padding:4px">${i18n.t('Sin resultados')}</div>`;
+        results.querySelectorAll('.sd-hit').forEach(d => { d.addEventListener('click', () => apply(d.dataset.n)); d.addEventListener('mouseenter', () => { d.style.background = 'var(--bg3)'; }); d.addEventListener('mouseleave', () => { d.style.background = ''; }); });
+      };
+      search.addEventListener('input', list); famSel.addEventListener('change', list); list();
+      // built-up
+      const kind = card.querySelector('.sdc-kind'), base = card.querySelector('.sdc-base'), dl = card.querySelector('#sdc-base-list');
+      const fillBase = () => { const pre = kind.value === '2L' ? 'L (NBR 6355)' : kind.value === '2U' ? 'U simples (NBR 6355)' : 'Ue (NBR 6355)';
+        dl.innerHTML = catalogNames(pre).map(n => `<option value="${esc(n)}">`).join(''); };
+      kind.addEventListener('change', fillBase); fillBase();
+      card.querySelector('.sdc-go').addEventListener('click', () => {
+        const k = kind.value, b = base.value.trim(), arr = card.querySelector('.sdc-arr').value, g = Math.max(0, parseFloat(card.querySelector('.sdc-gap').value) || 0);
+        if (k === '2L' && arr === 'caixa') { this.app.toast(i18n.t('2L: solo espalda con espalda'), 'warn'); return; }
+        const tail = b.replace(/^(Ue|U|L)\s*/i, '');
+        apply(`${k} ${tail} ${arr}${g ? ' g' + String(g).replace('.', ',') : ''}`);
       });
+    }).catch(() => {});
+    // properties of the section (resolved as the design uses them) + drawing with the local axes
+    const propsBox = card.querySelector('.sd-props');
+    if (propsBox) import('../design/section_props.js?v=7').then(({ resolveSectionProps }) => {
+      let P = null; try { P = resolveSectionProps(sec); } catch { P = null; }
+      const v = (x, f, dec = 2) => (x == null || !isFinite(x)) ? '—' : (x * f).toLocaleString(i18n.locale?.() || 'pt-BR', { maximumFractionDigits: dec });
+      const row = (k, val, u) => `<tr><td style="padding:1px 6px 1px 0">${k}</td><td style="text-align:right;font-family:var(--font-mono)">${val}</td><td class="muted" style="padding-left:4px">${u}</td></tr>`;
+      const cf = sec.design?.cfProps || {};
+      const rows = [row('A', v(sec.A, 1e4), 'cm²'), row('Iz', v(sec.Iz, 1e8, 1), 'cm⁴'), row('Iy', v(sec.Iy, 1e8, 1), 'cm⁴'), row('J', v(sec.J, 1e8, 3), 'cm⁴'),
+        row('Wz', v(P?.Sz ?? cf.Sz, 1e6, 1), 'cm³'), row('Wy', v(P?.Sy ?? cf.Sy, 1e6, 1), 'cm³'), row('Zz', v(P?.Zz, 1e6, 1), 'cm³'), row('Zy', v(P?.Zy, 1e6, 1), 'cm³'),
+        row('rz', v(sec.A > 0 ? Math.sqrt(sec.Iz / sec.A) : null, 100), 'cm'), row('ry', v(sec.A > 0 ? Math.sqrt(sec.Iy / sec.A) : null, 100), 'cm'),
+        row('Cw', v(P?.Cw ?? cf.Cw, 1e12, 0), 'cm⁶'), row('xg / x0', `${v(cf.xg, 100)} / ${v(cf.x0, 100)}`, 'cm'),
+        row(i18n.t('masa'), v(cf.massa ?? (sec.A ? sec.A * 7850 : null), 1, 2), 'kg/m')].join('');
+      // drawing: the same outline as the 3D view (shape x = −z local, shape y = y local)
+      let svg = '';
+      try {
+        const shp = this.app.viewport._sectionShape(sec), shapes = Array.isArray(shp) ? shp : [shp];
+        const loops = []; for (const s of shapes) { loops.push(s.getPoints(8)); for (const h of s.holes || []) loops.push(h.getPoints(8)); }
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (const L of loops) for (const p of L) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+        const W = 150, H = 130, pad = 18, k = Math.min((W - 2 * pad) / ((x1 - x0) || 1), (H - 2 * pad) / ((y1 - y0) || 1));
+        const X = (x) => W / 2 + x * k, Y = (y) => H / 2 - y * k;
+        const d = loops.map(L => 'M' + L.map(p => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('L') + 'Z').join(' ');
+        svg = `<svg viewBox="0 0 ${W} ${H}" style="width:150px;height:130px;flex:none;background:var(--bg3);border-radius:4px">
+          <path d="${d}" fill="#8fb3d9" fill-rule="evenodd" stroke="#334155" stroke-width="0.8"/>
+          <line x1="${W / 2}" y1="${H / 2}" x2="${W / 2}" y2="8" stroke="#16a34a" stroke-width="1"/><text x="${W / 2 + 3}" y="12" font-size="9" fill="#16a34a">y</text>
+          <line x1="${W / 2}" y1="${H / 2}" x2="10" y2="${H / 2}" stroke="#2563eb" stroke-width="1"/><text x="4" y="${H / 2 - 3}" font-size="9" fill="#2563eb">z</text>
+          <circle cx="${W / 2}" cy="${H / 2}" r="1.8" fill="#dc2626"/></svg>`;
+      } catch { /* no drawable outline */ }
+      propsBox.innerHTML = `<div class="prop-title" style="margin-top:6px">${i18n.t('Propiedades')} <span class="muted" style="font-weight:400;font-size:10px">${esc(cf.fonte || (sec.design?.profile ? i18n.t('catálogo') : ''))}</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start">${svg}<table style="font-size:11px;border-collapse:collapse">${rows}</table></div>`;
     }).catch(() => {});
     const saveDesign = () => {
       const shape = shapeSel.value;
       const design = { ...(sec.design || {}) };
+      // leaving the catalogue cold-formed shape: the tabulated data no longer describe the section
+      if (design.cfProps && shape !== design.shape) { delete design.cfProps; delete design.profile; }
       design.shape = shape;
       // Inputs are in mm; store internally in meters (mm→m).
       dimsBox.querySelectorAll('[data-sd]').forEach(i => { const v = parseFloat(i.value); if (i.value !== '' && !isNaN(v)) design[i.dataset.sd] = v / 1000; });

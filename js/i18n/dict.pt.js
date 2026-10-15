@@ -2611,6 +2611,22 @@ export const PT = {
   "Invertir DMF": "Inverter DMF",
   "Giro de la sección alrededor del eje longitudinal de la barra (ángulo β, regla de la mano derecha de n1 a n2). +90° gira; 180° invierte el lado abierto de un U/Ue/L (ej.: cordones de cercha hacia adentro).": "Giro da seção em torno do eixo longitudinal da barra (ângulo β, regra da mão direita de n1 para n2). +90° gira; 180° inverte o lado aberto de um U/Ue/L (ex.: banzos de treliça voltados para dentro).",
   "Rotación β (°) a todos": "Rotação β (°) a todos",
+  "Perfil del catálogo": "Perfil do catálogo",
+  "Todas las familias": "Todas as famílias",
+  "buscar: U 150 2,65 · W250x32 · 2L 60": "buscar: U 150 2,65 · W250x32 · 2L 60",
+  "Sección compuesta (2 perfiles NBR 6355)": "Seção composta (2 perfis NBR 6355)",
+  "perfil base, ej. L 60x2,25": "perfil base, ex. L 60x2,25",
+  "Disposición": "Disposição",
+  "espalda con espalda": "costas com costas",
+  "cajón": "caixa",
+  "Separación g (mm)": "Afastamento g (mm)",
+  "2L: solo espalda con espalda": "2L: só costas com costas",
+  "Escriba para buscar o elija una familia.": "Digite para buscar ou escolha uma família.",
+  "Propiedades": "Propriedades",
+  "catálogo": "catálogo",
+  "masa": "massa",
+  "Formado en frío del catálogo": "Formado a frio do catálogo",
+  "Perfil formado en frío del catálogo: forma, dimensiones y propiedades tabuladas (ver Propiedades). Para cambiarlo, elija otro perfil arriba.": "Perfil formado a frio do catálogo: forma, dimensões e propriedades tabeladas (ver Propriedades). Para trocar, escolha outro perfil acima.",
 };
 
 export default PT;
