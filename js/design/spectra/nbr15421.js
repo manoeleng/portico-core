@@ -54,3 +54,22 @@ export function buildSpectrum15421({ ag, classe = 'D', categoria = 'II', R = nul
     avisos: catSismica === 'A' ? ['Categoria sísmica A (zonas 0–1): zona 0 sem requisito; zona 1 com forças horizontais Fx = 0,01·wx (7.3.2) — análise espectral não exigida.'] : [],
   };
 }
+
+/**
+ * Curve to feed the response-spectrum analysis (UI "Gerar curva"): section 10 scales the FORCES by I/R;
+ * modal superposition is linear, so the curve Sa·I/R gives the design forces directly. Without R the
+ * elastic curve is returned. Displacements of that analysis must be multiplied by Cd/I (section 10:
+ * elastic displacements × Cd/R; the curve already carries I/R).
+ * @returns {{ text, fator, nota, base }}  base = buildSpectrum15421 result
+ */
+export function designCurve15421(o) {
+  const base = buildSpectrum15421(o);
+  const f = base.fatorForcas ?? 1;
+  const text = base.curve.map(q => `${q.T.toFixed(2)}, ${(q.Sa * f).toFixed(5)}`).join('\n');
+  const p = base.params;
+  const nota = base.fatorForcas
+    ? `Sa·I/R (I = ${p.I}, R = ${p.R}) · Ca = ${p.Ca}, Cv = ${p.Cv}, zona ${p.zona}, categoria sísmica ${p.catSismica}.` +
+      (p.Cd ? ` Deslocamentos da análise × Cd/I = ${(p.Cd / p.I).toFixed(3)}.` : ' Informe Cd para os deslocamentos (× Cd/I).')
+    : `Espectro ELÁSTICO (sem R) · Ca = ${p.Ca}, Cv = ${p.Cv}, zona ${p.zona}, categoria sísmica ${p.catSismica}.`;
+  return { text, fator: f, nota, base };
+}

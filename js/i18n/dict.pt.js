@@ -2231,6 +2231,11 @@ export const PT = {
 
   // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
   "casos sin categoría (no combinados):": "casos sem categoria (não combinados):",
+  "Construir espectro ABNT NBR 15421:2023": "Construir espectro ABNT NBR 15421:2023",
+  "Clase de terreno": "Classe do terreno",
+  "Categoría de uso": "Categoria de utilização",
+  "Generar curva NBR": "Gerar curva NBR",
+  "Sa(T) según NBR 15421:2023 (6.3) × I/R (sección 10). Sin R: espectro elástico.": "Sa(T) pela NBR 15421:2023 (6.3) × I/R (seção 10). Sem R: espectro elástico.",
 };
 
 export default PT;

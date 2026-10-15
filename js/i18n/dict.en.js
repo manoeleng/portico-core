@@ -2484,6 +2484,11 @@ export const EN = {
 
   // ── PLANO_BRASIL 1.5/1.6: textos dinámicos y ejemplos guiados ──
   "casos sin categoría (no combinados):": "uncategorized cases (not combined):",
+  "Construir espectro ABNT NBR 15421:2023": "Build ABNT NBR 15421:2023 spectrum",
+  "Clase de terreno": "Ground class",
+  "Categoría de uso": "Occupancy category",
+  "Generar curva NBR": "Generate NBR curve",
+  "Sa(T) según NBR 15421:2023 (6.3) × I/R (sección 10). Sin R: espectro elástico.": "Sa(T) per NBR 15421:2023 (6.3) × I/R (section 10). Without R: elastic spectrum.",
 };
 
 export default EN;

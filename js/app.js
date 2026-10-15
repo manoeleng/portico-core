@@ -35,6 +35,7 @@ import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindP
 import { driftLimit } from './design/serviceability.js?v=7';
 import { parseNum } from './utils/num.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
+import { designCurve15421 } from './design/spectra/nbr15421.js?v=7';
 const buildSpectrum = (o) => getSpectrum('NCh433').build(o);   // spectra registry (PLANO_BRASIL 5.5)
 import { selectProfile, steelCandidates, predimensionar, candidatesForFamily } from './design/autodesign.js?v=7';
 import { jointSCWB } from './design/seismic.js?v=7';
@@ -5909,6 +5910,25 @@ class App {
   <small id="sp-rstar" style="color:var(--text-muted);display:block">${i18n.t('Sa(T)=S·Ao·I·α(T)/R*. Si T* está vacío, R*=1 (espectro elástico).')}</small>
 </fieldset>
 
+<fieldset style="border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:10px">
+  <legend style="padding:0 6px;color:var(--accent);font-size:12px">${i18n.t('Construir espectro ABNT NBR 15421:2023')}</legend>
+  <div class="prop-row cols3" style="margin-bottom:8px">
+    <div class="prop-field"><label>ag (g) — Fig. 1</label><input type="number" id="sp15-ag" value="0.10" step="0.005" min="0.025" max="0.15"></div>
+    <div class="prop-field"><label>${i18n.t('Clase de terreno')}</label>
+      <select id="sp15-classe"><option>A</option><option>B</option><option>C</option><option selected>D</option><option>E</option></select>
+    </div>
+    <div class="prop-field"><label>${i18n.t('Categoría de uso')}</label>
+      <select id="sp15-cat"><option value="I">I (1,0)</option><option value="II" selected>II (1,25)</option><option value="III">III (1,5)</option></select>
+    </div>
+  </div>
+  <div class="prop-row cols3" style="margin-bottom:8px">
+    <div class="prop-field"><label>R (Tab. 6)</label><input type="number" id="sp15-R" value="" step="0.5" min="1"></div>
+    <div class="prop-field"><label>Cd (Tab. 6)</label><input type="number" id="sp15-Cd" value="" step="0.5" min="1"></div>
+    <div class="prop-field"><label>&nbsp;</label><button type="button" id="sp15-gen" class="btn" style="width:100%">${i18n.t('Generar curva NBR')}</button></div>
+  </div>
+  <small id="sp15-info" style="color:var(--text-muted);display:block">${i18n.t('Sa(T) según NBR 15421:2023 (6.3) × I/R (sección 10). Sin R: espectro elástico.')}</small>
+</fieldset>
+
 <div class="prop-row" style="margin-bottom:10px">
   <div class="prop-field">
     <label>Unidades de Sa</label>
@@ -5959,6 +5979,16 @@ class App {
       };
 
       $('sp-gen').addEventListener('click', genNCh433);
+      $('sp15-gen').addEventListener('click', () => {
+        try {
+          const R = parseFloat($('sp15-R').value), Cd = parseFloat($('sp15-Cd').value);
+          const { text, nota } = designCurve15421({ ag: parseFloat($('sp15-ag').value), classe: $('sp15-classe').value,
+            categoria: $('sp15-cat').value, R: R > 0 ? R : null, Cd: Cd > 0 ? Cd : null });
+          $('sp-spectrum').value = text; $('sp-unit').value = '9.81';
+          $('sp15-info').textContent = nota;
+          $('sp-spectrum').dispatchEvent(new Event('input'));   // redraw + mark unsaved
+        } catch (e) { $('sp15-info').textContent = e.message; }
+      });
       $('sp-spectrum').addEventListener('input', drawGraph);
       // Saved-case selector: choosing one loads its parameters into the form.
       $('sp-case')?.addEventListener('change', (e) => {
