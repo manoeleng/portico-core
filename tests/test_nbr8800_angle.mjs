@@ -75,6 +75,10 @@ const run = (b, t, L, trelica) => nbr8800.check({ demands: { N: -10 }, mat, sec:
   ok('A6b. abas desiguais, menor ligada, espacial Nc,Rd', runU('espacial', 'menor').axial.capacity, 174.094, 0.002);
   ok('A6c. abas desiguais, maior ligada, plana Nc,Rd', runU('plana').axial.capacity, 136.579, 0.002);
   assert('A6d. aviso cita a aba menor', runU('plana', 'menor').avisos.some(a => /MENOR/.test(a)));
+  // piso 0,95·Lx1·rx1/rmín governa (L = 3 m; sugestão da revisão): L/rx1 = 94,42 > 80 → 32·rx1 + 1,25·L = 4 766,7
+  // + 98,8 = 4 865,6 < 0,95·L·rx1/rmín = 5 599,5 = Lx1,eq (Leq/rx1 = 176,2 ≤ 200) → Ne = 84,90 kN, χ = 0,2229 → 67,692 kN
+  const run3 = nbr8800.check({ demands: { N: -10 }, mat, sec: sU, member: { L: 3, Lb: 3, cantoneira: { trelica: 'plana', abaLigada: 'menor' } }, options: { gamma_a1: 1.10 } });
+  ok('A6e. menor ligada, plana, L = 3 m: piso 0,95·L·rx1/rmín governa', run3.axial.capacity, 67.692, 0.002);
 }
 
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');

@@ -156,7 +156,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
         const cands = [ang.Ne, ...['plana', 'espacial'].filter(aplicavel).map(NeEq)];
         Ne = Math.min(...cands);
         if (!['plana', 'espacial'].some(aplicavel)) { Ne = 0; avisos.push('Cantoneira fora das condições de 5.3.5.4.1: flexo-compressão (5.3.5.4.5) — NÃO verificado.'); }
-        else avisos.push(`Cantoneira: ligação não declarada (member.cantoneira.trelica = 'plana' | 'espacial' | 'concentrica') — adotado o menor Ne entre 5.3.5.4.2, 5.3.5.4.3 e eixos principais (rmín = ${(ang.rmin * 100).toFixed(2)} cm).`);
+        else avisos.push(`Cantoneira: ligação não declarada (member.cantoneira.trelica = 'plana' | 'espacial' | 'concentrica') — adotado o menor Ne entre 5.3.5.4.2, 5.3.5.4.3 (supondo ligada a aba maior) e eixos principais (rmín = ${(ang.rmin * 100).toFixed(2)} cm).`);
       }
     } else if (shape === 'angle') {
       avisos.push('Cantoneira sem dimensões (d, b, t): eixos principais e flexo-torção NÃO verificados (5.3.5.2/5.3.5.3).');
