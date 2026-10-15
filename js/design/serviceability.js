@@ -9,8 +9,11 @@
 //       IBC/AISC (Table 1604.3): live L/360, total D+L L/240, roof L/180
 //       EN 1990 (A1.4):          δmax (total) L/250, δ2 (variable) L/300
 //       NCh (practice):          live L/360, total L/300
+//       NBR 6118:2026 Tab. 13.3: total L/250, vibração (cargas acidentais) L/350
+//       NBR 8800:2024 Tab. B.1:  piso L/350, cobertura L/250
 //   · Allowable drift (Δ/h):
 //       NCh433/DS61: 0.002 (at the c.m.)      · ASCE7/IBC: 0.020 (Cat. II)
+//       NBR 6118:2026 Tab. 13.3: Hi/850 (comb. frequente) · NBR 8800:2024 Tab. B.1: h/500
 //       Eurocode 8: 0.010 (non-structural decoupled)
 //
 // Units: lengths in m (consistent); the ratios are dimensionless.
@@ -27,6 +30,8 @@ const DEFLECTION = {
   'ACI318-19':       { live: 360, total: 240, roof: 240 },
   'NCh1198':         { live: 300, total: 300, roof: 300 },
   'NCh':             { live: 360, total: 300, roof: 300 },
+  'NBR6118:2026':    { live: 350, total: 250, roof: 250 },
+  'NBR8800:2024':    { live: 350, total: 350, roof: 250 },
   _default:          { live: 360, total: 240, roof: 240 },
 };
 
@@ -37,6 +42,8 @@ const DRIFT = {
   'IBC':      0.020,
   'EN1998':   0.010,   // EC8, non-structural decoupled
   'EC8':      0.010,
+  'NBR6118:2026': 1 / 850,   // Hi/850 between floors, frequent combination
+  'NBR8800:2024': 1 / 500,   // h/500, buildings with two or more floors
   _default:   0.020,
 };
 
