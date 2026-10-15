@@ -231,6 +231,8 @@ function fromGeneric(sec, shapeFactor) {
 // Avy, Avz, lambdaFlange, lambdaWeb, h, b, dmin, shape.
 export function resolveSectionProps(sec, opts = {}) {
   const dz = sec.design || {};
+  // cold-formed catalogue section (profiles_cf.js): tabulated properties used as given
+  if (dz.cfProps) return { ...dz.cfProps, coldFormed: true, Avy: sec.Avy || dz.cfProps.Avy, Avz: sec.Avz || dz.cfProps.Avz };
   // dims may come in design.dims or directly in design
   const dims = dz.dims || dz;
   let g = dz.shape ? fromShape(dz.shape, dims) : null;

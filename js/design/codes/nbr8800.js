@@ -21,6 +21,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { finalize } from './aisc360.js?v=7';
+import { nbr14762 } from './nbr14762.js?v=7';
 
 const ratObj = (D, C, extra = {}) => ({
   demand: +(+D).toFixed(4), capacity: +(+C).toFixed(4),
@@ -30,6 +31,12 @@ const chiOf = (l0) => l0 <= 1.5 ? Math.pow(0.658, l0 * l0) : 0.877 / (l0 * l0); 
 const clamp = (x, a, b) => Math.min(Math.max(x, a), b);
 
 function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
+  // cold-formed sections (NBR 6355 catalogue or flagged) are checked by NBR 14762:2010
+  if (sec.coldFormed || sec.shape === 'Ue') {
+    const r = nbr14762.check({ demands, mat, sec, member, options });
+    (r.avisos = r.avisos || []).unshift('Perfil formado a frio: verificado pela ABNT NBR 14762:2010.');
+    return r;
+  }
   const fy = mat.Fy, E = mat.E, G = mat.G || 0.385 * E;           // G = 77 000 MPa for E = 200 000 MPa (NBR 8800:2024 4.6.2.9-c)
   const ga1 = options.gamma_a1 ?? 1.10, ga2 = options.gamma_a2 ?? 1.35;   // Tab. 3
   const avisos = [];

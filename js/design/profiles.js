@@ -13,6 +13,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 
 import { fromShape } from './section_props.js?v=7';
+import { cfNames, cfSection } from './profiles_cf.js?v=7';
 
 // [h, b, tw, tf] en mm.
 const IPE = {
@@ -171,6 +172,9 @@ export const CATALOG = {
   'RHS/SHS': buildFamily(RHS, 'box', ['h', 'b', 't']),
 };
 
+// Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
+CATALOG['Ue (NBR 6355)'] = Object.fromEntries(cfNames().filter(n => n.startsWith('Ue')).map(n => [n, { shape: 'Ue', cf: true }]));
+
 // List of names per family (to populate a <select>).
 export function catalogFamilies() { return Object.keys(CATALOG); }
 export function catalogNames(family) { return CATALOG[family] ? Object.keys(CATALOG[family]) : []; }
@@ -185,6 +189,10 @@ export function getProfile(name) {
 // { A, Iz, Iy, J, design:{ shape, dims } } (all in m / m² / m⁴).
 export function profileToSection(name) {
   const p = getProfile(name); if (!p) return null;
+  if (p.cf) {
+    const c = cfSection(name);
+    return { A: c.A, Iz: c.Iz, Iy: c.Iy, J: c.J, design: { shape: 'Ue', profile: name, cfProps: c } };
+  }
   const g = fromShape(p.shape, p.dims);
   if (!g) return null;
   if (p.tab) {

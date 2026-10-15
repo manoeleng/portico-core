@@ -23,6 +23,7 @@ import { registerDesignCode, getDesignCode, defaultCodeFor, setDefaultCode, list
 import { aisc360_lrfd, aisc360_asd } from './codes/aisc360.js?v=7';
 import { eurocode3 } from './codes/eurocode3.js?v=7';
 import { nbr8800 } from './codes/nbr8800.js?v=7';
+import { nbr14762 } from './codes/nbr14762.js?v=7';
 import { nbr6118 } from './codes/nbr6118.js?v=7';
 import { nbr7190 } from './codes/nbr7190.js?v=7';
 import { aci318, eurocode2 } from './codes/concrete.js?v=7';
@@ -33,7 +34,7 @@ import { eurocode9 } from './codes/eurocode9.js?v=7';
 let _registered = false;
 export function registerBuiltinCodes() {
   if (_registered) return;
-  [aisc360_lrfd, aisc360_asd, eurocode3, nbr8800, aci318, nbr6118, eurocode2, timber_nch1198, nbr7190, eurocode9].forEach(registerDesignCode);
+  [aisc360_lrfd, aisc360_asd, eurocode3, nbr8800, nbr14762, aci318, nbr6118, eurocode2, timber_nch1198, nbr7190, eurocode9].forEach(registerDesignCode);
   setDefaultCode('steel', 'AISC360-16:LRFD');
   setDefaultCode('concrete', 'ACI318-19');
   setDefaultCode('timber', 'NCh1198');
