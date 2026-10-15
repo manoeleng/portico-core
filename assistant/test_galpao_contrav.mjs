@@ -190,7 +190,9 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   const l = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'concreto', column_concrete: { b_cm: 40, h_cm: 40 } } }, BR);
   const cols = l.elements.filter(e => e.secId === 1), name = (id) => l.materials[id - 1].name;
   assert('l1. pilares 40x40 em C30', cols.length === 14 && cols.every(e => name(e.matId) === 'C30') && l.sections[0].name === '40x40', `${cols.length} ${name(cols[0].matId)}`);
-  assert('l2. topo do pilar articulado (ry, rz liberados na ponta superior)', cols.every(e => e.releases[10] && e.releases[11] && !e.releases[4]));
+  // only the in-plane rotation is released (local rz of the vertical column = about global Y); the rotation about X
+  // stays held — releasing it too let the truss roll (mechanism found by the launch audit)
+  assert('l2. topo do pilar articulado só no plano do pórtico (rz local livre, ry local preso)', cols.every(e => e.releases[11] && !e.releases[10] && !e.releases[4]));
   assert('l3. sem contraventamento vertical nas paredes (só no telhado)', l.elements.filter(e => e.cable).every(e => l.nodes[e.n1 - 1].z >= 6 && l.nodes[e.n2 - 1].z >= 6));
   for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento Y (Cpi 0)']) { const { F, R } = solve(l, nm); const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
     assert(`l4. ${nm}: estável e equilíbrio`, R.every(Number.isFinite) && R.every((r, i) => Math.abs(r + F[i]) < tol), `F=[${F.map(v => v.toFixed(2))}] R=[${R.map(v => v.toFixed(2))}]`); }
@@ -210,7 +212,9 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   const nS = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 1 } }, BR);
   const N = (id) => nS.nodes[id - 1];
   const sag = nS.elements.filter(e => e.secId === 7), purl = nS.elements.filter(e => e.secId === 5);
-  assert('n1. correntes: 1 linha × nT trechos × 6 vãos, só tração, φ12,5', sag.length === nT * 6 && sag.every(e => e.cable) && /φ12,5/.test(nS.sections.find(x => x.id === 7).name), `${sag.length}`);
+  // CBCA Fig. 77: T1 along each slope from the eave to the purlin below the ridge (nT/2 − 1 segments per slope) and T2
+  // diagonals from there to the ridge purlin at both frames (middle line) → (nT − 2) + 4 = 12 per bay
+  assert('n1. correntes T1 + T2 (CBCA Fig. 77): (nT − 2 + 4) × 6 vãos, só tração, φ12,5', sag.length === (nT - 2 + 4) * 6 && sag.every(e => e.cable) && /φ12,5/.test(nS.sections.find(x => x.id === 7).name), `${sag.length}`);
   assert('n2. terças (inclusive as de beiral) divididas no meio do vão: (nT + 1) linhas × 6 vãos × 2 trechos', purl.length === (nT + 1) * 6 * 2, String(purl.length));
   const keyOf = (e) => [N(e.n1), N(e.n2)].map(n => `${n.x},${n.z}`).sort().join('|') + '|' + [N(e.n1).y, N(e.n2).y].sort((p, q) => p - q).join('-');
   const eaveFull = nS.elements.filter(e => N(e.n1).x === 0 && N(e.n2).x === 0 && N(e.n1).z === 6 && N(e.n2).z === 6 && Math.abs(N(e.n1).y - N(e.n2).y) > 2.5 + 1e-9);
@@ -219,8 +223,9 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   assert('n3. terças rotuladas só nos pórticos, contínuas na corrente', purl.every(e => (fr.has(N(e.n1).y) === !!e.releases[4]) && (fr.has(N(e.n2).y) === !!e.releases[10])));
   const { F, R, res } = solve(nS, 'CM');
   assert('n4. CM: equilíbrio com correntes', R.every((r, i) => Math.abs(r + F[i]) < 1e-3 * Math.max(1, ...F.map(Math.abs))));
-  const Nmax = Math.max(...sag.map(e => Math.abs(res.getElemForces(e.id)?.N ?? 0)));
-  assert('n5. correntes solicitadas sob peso próprio + telha (|N| > 0)', Nmax > 1e-3, `|N| máx = ${Nmax.toFixed(3)} kN`);
+  // T2 ends at the ridge purlin on the frame lines (x = span/2, y = 0, 5, …) — the line hangs from the frames
+  const ridge = nS.nodes.filter(n => Math.abs(n.x - 7.5) < 1e-9 && fr.has(n.y)).map(n => n.id);
+  assert('n5. diagonais T2 chegam à terça da cumeeira nos pórticos', sag.filter(e => ridge.includes(e.n1) || ridge.includes(e.n2)).length === 4 * 6);
   const rg = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 2, sag_rod_type: 'rigida', sag_rod_section: 'L 40x2,00' } }, BR);
   const sr = rg.elements.filter(e => e.secId === 7);
   assert('n6. correntes rígidas nos terços: 2 × nT × 6, L 40x2,00, sem flag de tração', sr.length === 2 * nT * 6 && sr.every(e => !e.cable) && rg.sections.find(x => x.id === 7).design?.shape === 'L');
@@ -238,6 +243,38 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
   assert(`o3b. ${ct}: pórtico isolado é plano (2D) e sem caso de vento Y`, o.mode === '2D' && !o.loadCases.some(l => /^Viento Y/.test(l.name)));
   for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento X (Cpi -0,3)']) { const r = solve(o, nm); const tol = 1e-3 * Math.max(1, ...r.F.map(Math.abs));
     assert(`o4. ${ct} · ${nm}: estável e equilíbrio`, r.R.every(Number.isFinite) && r.R.every((v, i) => Math.abs(v + r.F[i]) < tol), `F=[${r.F.map(v => v.toFixed(2))}] R=[${r.R.map(v => v.toFixed(2))}]`); }
+}
+
+// (p) stability (launch audit): mechanisms that equilibrium alone does not catch — max displacement under the cases
+// that excite them must stay finite and of the order of the stable variants (< 0,2 m)
+{
+  const dmaxOf = (mod, name) => { const { res } = solve(mod, name); let d = 0; for (const n of mod.nodes) { const u = res.getNodeDisp(n.id); if (u) d = Math.max(d, Math.hypot(u[0], u[1], u[2])); } return d; };
+  const variants = [
+    ['concreto, montante 1 m', { column_type: 'concreto', end_depth_m: 1 }],
+    ['concreto, montante 1 m, sem contraventamento', { column_type: 'concreto', end_depth_m: 1, bracing: 'sem' }],
+    ['concreto, sem contraventamento', { column_type: 'concreto', bracing: 'sem' }],
+    ['treliçado, sem contraventamento', { column_type: 'treliçado', bracing: 'sem' }],
+    ['treliçado, vãos escolhidos vazios', { column_type: 'treliçado', bracing: 'escolhidos', bracing_bays: [] }],
+    ['laminado, montante 1 m', { end_depth_m: 1 }],
+    ['sem pilar, montante 1 m', { column_type: 'sem', end_depth_m: 1 }],
+  ];
+  for (const [nm, w] of variants) {
+    const v = generateModel({ ...spec, warehouse: { ...spec.warehouse, ...w }, loads: { ...spec.loads, seismic: true }, seismic: { zona: 1 } }, BR);
+    for (const lc of ['Viento Y (Cpi 0)', 'Sismo Y (NBR 15421 7.3.2)']) {
+      const d = dmaxOf(v, lc);
+      assert(`p. ${nm} · ${lc}: deslocamento máx. finito e < 0,2 m`, Number.isFinite(d) && d < 0.2, `${(d * 1000).toFixed(1)} mm`);
+    }
+  }
+  // lattice column without bracing: wall X generated (with a warning); laminated + end depth: the wall X reaches the eave
+  const tr = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'treliçado', bracing: 'sem' } }, BR);
+  assert('p2. treliçado sem contraventamento: X de parede gerado e avisado', tr.elements.some(e => e.cable && tr.nodes[e.n1 - 1].z === 0) && tr._warnings.some(w => /Pilar treliçado sem contraventamento/.test(w.msg)));
+  const le = generateModel({ ...spec, warehouse: { ...spec.warehouse, end_depth_m: 1 } }, BR);
+  const wallTop = Math.max(...le.elements.filter(e => e.cable && (le.nodes[e.n1 - 1].z === 0 || le.nodes[e.n2 - 1].z === 0)).flatMap(e => [le.nodes[e.n1 - 1].z, le.nodes[e.n2 - 1].z]));
+  assert('p3. montante 1 m: X da parede chega ao beiral (z = 7 m)', wallTop === 7, String(wallTop));
+  // roof only + end depth: no wall/gable wind (as the warning says)
+  const so = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'sem', end_depth_m: 1 } }, BR);
+  const fy = solve(so, 'Viento Y (Cpi 0)').F[1];
+  assert('p4. sem pilar + montante: nenhum vento de empena (ΣFy = 0)', Math.abs(fy) < 1e-9, fy.toFixed(3));
 }
 
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}

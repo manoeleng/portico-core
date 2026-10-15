@@ -1767,7 +1767,7 @@ export function generateWarehouse(spec, libs) {
     ? [...new Set(g.bracing_bays.map(v => Math.round(+v)).filter(Number.isFinite))].sort((p, q) => p - q) : null;
   const modoContrav = baysUser ? 'escolhidos' : g.bracing === true ? 'extremidades' : g.bracing === false ? 'sem'
     : (typeof g.bracing === 'string' ? (/todo|all/i.test(g.bracing) ? 'todos' : /sem|none|no/i.test(g.bracing) ? 'sem' : 'extremidades') : (brasilGalpao ? 'extremidades' : 'sem'));
-  const comContrav = brasilGalpao || modoContrav !== 'sem';
+  const comContrav = brasilGalpao || modoContrav !== 'sem' || pilarTrel;
   // purlins: cold-formed Ue of NBR 6355 (catalogue in js/design/profiles_cf.js). Pre-sizing d ≥ L/40 (Manual CBCA
   // 2.9: for L = 6 m a 100–150 mm section is expected) — must be checked by NBR 14762.
   let secTerca = null;
@@ -1820,7 +1820,9 @@ export function generateWarehouse(spec, libs) {
       // columns (x=0, x=span) from z=0 (fixed) to H; a concrete column carries the steel truss pinned on top
       for (const x of [0, luz]) {
         const id = addWall(getNode(x, yf, 0, empot), getNode(x, yf, H), secCol.id);
-        if (id != null && tipoPilar === 'concreto') elements[id - 1].releases = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
+        // truss pinned on the concrete column in the frame plane only (local rz of the vertical member = about global
+        // Y); the rotation about X stays held — releasing it lets the truss roll (mechanism found in the audit)
+        if (id != null && tipoPilar === 'concreto') elements[id - 1].releases = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
       }
     } else {
       const rot = { ux: 1, uy: 1, uz: 1, rx: 0, ry: 0, rz: 0 };          // pinned base of each chord
@@ -1842,7 +1844,10 @@ export function generateWarehouse(spec, libs) {
     for (let i = 0; i <= nT; i++) { const x = along(i); B[i] = getNode(x, yf, H); T[i] = getNode(x, yf, +(H + zRoof(x)).toFixed(4)); }
     // end posts: the steel column carried up to the top chord (same section, rigid knee); on a concrete column or
     // with no column the post belongs to the truss (chord section)
-    if (hE > 0) { const sp = (tipoPilar === 'laminado' || pilarTrel) ? secCol.id : secCord.id; addWall(B[0], T[0], sp); addWall(B[nT], T[nT], sp); }
+    if (hE > 0) {
+      const sp = (tipoPilar === 'laminado' || pilarTrel) ? secCol.id : secCord.id, add = tipoPilar === 'sem' ? addEl : addWall;
+      add(B[0], T[0], sp); add(B[nT], T[nT], sp);
+    }
     // bottom chord (tie) through every panel node and, with lattice columns, the inner chord tops x = w and span − w
     const xsB = [...new Set([...Array.from({ length: nT + 1 }, (_, i) => along(i)), ...(pilarTrel ? [wCol, luz - wCol] : [])].map(v => +v.toFixed(5)))].sort((p, q) => p - q);
     for (let i = 0; i + 1 < xsB.length; i++) addEl(getNode(xsB[i], yf, H), getNode(xsB[i + 1], yf, H), secCord.id);
@@ -1878,12 +1883,19 @@ export function generateWarehouse(spec, libs) {
       // bottom-chord tie; at the eave of a triangular truss B = T and the (split) eave purlin already ties it
       if (frames[s].B[i] !== frames[s].T[i]) addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
     }
-    if (secSag) for (let k = 1; k <= nSag; k++) for (let i = 0; i < nT; i++) {   // along the slope, eave to eave over the ridge
-      const id = addEl(line[i][k], line[i + 1][k], secSag.id);
-      if (id != null) { const e = elements[id - 1]; e.releases = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1]; if (!sagRigid) e.cable = true; }
+    if (secSag) {
+      const sagEl = (a, b) => { const id = addEl(a, b, secSag.id); if (id != null) { const e = elements[id - 1]; e.releases = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1]; if (!sagRigid) e.cable = true; } };
+      const iR = nT / 2, last = nSag + 1;
+      for (let k = 1; k <= nSag; k++) {
+        for (let i = 0; i + 1 < iR; i++) sagEl(line[i][k], line[i + 1][k]);            // T1, left slope
+        for (let i = iR + 1; i < nT; i++) sagEl(line[i][k], line[i + 1][k]);           // T1, right slope
+        // T2: to the ridge purlin at the nearer frame(s) — both when the point is the middle one
+        const ends = 2 * k < last ? [0] : 2 * k > last ? [last] : [0, last];
+        for (const j of ends) { sagEl(line[iR - 1][k], line[iR][j]); sagEl(line[iR + 1][k], line[iR][j]); }
+      }
     }
   }
-  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, de beiral a beiral passando pela cumeeira — as duas águas travam os lances extremos na cumeeira e a terça de beiral no beiral (Manual CBCA de galpões 2.10–2.11). Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1}; na verificação da terça use Lx = vão do pórtico.`);
+  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, do beiral até a terça abaixo da cumeeira (T1) e diagonais até a terça da cumeeira nos pórticos (T2) — Manual CBCA de galpões 2.10–2.11, Fig. 77. Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1} (hipótese de projeto); na verificação da terça use Lx = vão do pórtico. LIMITAÇÃO: as terças do modelo têm a alma vertical (o PORTICO ainda não tem ângulo de rotação da seção) e a telha carrega os banzos — a componente da carga no eixo de menor inércia (g·senθ) e as forças nas correntes não saem da análise: calcule-as como no CBCA 2.11.`);
   if (comContrav) {
     // pin both ends of the truss web and of the purlins (ry, rz released; torsion kept): chords stay continuous
     const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
@@ -1912,11 +1924,18 @@ export function generateWarehouse(spec, libs) {
     for (const s of bays) {
       const A = frames[s], B = frames[s + 1];
       for (let i = 0; i < nT; i++) { rod(A.T[i], B.T[i + 1]); rod(A.T[i + 1], B.T[i]); }   // roof plane, panel by panel
-      if (tipoPilar === 'laminado' || pilarTrel) for (const x of [0, luz]) {             // side walls (steel columns)
-        const yA = Yf[s], yB = Yf[s + 1];
-        rod(getNode(x, yA, 0), getNode(x, yB, H)); rod(getNode(x, yB, 0), getNode(x, yA, H));
-      }
     }
+    // side walls (steel columns): in the braced bays; a lattice column needs them anyway (pinned bases and lacing → no
+    // longitudinal stiffness — mechanism in Y otherwise), so the end bays get them when no bay is braced. The X goes up
+    // to the eave (H + hE) so it meets the roof bracing, which starts at the top chord.
+    const wallBays = !(tipoPilar === 'laminado' || pilarTrel) ? [] : bays.length ? bays
+      : pilarTrel ? [...new Set([0, Yf.length - 2])].filter(s => s >= 0 && s + 1 < Yf.length) : [];
+    if (pilarTrel && !bays.length && wallBays.length) addWarning('replacement', 'Pilar treliçado sem contraventamento: bases e travejamento rotulados não dão rigidez longitudinal — contraventamento vertical das paredes gerado nos vãos extremos.');
+    for (const s of wallBays) for (const x of [0, luz]) {
+      const yA = Yf[s], yB = Yf[s + 1], zt = +(H + hE).toFixed(5);
+      rod(getNode(x, yA, 0), getNode(x, yB, zt)); rod(getNode(x, yB, 0), getNode(x, yA, zt));
+    }
+    if (tipoPilar === 'laminado' && !wallBays.length && Yf.length > 1) addWarning('info', 'Sem contraventamento vertical: a estabilidade longitudinal vem só da flexão dos pilares engastados (eixo de menor inércia) — confira os deslocamentos em Y.');
     if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : modoContrav === 'escolhidos' ? `nos vãos ${bays.map(b => b + 1).join(', ')} (de ${nBays})` : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
