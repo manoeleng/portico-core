@@ -5,6 +5,7 @@
 //   Three.js:  X east, Y up,  Z south (Y-up default)
 //   Transform: m2t(x,y,z) → (x, z, y)   t2m(v) → {x:v.x, y:v.z, z:v.y}
 // ──────────────────────────────────────────────────────────────────────────────
+import { panelFrame } from '../model/panel_loads.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { i18n } from '../i18n/i18n.js?v=7';
@@ -105,6 +106,7 @@ export class Viewport {
 
     // Load visualization
     this._loadObjects = [];         // THREE objects for load arrows
+    this._panelFills = [];          // pickable areas of the surface-load panels (Cargas › Panos)
 
     // P2-6: node/element ID sprites
     this._showIds   = false;
@@ -1853,6 +1855,14 @@ export class Viewport {
       const id = areaHits[0].object.userData.id;
       if (ctrlHeld) { this._toggleMulti('area', id); this._notifyMultiSelection(); }
       else this._selectSingle('area', id);
+    } else if (!ctrlHeld && this._panelFills.length && this._raycaster.intersectObjects(this._panelFills).length) {
+      // surface-load panel → its editor in Cargas › Panos (highlighted)
+      const u = this._raycaster.intersectObjects(this._panelFills)[0].object.userData;
+      this.clearSelection();
+      this._selPanel = { lcId: u.lcId, id: u.id };
+      document.getElementById('sb-sel').textContent = `${i18n.t('Paño')} #${u.id}`;
+      this.app.panel.openPanelEdit?.(u.id);
+      this.app.refreshLoads();
     } else if (cmHits.length) {
       // CM sphere clicked → show diaphragm + CM displacements
       const dId = cmHits[0].object.userData.diaId;
@@ -1870,6 +1880,7 @@ export class Viewport {
       this.app.panel.showDiaphragm(dId);
     } else {
       this.clearSelection();
+      if (this._selPanel) { this._selPanel = null; this.app.refreshLoads(); }
       this.app.panel.showNothing();
     }
   }
@@ -3912,9 +3923,47 @@ export class Viewport {
   }
 
   // ── Load visualization ────────────────────────────────────────────────────
+  // ── Surface-load panels (CYPE "paño de carga"): translucent area + outline, q label at the centroid and a
+  // double arrow along the span direction of the load; clicking the area opens it in Cargas › Panos ──────────
+  _drawPanels(model, lc) {
+    const panels = lc.panels || [];
+    if (!panels.length) return;
+    const sel = this._selPanel && this._selPanel.lcId === lc.id ? this._selPanel.id : null;
+    const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
+    for (const p of panels) {
+      const f = panelFrame(model, p);
+      if (!f) continue;
+      const lift = span * 0.002, off = f.n.map((c) => c * lift);   // off the plane: no z-fighting with plates
+      const M = (q) => this.m2t(q[0] + off[0], q[1] + off[1], q[2] + off[2]);
+      const tris = THREE.ShapeUtils.triangulateShape(f.poly.map(([x, y]) => new THREE.Vector2(x, y)), []);
+      const pos = [];
+      for (const tri of tris) for (const k of tri) { const v = M(f.pts[k]); pos.push(v.x, v.y, v.z); }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      const isSel = p.id === sel;
+      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: isSel ? 0.38 : 0.18,
+        side: THREE.DoubleSide, depthWrite: false }));
+      fill.userData = { type: 'panel', lcId: lc.id, id: p.id };
+      fill.renderOrder = 1;
+      const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(f.pts.map(M)),
+        new THREE.LineBasicMaterial({ color: isSel ? 0xffffff : 0xf59e0b }));
+      // span direction: double arrow through the centroid, half the panel size along u
+      const c = f.centroid, L = Math.sqrt(f.area) * 0.35;
+      const dirT = this.m2t(f.u[0], f.u[1], f.u[2]).normalize(), cT = M(c);
+      const a1 = new THREE.ArrowHelper(dirT, cT, L, 0xf59e0b, L * 0.25, L * 0.12);
+      const a2 = new THREE.ArrowHelper(dirT.clone().negate(), cT, L, 0xf59e0b, L * 0.25, L * 0.12);
+      const sign = p.dir === 'gravity' ? ' ↓' : p.dir === 'against' ? ' ⊣' : p.dir === 'normal' ? ' ⊢' : p.dir === 'globalX' ? ' →X' : p.dir === 'globalY' ? ' →Y' : '';
+      const lbl = this._makeValSprite(`#${p.id} q=${(+p.q).toFixed(2).replace('.', ',')}${sign}`, '#f59e0b');
+      lbl.position.copy(cT).add(new THREE.Vector3(0, span * 0.015, 0));
+      for (const o of [fill, outline, a1, a2, lbl]) { this._scene.add(o); this._loadObjects.push(o); }
+      this._panelFills.push(fill);
+    }
+  }
+
   clearLoads() {
     for (const obj of this._loadObjects) this._scene.remove(obj);
     this._loadObjects = [];
+    this._panelFills = [];
   }
 
   // Show / hide the load arrows (toggle from the UI).
@@ -3929,6 +3978,7 @@ export class Viewport {
     this.clearLoads();
     if (this._loadsVisible === false) return;     // hidden by the user
     const lc = model.loadCases.get(lcId);
+    if (lc) this._drawPanels(model, lc);            // surface-load panels: drawn even before their loads exist
     if (!lc || lc.loads.length === 0) return;
 
     const b    = model.getBounds();

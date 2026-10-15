@@ -520,6 +520,10 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .sel-desc td { padding: 3px 0; color: var(--text); font-family: var(--font-mono); word-break: break-word; }
 .sel-desc tr + tr th, .sel-desc tr + tr td { border-top: 1px solid var(--border); }
 .sel-editor { margin-bottom: 10px; }
+.pn-list { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
+.pn-list td { padding: 4px 4px; vertical-align: middle; border-top: 1px solid var(--border); }
+.pn-list tr.pn-on td { background: rgba(245, 158, 11, 0.14); }
+.pn-list .muted { color: var(--text-muted); font-size: 10px; }
 .sel-goto { width: 100%; margin: 2px 0 8px; font-size: 11px; }
 /* Materials / Sections library: floating panel opened from the Modelo menu */
 .lib-panel { position: fixed; right: 16px; top: 64px; width: 380px; max-height: calc(100vh - 90px); z-index: 9000; display: flex; flex-direction: column;

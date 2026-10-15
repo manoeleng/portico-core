@@ -259,6 +259,14 @@ export class PropertiesPanel {
     if (tab === 'panos')  this.renderPanels();
   }
 
+  // opens a panel of the active case for editing (click on its area in the 3D view)
+  openPanelEdit(id) {
+    this.app.setPanelCollapsed?.(false);
+    this._panelEdit = id;
+    if (this._currentVTab !== 'loads') this._switchVTab('loads');
+    this._switchLTab('panos');
+  }
+
   // ── Paños: surface load on a polygon of nodes (CYPE "carga por paño"), expanded into member loads ──────
   renderPanels() {
     const root = this._ltabContents.panos;
@@ -269,13 +277,15 @@ export class PropertiesPanel {
     const dirL = { gravity: t('Gravedad ↓'), normal: t('Normal al paño (q > 0 en el sentido de la normal, regla de la mano derecha)'),
       against: t('Contra el paño (presión: opuesta a la normal)'), globalX: 'Global +X', globalY: 'Global +Y' };
     const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
-    const rows = (lc?.panels || []).map(p => `<tr><td>#${p.id}</td><td>${p.nodes.length} ${t('nodos')}</td><td>${(+p.q).toString().replace('.', ',')} kN/m²</td><td>${esc(dirL[p.dir] || p.dir)}</td><td>${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</td>
-      <td style="white-space:nowrap"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
+    const dirS = { gravity: '↓', against: t('contra'), normal: 'n', globalX: '+X', globalY: '+Y' };
+    const rows = (lc?.panels || []).map(p => `<tr class="${p.id === this._panelEdit ? 'pn-on' : ''}"><td><b>#${p.id}</b></td>
+      <td>q = ${(+p.q).toFixed(2).replace('.', ',')} kN/m² ${esc(dirS[p.dir] || '')}<br><span class="muted">${p.nodes.length} ${t('nodos')} · ${t('vano')} ${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</span></td>
+      <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
     const v = ed || { q: 1, dir: 'gravity', axis: 'edge', area: 'real' };
     const opt = (o, cur) => Object.entries(o).map(([k, l]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
     root.innerHTML = !lc ? `<p class="panel-hint">${t('No hay caso de carga activo.')}</p>` : `
       <div class="prop-title" style="margin-top:0">${t('Paños del caso')} ${esc(lc.name)}</div>
-      ${rows ? `<table class="sel-desc"><tbody>${rows}</tbody></table>` : `<p class="panel-hint">${t('Sin paños en este caso.')}</p>`}
+      ${rows ? `<table class="pn-list"><tbody>${rows}</tbody></table>` : `<p class="panel-hint">${t('Sin paños en este caso.')}</p>`}
       <div class="prop-title">${ed ? `${t('Editar paño')} #${ed.id}` : t('Nueva carga por paño')}</div>
       <p class="panel-hint" style="margin:0 0 6px">${ed ? `${t('Nodos del contorno')}: ${ed.nodes.join(', ')}`
         : `${t('Seleccione en orden los nodos del contorno (Ctrl+clic, ≥ 3)')}: <b>${sel.length ? sel.join(', ') : '—'}</b>`}</p>

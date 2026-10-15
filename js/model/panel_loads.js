@@ -155,6 +155,32 @@ export function panelToDistLoads(model, panel) {
   return { loads, warnings, members: recv.length };
 }
 
+/**
+ * Geometric frame of a panel, as used by the distribution: model-space points, unit normal n (node order, right-hand
+ * rule), span direction u and v = n × u, the polygon in (u, v) and its centroid. null if degenerate.
+ */
+export function panelFrame(model, panel) {
+  const ns = (panel.nodes || []).map((id) => model.nodes.get(id)).filter(Boolean);
+  if (ns.length < 3) return null;
+  let n = [0, 0, 0];
+  for (let i = 0; i < ns.length; i++) { const a = P(ns[i]), b = P(ns[(i + 1) % ns.length]); n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; }
+  n = unit(n);
+  if (len(n) < 0.5) return null;
+  const p0 = P(ns[0]);
+  const ax = String(panel.axis || 'edge').toUpperCase();
+  const g = ax === 'X' ? [1, 0, 0] : ax === 'Y' ? [0, 1, 0] : ax === 'Z' ? [0, 0, 1] : sub(P(ns[1]), P(ns[0]));
+  let u = sub(g, n.map((c) => c * dot(g, n)));
+  if (len(u) < 1e-6) return null;
+  u = unit(u);
+  const v = cross(n, u);
+  const pts = ns.map(P), poly = pts.map((p) => { const d = sub(p, p0); return [dot(d, u), dot(d, v)]; });
+  let A = 0, cx = 0, cy = 0;
+  for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], k = a[0] * b[1] - b[0] * a[1]; A += k; cx += (a[0] + b[0]) * k; cy += (a[1] + b[1]) * k; }
+  A /= 2; cx /= 6 * A; cy /= 6 * A;
+  const c = [p0[0] + u[0] * cx + v[0] * cy, p0[1] + u[1] * cx + v[1] * cy, p0[2] + u[2] * cx + v[2] * cy];
+  return { pts, n, u, v, p0, poly, area: Math.abs(A), centroid: c };
+}
+
 // Replaces the panel-derived member loads of every case by a fresh expansion of its panels.
 export function regeneratePanelLoads(model) {
   const warnings = [];

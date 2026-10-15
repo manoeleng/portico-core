@@ -2525,6 +2525,8 @@ export const PT = {
   "Proyección horizontal (sobrecargas — NBR 6120 6.4)": "Projeção horizontal (sobrecargas — NBR 6120 6.4)",
   "Vista 3D, cálculo plano X–Z: uy, rx y rz restringidos en el análisis (pórtico aislado).": "Vista 3D, cálculo plano X–Z: uy, rx e rz restringidos na análise (pórtico isolado).",
   "barra(s) NO verificada(s)": "barra(s) NÃO verificada(s)",
+  "contra": "contra",
+  "vano": "vão",
 };
 
 export default PT;
