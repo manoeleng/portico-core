@@ -13,8 +13,7 @@ Revisão de especialista FECHADA nas fases 5, 6, 7, 8 e nos itens cantoneira (88
 3. Comparação com software comercial (SAP2000 / CYPE 3D / TQS-Eberick, tolerância 3 %) — não feita.
 4. Revisão humana da tradução (`Desktop\REVISAO_TRADUCAO_PT.csv`).
 
-**Pendências técnicas abertas** (detalhes nas notas de cada fase): combinação direcional do sismo (NBR 15421
-8.5); ligar o limite H/1 700 / H/400 à interface; alma esbelta (Anexo H) e ruptura da seção líquida na 8800;
+**Pendências técnicas abertas** (detalhes nas notas de cada fase): ligar o limite H/1 700 / H/400 à interface; alma esbelta (Anexo H) e ruptura da seção líquida na 8800;
 cantoneira de abas desiguais ligada pela aba menor; seção não retangular e torção de perfis abertos (17.5.2) na
 6118; ELS de madeira; Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da
 aba; campos `type="number"` com vírgula (decisão de produto). Fora do plano: o caminho AISC 360 tem a mesma
@@ -229,7 +228,7 @@ inalterados.
 
 ### Pendências da Fase 2
 - ψ0,ef da combinação sísmica: padrão ψ0 (conservador); NBR 8681:2025 5.1.3.2 permite ψ2 (opção `psiSismo: 'psi2'`) — escolha do RT por projeto.
-- Combinação direcional do sismo (NBR 15421 8.5) não aplicada no gerador.
+- ~~Combinação direcional do sismo (NBR 15421 8.5)~~ — feito 15/10/2026: opção `sismoOrtogonal` do gerador (100 % + ±30 % da ortogonal), obrigatória só para categoria C com irregularidade no plano Tipo 3 (Tab. 7); padrão = direções separadas, como permite o 1º parágrafo da 8.5. Teste 10 em `tests/test_nbr8681.mjs`. A opção ainda não tem controle na interface (o botão de combinações NBR usa o padrão).
 - ~~Deslocamento do topo H/1 700 (NBR 6118) não existe no módulo de ELS~~ — feito 15/10/2026: `checkTopDrift`/`topDriftLimit` em `serviceability.js` (NBR 6118 H/1 700; NBR 8800 H/400 e H/300 galpão), exposto na API; teste `tests/test_serviceability_topo.mjs`. Falta ligar à UI (o painel de deriva usa só NCh433).
 - Balanço na NBR 6118: mantida a regra atual do código (vão efetivo 2·L), por decisão do usuário.
 - ~~ELS frequente repetia `G + ψ1·Q` uma vez por direção de vento~~ — corrigido 15/10/2026 (combinações idênticas emitidas uma vez; teste 9 em `tests/test_nbr8681.mjs`).

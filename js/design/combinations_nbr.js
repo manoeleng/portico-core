@@ -23,8 +23,9 @@
 //
 // Case symbols: G (permanent), Q (use), Qcob (roof), V… (wind, one per direction, e.g.
 // V0, V90 — never combined with each other), T (temperature), E… (seismic, one per
-// direction — never combined with each other). Directional combination of the seismic
-// action (NBR 15421 8.5) is NOT applied here.
+// direction). NBR 15421:2023 8.5: by default each direction separately (no superposition); with
+// option sismoOrtogonal (required for seismic category C with plan irregularity Type 3, Tab. 7) each
+// direction at 100 % plus ±30 % of each orthogonal one.
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const NBR_GAMMA = {
@@ -48,8 +49,11 @@ const kind = (s) => s === 'G' ? 'G' : s === 'Q' ? 'Q' : s === 'Qcob' ? 'Qcob' : 
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
 
 function name(prefix, f) {
-  const parts = Object.entries(f).map(([s, v]) => `${v === 1 ? '' : r4(v)}${s}`);
-  return `${prefix}: ${parts.join(' + ')}`;
+  const parts = Object.entries(f).map(([s, v], i) => {
+    const a = Math.abs(v), t = `${a === 1 ? '' : r4(a)}${s}`;
+    return i === 0 ? (v < 0 ? `-${t}` : t) : `${v < 0 ? ' - ' : ' + '}${t}`;
+  });
+  return `${prefix}: ${parts.join('')}`;
 }
 
 /**
@@ -58,9 +62,10 @@ function name(prefix, f) {
  *   cases     case symbols present in the model, e.g. ['G','Q','V0','V90','T','E0','E90']
  *   uso       'residencial' | 'comercial' | 'biblioteca'  (ψ of Q; default residencial)
  *   psiSismo  'psi0' (default, conservative) | 'psi2' (NBR 8681:2025 5.1.3.2, very short duration)
+ *   sismoOrtogonal  false (default, 8.5 1st paragraph) | true: 100 % + 30 % (8.5, category C + Tab. 7 Type 3)
  * @returns {{ code, elu, exc, qp, freq, rara, lista }}  lista = all, rules.json shape
  */
-export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo = 'psi0' }) {
+export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo = 'psi0', sismoOrtogonal = false }) {
   const g = NBR_GAMMA[family];
   if (!g) throw new Error(`family must be 'concrete' or 'steel' (got ${family})`);
   if (!NBR_PSI[uso] || uso === 'Qcob' || uso === 'V' || uso === 'T') throw new Error(`uso inválido: ${uso}`);
@@ -107,6 +112,10 @@ export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo =
       for (const s of set) f[s] = 1.0 * psi(s)[iEf];
       push(exc, 'ELU-EXC', f);
       push(exc, 'ELU-EXC', { G: g.gFav, [e]: 1.0 });
+      if (sismoOrtogonal) for (const o of seis) if (o !== e) for (const sg of [0.3, -0.3]) {   // NBR 15421 8.5
+        push(exc, 'ELU-EXC', { ...f, [o]: sg });
+        push(exc, 'ELU-EXC', { G: g.gFav, [e]: 1.0, [o]: sg });
+      }
     }
   }
 

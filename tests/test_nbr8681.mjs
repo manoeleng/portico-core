@@ -93,5 +93,21 @@ const show = (list) => list.map(c => c.nombre).join(' | ');
   assert('9b. G + 0,4Q presente uma vez no frequente', r.freq.filter(c => key(c.factores) === key({ G: 1, Q: 0.4 })).length === 1);
 }
 
+// (10) NBR 15421:2023 8.5 — direção das forças sísmicas (texto lido na pág. 17–18 do PDF do acervo):
+//      padrão = cada direção separada, sem superposição; categoria C + irregularidade Tipo 3 (Tab. 7) =
+//      100 % numa direção + 30 % na ortogonal. Concreto, residencial: γg,exc = 1,2; ψ0,Q = 0,5.
+{
+  const key = o => JSON.stringify(Object.entries(o).sort());
+  const has2 = (arr, f) => arr.some(c => key(c.factores) === key(f));
+  const d = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'E0', 'E90'] });
+  assert('10a. padrão: nenhuma combinação com E0 e E90 juntos', d.exc.every(c => !(c.factores.E0 && c.factores.E90)), show(d.exc));
+  const o = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'E0', 'E90'], sismoOrtogonal: true });
+  assert('10b. 1,2G + 1,0E0 + 0,3E90 + 0,5Q', has2(o.exc, { G: 1.2, E0: 1, E90: 0.3, Q: 0.5 }), show(o.exc));
+  assert('10c. 1,2G + 1,0E0 − 0,3E90 + 0,5Q', has2(o.exc, { G: 1.2, E0: 1, E90: -0.3, Q: 0.5 }));
+  assert('10d. 1,2G + 1,0E90 ± 0,3E0 + 0,5Q', has2(o.exc, { G: 1.2, E90: 1, E0: 0.3, Q: 0.5 }) && has2(o.exc, { G: 1.2, E90: 1, E0: -0.3, Q: 0.5 }));
+  assert('10e. G favorável: 1,0G + 1,0E0 + 0,3E90', has2(o.exc, { G: 1, E0: 1, E90: 0.3 }));
+  assert('10f. 12 combinações excepcionais (2 direções × [2 sem + 4 com a ortogonal])', o.exc.length === 12, String(o.exc.length));
+}
+
 console.log(fails ? `\n${fails} FALLA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
