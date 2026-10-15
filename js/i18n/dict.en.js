@@ -2477,6 +2477,7 @@ export const EN = {
   "¿Descartar TODOS los resultados calculados (estático, modal, espectro, NL, diseño) y revertir la malla auto-discretizada?\n\nSi sólo quieres volver a ver el modelo sin borrar nada, usa «Vista modelo» en la barra.": "Discard ALL computed results (static, modal, spectrum, NL, design) and revert the auto-discretized mesh?\n\nIf you only want to see the model again without deleting anything, use «Model view» in the bar.",
   "No se pudo armar el edificio de shear:": "Could not build the shear building:",
   "Error en rótulas plásticas:": "Plastic hinge error:",
+  "Correspondencia con la notación NBR: los ejes internos son X este · Y norte · Z arriba. En la sección, z es el eje fuerte: el momento en torno al eje fuerte (Mz) corresponde a Msd,x de la NBR (flexión en el plano del alma) y el del eje débil (My) a Msd,y. La convención interna no cambia (compatibilidad con archivos .s3d).": "Correspondence with NBR notation: the internal axes are X east · Y north · Z up. In the section, z is the strong axis: the moment about the strong axis (Mz) corresponds to NBR Msd,x (bending in the plane of the web) and the weak-axis one (My) to Msd,y. The internal convention does not change (compatibility with .s3d files).",
 };
 
 export default EN;

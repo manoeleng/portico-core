@@ -2224,6 +2224,7 @@ export const PT = {
   "¿Descartar TODOS los resultados calculados (estático, modal, espectro, NL, diseño) y revertir la malla auto-discretizada?\n\nSi sólo quieres volver a ver el modelo sin borrar nada, usa «Vista modelo» en la barra.": "Descartar TODOS os resultados calculados (estático, modal, espectro, NL, dimensionamento) e reverter a malha autodiscretizada?\n\nSe quiser apenas voltar a ver o modelo sem apagar nada, use «Vista do modelo» na barra.",
   "No se pudo armar el edificio de shear:": "Não foi possível montar o edifício de cisalhamento:",
   "Error en rótulas plásticas:": "Erro nas rótulas plásticas:",
+  "Correspondencia con la notación NBR: los ejes internos son X este · Y norte · Z arriba. En la sección, z es el eje fuerte: el momento en torno al eje fuerte (Mz) corresponde a Msd,x de la NBR (flexión en el plano del alma) y el del eje débil (My) a Msd,y. La convención interna no cambia (compatibilidad con archivos .s3d).": "Correspondência com a notação da NBR: os eixos internos são X leste · Y norte · Z para cima. Na seção, z é o eixo forte: o momento em torno do eixo forte (Mz) corresponde ao Msd,x da NBR (flexão no plano da alma) e o do eixo fraco (My) ao Msd,y. A convenção interna não muda (compatibilidade com arquivos .s3d).",
 };
 
 export default PT;
