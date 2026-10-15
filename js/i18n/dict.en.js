@@ -2797,6 +2797,13 @@ export const EN = {
   "Capa a todos": "Layer to all",
   "Capa aplicada a": "Layer applied to",
   "Color de la capa": "Layer colour",
+  "Gravitacional ↓ (peso, sobrecarga)": "Gravity ↓ (weight, live load)",
+  "Viento: presión (⊥ al paño, hacia adentro)": "Wind: pressure (⊥ to the panel, inward)",
+  "Viento: succión (⊥ al paño, hacia afuera)": "Wind: suction (⊥ to the panel, outward)",
+  "viento, presión": "wind, pressure",
+  "viento, succión": "wind, suction",
+  "vento →|": "wind →|",
+  "vento |→": "wind |→",
 };
 
 export default EN;

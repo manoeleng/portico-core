@@ -274,10 +274,10 @@ export class PropertiesPanel {
     const t = (k) => i18n.t(k), app = this.app, m = app.model, lc = m.loadCases.get(app._activeLcId);
     const sel = [...(app.viewport?._selected || [])].filter(k => k.startsWith('node:')).map(k => +k.slice(5));
     const ed = this._panelEdit ? (lc?.panels || []).find(p => p.id === this._panelEdit) : null;
-    const dirL = { gravity: t('Gravedad ↓'), normal: t('Normal al paño (q > 0 en el sentido de la normal, regla de la mano derecha)'),
-      against: t('Contra el paño (presión: opuesta a la normal)'), globalX: 'Global +X', globalY: 'Global +Y' };
+    const dirL = { gravity: t('Gravitacional ↓ (peso, sobrecarga)'), against: t('Viento: presión (⊥ al paño, hacia adentro)'),
+      normal: t('Viento: succión (⊥ al paño, hacia afuera)'), globalX: 'Global +X', globalY: 'Global +Y' };
     const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
-    const dirS = { gravity: '↓', against: t('contra'), normal: 'n', globalX: '+X', globalY: '+Y' };
+    const dirS = { gravity: '↓', against: t('viento, presión'), normal: t('viento, succión'), globalX: '+X', globalY: '+Y' };
     const rows = (lc?.panels || []).map(p => `<tr class="${p.id === this._panelEdit ? 'pn-on' : ''}"><td><b>#${p.id}</b></td>
       <td>q = ${(+p.q).toFixed(2).replace('.', ',')} kN/m² ${esc(dirS[p.dir] || '')}<br><span class="muted">${p.nodes.length} ${t('nodos')} · ${t('vano')} ${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</span></td>
       <td style="white-space:nowrap;text-align:right"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');

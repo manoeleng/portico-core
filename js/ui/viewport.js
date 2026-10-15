@@ -3986,10 +3986,21 @@ export class Viewport {
       const dirT = this.m2t(f.u[0], f.u[1], f.u[2]).normalize(), cT = M(c);
       const a1 = new THREE.ArrowHelper(dirT, cT, L, 0xf59e0b, L * 0.25, L * 0.12);
       const a2 = new THREE.ArrowHelper(dirT.clone().negate(), cT, L, 0xf59e0b, L * 0.25, L * 0.12);
-      const sign = p.dir === 'gravity' ? ' ↓' : p.dir === 'against' ? ' ⊣' : p.dir === 'normal' ? ' ⊢' : p.dir === 'globalX' ? ' →X' : p.dir === 'globalY' ? ' →Y' : '';
+      const sign = p.dir === 'gravity' ? ' ↓' : p.dir === 'against' ? ' ' + i18n.t('vento →|') : p.dir === 'normal' ? ' ' + i18n.t('vento |→') : p.dir === 'globalX' ? ' →X' : p.dir === 'globalY' ? ' →Y' : '';
       const lbl = this._makeValSprite(`#${p.id} q=${(+p.q).toFixed(2).replace('.', ',')}${sign}`, '#f59e0b');
       lbl.position.copy(cT).add(new THREE.Vector3(0, span * 0.015, 0));
       for (const o of [fill, outline, a1, a2, lbl]) { this._scene.add(o); this._loadObjects.push(o); }
+      // load arrows on the area: vertical for gravity, PERPENDICULAR to the panel for wind (follows the slope)
+      const sgq = (+p.q || 0) < 0 ? -1 : 1;
+      const dm = p.dir === 'gravity' ? [0, 0, -1] : p.dir === 'against' ? f.n.map((x) => -x) : p.dir === 'normal' ? f.n
+        : p.dir === 'globalX' ? [1, 0, 0] : p.dir === 'globalY' ? [0, 1, 0] : [0, 0, -1];
+      const dT = this.m2t(dm[0] * sgq, dm[1] * sgq, dm[2] * sgq).normalize(), La = span * 0.045;
+      const pts = [c, ...f.pts.map((q) => [c[0] + 0.6 * (q[0] - c[0]), c[1] + 0.6 * (q[1] - c[1]), c[2] + 0.6 * (q[2] - c[2])])];
+      for (const q of pts) {
+        const tip = M(q);
+        const ar = new THREE.ArrowHelper(dT, tip.clone().addScaledVector(dT, -La), La, 0xd97706, La * 0.3, La * 0.15);
+        this._scene.add(ar); this._loadObjects.push(ar);
+      }
       this._panelFills.push(fill);
     }
   }

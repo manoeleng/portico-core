@@ -2542,6 +2542,13 @@ export const PT = {
   "Capa a todos": "Camada a todos",
   "Capa aplicada a": "Camada aplicada a",
   "Color de la capa": "Cor da camada",
+  "Gravitacional ↓ (peso, sobrecarga)": "Gravitacional ↓ (peso, sobrecarga)",
+  "Viento: presión (⊥ al paño, hacia adentro)": "Vento: pressão (⊥ ao pano, para dentro)",
+  "Viento: succión (⊥ al paño, hacia afuera)": "Vento: sucção (⊥ ao pano, para fora)",
+  "viento, presión": "vento, pressão",
+  "viento, succión": "vento, sucção",
+  "vento →|": "vento →|",
+  "vento |→": "vento |→",
 };
 
 export default PT;

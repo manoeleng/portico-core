@@ -16,8 +16,11 @@
 //
 // q is per m² of the panel surface; area: 'projected' takes it per m² of the horizontal projection (factor |n_z|) —
 // the live loads of NBR 6120:2019 6.4 act on the horizontal projection; roofing weight is per surface.
-// dir: 'gravity' (down) | 'normal' (along the panel normal of the node order, right-hand rule; > 0 toward it) |
-//      'against' (opposite to that normal: a pressure "against the panel") | 'globalX' | 'globalY'.
+// dir: 'gravity' (down) | 'against' (WIND PRESSURE: perpendicular to the panel, toward it) | 'normal' (WIND SUCTION:
+//      perpendicular, away from it) | 'globalX' | 'globalY'. The panel normal is oriented UPWARD whenever the panel is
+//      not vertical (roofs: pressure pushes into the roof, suction lifts it, whatever the node order); on a vertical
+//      wall it follows the node order (right-hand rule). A wind load follows the roof slope and is split into the
+//      global X, Y and vertical components on each member; a negative q reverses the sense.
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -89,6 +92,7 @@ export function panelToDistLoads(model, panel) {
   for (let i = 0; i < ns.length; i++) { const a = P(ns[i]), b = P(ns[(i + 1) % ns.length]); n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; }
   n = unit(n);
   if (len(n) < 0.5) return { loads, warnings: ['Pano degenerado (nós colineares).'], members: 0 };
+  if (n[2] < -1e-9) n = [-n[0], -n[1], -n[2]];                 // roofs: normal upward, independent of the node order
   const p0 = P(ns[0]);
   const size = Math.max(...ns.map((q) => len(sub(P(q), p0))));
   const tol = Math.max(1e-6, 1e-4 * size);
@@ -166,6 +170,7 @@ export function panelFrame(model, panel) {
   for (let i = 0; i < ns.length; i++) { const a = P(ns[i]), b = P(ns[(i + 1) % ns.length]); n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; }
   n = unit(n);
   if (len(n) < 0.5) return null;
+  if (n[2] < -1e-9) n = [-n[0], -n[1], -n[2]];
   const p0 = P(ns[0]);
   const ax = String(panel.axis || 'edge').toUpperCase();
   const g = ax === 'X' ? [1, 0, 0] : ax === 'Y' ? [0, 1, 0] : ax === 'Z' ? [0, 0, 1] : sub(P(ns[1]), P(ns[0]));

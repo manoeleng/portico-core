@@ -99,6 +99,21 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   ok('P6. barra interrompida: Σ = q·A = 96 kN', total(m, r.loads), 96, 1e-6);
   assert('P6b. aviso de vizinha parcial', r.warnings.some((w) => /cobre só parte/.test(w)), r.warnings.join(' | '));
 }
+// (7) wind on a sloped roof (15°, rising along +Y): pressure ⊥ to the panel, into the roof → per purlin of strip b:
+//     horizontal +Y component q·b·sin15° and downward q·b·cos15°; suction the opposite; same result for both node orders
+{
+  const th = 15 * Math.PI / 180;
+  const { m, purl, corners } = roof((y) => y * Math.tan(th));
+  const b = 1.5 / Math.cos(th);                                    // interior strip along the slope (purlins 1,5 m apart in plan)
+  const comp = (loads, id, dir) => loads.filter((l) => l.elemId === id && l.dir === dir).reduce((s, l) => s + l.w, 0);
+  for (const [nm, ord] of [['anti-horário', corners], ['horário', [...corners].reverse()]]) {
+    const r = panelToDistLoads(m, { id: 9, nodes: ord, q: 1, dir: 'against', axis: 'Y' });
+    ok(`P7. vento pressão (${nm}): componente vertical ↓ = q·b·cos15°`, comp(r.loads, purl[2], 'gravity'), b * Math.cos(th), 1e-6);
+    ok(`P7b. vento pressão (${nm}): componente horizontal +Y = q·b·sen15°`, comp(r.loads, purl[2], 'globalY'), b * Math.sin(th), 1e-6);
+  }
+  const su = panelToDistLoads(m, { id: 9, nodes: corners, q: 1, dir: 'normal', axis: 'Y' });
+  ok('P7c. vento sucção: componente vertical para cima (w < 0 na gravidade)', comp(su.loads, purl[2], 'gravity'), -b * Math.cos(th), 1e-6);
+}
 // (4) two-way refused (no uniform approximation); regeneration replaces only panel loads
 {
   const { m, corners } = roof();
