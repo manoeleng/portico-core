@@ -1936,6 +1936,7 @@ export function generateWarehouse(spec, libs) {
       rod(getNode(x, yA, 0), getNode(x, yB, zt)); rod(getNode(x, yB, 0), getNode(x, yA, zt));
     }
     if (tipoPilar === 'laminado' && !wallBays.length && Yf.length > 1) addWarning('info', 'Sem contraventamento vertical: a estabilidade longitudinal vem só da flexão dos pilares engastados (eixo de menor inércia) — confira os deslocamentos em Y.');
+    if (!bays.length && Yf.length > 1 && tipoPilar !== 'sem') addWarning('replacement', 'Sem contraventamento no telhado: o vento de empena acima do beiral vai à flexão lateral (fora do plano) das treliças de extremidade — deslocamentos grandes em Y; contravente ao menos os vãos extremos.');
     if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : modoContrav === 'escolhidos' ? `nos vãos ${bays.map(b => b + 1).join(', ')} (de ${nBays})` : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
@@ -2014,6 +2015,15 @@ export function generateWarehouse(spec, libs) {
           if (f === 0 || f === Yf.length - 1) {          // gables: C (y = 0, pressure +Y) and D (y = length)
             const pG = f === 0 ? kN(P.C) : -kN(P.D);
             for (const c of [...c0, ...cL]) lcY?.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
+            // the gable triangle above the eave (area span·rise/2, launch audit D4) on the top chord of the end frame:
+            // w(x) = p·h(x), h = height of the triangle at x → trapezoidal per chord segment, resultant p·span·rise/2
+            if (lcY && tipoPilar !== 'sem') for (const tp of frames[f].tops) {
+              if (tp.elemId == null) continue;
+              const e = elements[tp.elemId - 1], a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
+              const h1 = zRoof(a.x) - hE, h2 = zRoof(b.x) - hE, k = tp.dx / tp.Lsl;   // per metre of horizontal width → per metre of the sloped chord
+              if (h1 <= 0 && h2 <= 0) continue;
+              lcY.loads.push({ type: 'dist', elemId: tp.elemId, dir: 'globalY', w: +(pG * h1 * k).toFixed(6), w2: +(pG * h2 * k).toFixed(6) });
+            }
           }
         });
         loadCases.push(lcX, ...(lcY ? [lcY] : []));

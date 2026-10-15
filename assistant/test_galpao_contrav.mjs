@@ -260,10 +260,14 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
   ];
   for (const [nm, w] of variants) {
     const v = generateModel({ ...spec, warehouse: { ...spec.warehouse, ...w }, loads: { ...spec.loads, seismic: true }, seismic: { zona: 1 } }, BR);
+    // without ROOF bracing the gable triangle loads the end trusses out of plane (their lateral bending only): not a
+    // mechanism, but large — the check there is "finite, < 1 m, and warned"; elsewhere < 0,2 m
+    const semTelhado = w.bracing === 'sem' || (w.bracing === 'escolhidos' && !(w.bracing_bays || []).length);
     for (const lc of ['Viento Y (Cpi 0)', 'Sismo Y (NBR 15421 7.3.2)']) {
-      const d = dmaxOf(v, lc);
-      assert(`p. ${nm} · ${lc}: deslocamento máx. finito e < 0,2 m`, Number.isFinite(d) && d < 0.2, `${(d * 1000).toFixed(1)} mm`);
+      const d = dmaxOf(v, lc), lim = semTelhado ? 1.0 : 0.2;
+      assert(`p. ${nm} · ${lc}: deslocamento máx. finito e < ${lim} m`, Number.isFinite(d) && d < lim, `${(d * 1000).toFixed(1)} mm`);
     }
+    if (semTelhado && w.column_type !== 'sem') assert(`p. ${nm}: aviso de telhado sem contraventamento`, v._warnings.some(x => /Sem contraventamento no telhado/.test(x.msg)));
   }
   // lattice column without bracing: wall X generated (with a warning); laminated + end depth: the wall X reaches the eave
   const tr = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'treliçado', bracing: 'sem' } }, BR);
@@ -275,6 +279,16 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
   const so = generateModel({ ...spec, warehouse: { ...spec.warehouse, column_type: 'sem', end_depth_m: 1 } }, BR);
   const fy = solve(so, 'Viento Y (Cpi 0)').F[1];
   assert('p4. sem pilar + montante: nenhum vento de empena (ΣFy = 0)', Math.abs(fy) < 1e-9, fy.toFixed(3));
+}
+
+// (q) gable wind: rectangle up to the eave on the end columns + triangle above it (area span·rise/2) — audit D4.
+//     Hand check: ΣFy of the gable pressures = (pC − pD)·span·(H + rise/2), pC/pD = q·(Cpe − Cpi) of NBR 6123 for C/D
+{
+  const lc = m.loadCases.find(l => l.name === 'Viento Y (Cpi 0)'), P = lc._viento.presiones_por_cpi.find(x => x.cpi === 0).presiones;
+  const gable = lc.loads.filter(ld => ld.dir === 'globalY').reduce((s, ld) => { const e = m.elements[ld.elemId - 1], a = m.nodes[e.n1 - 1], b = m.nodes[e.n2 - 1];
+    const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); return s + (ld.w + (ld.w2 ?? ld.w)) / 2 * L; }, 0);
+  const exp = (P.C - P.D) / 1000 * 15 * (6 + 0.75 / 2);
+  assert('q1. vento de empena: ΣFy = (pC − pD)·vão·(H + flecha/2) — inclui o triângulo acima do beiral', Math.abs(gable - exp) < 1e-6 * Math.abs(exp), `${gable.toFixed(4)} vs ${exp.toFixed(4)}`);
 }
 
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
