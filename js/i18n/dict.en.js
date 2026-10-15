@@ -2864,6 +2864,8 @@ export const EN = {
   "Por barra": "Per member",
   "Diagrama de momento del lado comprimido (por defecto: lado traccionado)": "Moment diagram on the compression side (default: tension side)",
   "Invertir DMF": "Flip BMD",
+  "Giro de la sección alrededor del eje longitudinal de la barra (ángulo β, regla de la mano derecha de n1 a n2). +90° gira; 180° invierte el lado abierto de un U/Ue/L (ej.: cordones de cercha hacia adentro).": "Rotation of the section about the member's longitudinal axis (angle β, right-hand rule from n1 to n2). +90° rotates; 180° flips the open side of a U/Ue/L (e.g. truss chords facing inwards).",
+  "Rotación β (°) a todos": "Rotation β (°) to all",
 };
 
 export default EN;

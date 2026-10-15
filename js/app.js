@@ -491,6 +491,19 @@ class App {
     this.toast(`${i18n.t('Sección aplicada a')} ${ids.length} ${i18n.t('elemento(s)')}`, 'ok');
     this._reselect(ids);
   }
+  // Roll angle β of the selected members: set to `deg`, or add `deg` (normalized to (−180, 180]).
+  setBetaSelected(deg, add = false) {
+    const ids = this._selElems(); if (!ids.length || !isFinite(deg)) return;
+    this.snapshot();
+    for (const id of ids) {
+      const e = this.model.elements.get(id); if (!e) continue;
+      let v = add ? (+e.beta || 0) + deg : deg; v = ((v % 360) + 360) % 360; if (v > 180) v -= 360;
+      this.model.updateElement(id, { beta: +v.toFixed(6) });
+    }
+    this.viewport.renderModel(this.model); this.viewport.refreshExtrusion?.(); this.markDirty();
+    this.toast(`β ${add ? '+' + deg + '°' : '= ' + deg + '°'} · ${ids.length} ${i18n.t('elemento(s)')}`, 'ok');
+    this._reselect(ids);
+  }
   setLayerSelected(layerId) {
     const ids = this._selElems(); if (!ids.length || !(layerId > 0)) return;
     this.snapshot();

@@ -2609,6 +2609,8 @@ export const PT = {
   "Por barra": "Por barra",
   "Diagrama de momento del lado comprimido (por defecto: lado traccionado)": "Diagrama de momento do lado comprimido (padrão: lado tracionado)",
   "Invertir DMF": "Inverter DMF",
+  "Giro de la sección alrededor del eje longitudinal de la barra (ángulo β, regla de la mano derecha de n1 a n2). +90° gira; 180° invierte el lado abierto de un U/Ue/L (ej.: cordones de cercha hacia adentro).": "Giro da seção em torno do eixo longitudinal da barra (ângulo β, regra da mão direita de n1 para n2). +90° gira; 180° inverte o lado aberto de um U/Ue/L (ex.: banzos de treliça voltados para dentro).",
+  "Rotación β (°) a todos": "Rotação β (°) a todos",
 };
 
 export default PT;

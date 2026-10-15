@@ -3103,7 +3103,15 @@ export class Viewport {
     const n1 = model.nodes.get(elem.n1), n2 = model.nodes.get(elem.n2), sec = model.sections.get(elem.secId);
     if (!n1 || !n2 || !sec) return false;
     let la; try { la = localAxes(n1, n2, elem.beta); } catch { return false; }
-    let ring = this._sectionShape(sec).getPoints(6).map((p) => [p.x, p.y]);
+    const shp = this._sectionShape(sec), shapes = Array.isArray(shp) ? shp : [shp];
+    if (shapes.length > 1) { let okAll = true; for (const s1 of shapes) okAll = this._deformedSolidPiece(elem, results, scale, maxD, s1) && okAll; return okAll; }
+    return this._deformedSolidPiece(elem, results, scale, maxD, shapes[0]);
+  }
+  _deformedSolidPiece(elem, results, scale, maxD, shapeObj) {
+    const model = this.app.model;
+    const n1 = model.nodes.get(elem.n1), n2 = model.nodes.get(elem.n2);
+    let la; try { la = localAxes(n1, n2, elem.beta); } catch { return false; }
+    let ring = shapeObj.getPoints(6).map((p) => [p.x, p.y]);
     if (ring.length > 2) { const [a0, a1] = ring[0], [b0, b1] = ring[ring.length - 1]; if (Math.hypot(a0 - b0, a1 - b1) < 1e-12) ring.pop(); }
     const m = ring.length; if (m < 3) return false;
     const NS = 12, oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0, pos = [], col = [], idx = [], p0 = [], dvs = [];
@@ -3869,6 +3877,9 @@ export class Viewport {
   }
 
   // ── P4-13: Extruded section rendering ─────────────────────────────────────
+  // Rebuilds the solid view when it is on (section, β or offset of a member changed).
+  refreshExtrusion() { if (this._showExtruded) { this.toggleExtruded(); this.toggleExtruded(); } }
+
   // Display mode of the solid view; switching it turns the solid view on.
   setExtrudeMode(mode) {
     this._extrudeMode = ['solid', 'translucent', 'edges'].includes(mode) ? mode : 'solid';
@@ -3977,6 +3988,7 @@ export class Viewport {
     const cf    = dz.cfProps;                          // NBR 6355 cold-formed (profiles_cf.js): real shape + dims
     const d     = cf?.dims || dz.dims || dz;           // catalog uses .dims; manual edits sit on design
     const shape = String(cf ? 'cf-' + cf.shape + (cf.shape === 'Z' ? cf.lip : '') : dz.shape || '').toLowerCase();
+    // built-up: the composite dims carry arr / gap; d = cf.dims already
 
     // Round shapes use arcs (centered at origin).
     if (shape === 'circle' && d.D > 0) {
@@ -3996,7 +4008,17 @@ export class Viewport {
 
     // Polygonal profiles, centred on the CENTROID of the area (the member axis of the analysis passes through it —
     // a channel, angle or cold-formed profile is not centred on its bounding box).
-    const poly = this._sectionOutline(shape, d);
+    const poly0 = this._sectionOutline(shape, d);
+    if (poly0?.outlines) {                               // several separate pieces (built-up sections)
+      let At = 0, sx = 0, sy = 0;
+      const ac = (pts) => { let A = 0, x = 0, y = 0;
+        for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length], k = x1 * y2 - x2 * y1; A += k; x += (x1 + x2) * k; y += (y1 + y2) * k; }
+        return [A / 2, A ? x / (3 * A) : 0, A ? y / (3 * A) : 0]; };
+      for (const o of poly0.outlines) { const [A, x, y] = ac(o), a = Math.abs(A); At += a; sx += x * a; sy += y * a; }
+      const cx = At ? sx / At : 0, cy = At ? sy / At : 0;
+      return poly0.outlines.map((o) => new THREE.Shape(o.map(([x, y]) => new THREE.Vector2(x - cx, y - cy))));
+    }
+    const poly = poly0;
     if (poly) {
       const ac = (pts) => { let A = 0, x = 0, y = 0;
         for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length], k = x1 * y2 - x2 * y1; A += k; x += (x1 + x2) * k; y += (y1 + y2) * k; }
@@ -4038,6 +4060,19 @@ export class Viewport {
       else if (shape === 'cf-z45') { const e = d.D / Math.SQRT2; mid = [[-b - e, -h / 2 + e], [-b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b + e, h / 2 - e]]; }
       else if (shape === 'cf-cr') mid = [[-b / 2 - c, 0], [-b / 2, 0], [-b / 2, h], [b / 2, h], [b / 2, 0], [b / 2 + c, 0]];
       else if (shape === 'cf-l') { const a = d.b - t / 2; mid = [[a, 0], [0, 0], [0, a]]; }
+      else if (shape === 'cf-u') mid = [[d.bf - t / 2, -h / 2], [0, -h / 2], [0, h / 2], [d.bf - t / 2, h / 2]];
+      else if (shape === 'cf-2l' || shape === 'cf-2ue' || shape === 'cf-2u') {
+        // built-up (composite_cf.js): two profiles mirrored about the vertical axis; costas = backs facing (gap g),
+        // caixa = flange tips / lips facing (gap g)
+        const g = d.gap || 0, one = shape === 'cf-2l' ? (() => { const a = d.b - t / 2; return [[a, 0], [0, 0], [0, a]]; })()
+          : shape === 'cf-2ue' ? [[b, -h / 2 + c], [b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b, h / 2 - c]]
+          : [[d.bf - t / 2, -h / 2], [0, -h / 2], [0, h / 2], [d.bf - t / 2, h / 2]];
+        const w = shape === 'cf-2l' ? d.b - t / 2 : shape === 'cf-2ue' ? b : d.bf - t / 2;   // web-to-tip (mid-line)
+        const sh = d.arr === 'caixa' ? (x) => -(w + t / 2 + g / 2) + x : (x) => g / 2 + t / 2 + x;
+        const right = one.map(([x, y]) => [sh(x), y]), left = right.map(([x, y]) => [-x, y]);
+        if (d.arr === 'caixa') return { outlines: [this._thickenPath(right.map(([x, y]) => [-x, y]), t), this._thickenPath(right, t)] };
+        return { outlines: [this._thickenPath(right, t), this._thickenPath(left, t)] };
+      }
       if (!mid || !(t > 0)) return null;
       return { outline: this._thickenPath(mid, t) };
     }

@@ -911,6 +911,13 @@ export class PropertiesPanel {
             <select id="sel-layer"><option value="">—</option>${(this.app.model.layers || []).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select></div>
           <button class="btn-secondary" id="sel-layer-go" style="font-size:11px">Aplicar</button>
         </div>
+        <div class="prop-row" style="align-items:flex-end;gap:6px;margin-bottom:6px" title="${esc(i18n.t('Giro de la sección alrededor del eje longitudinal de la barra (ángulo β, regla de la mano derecha de n1 a n2). +90° gira; 180° invierte el lado abierto de un U/Ue/L (ej.: cordones de cercha hacia adentro).'))}">
+          <div class="prop-field" style="flex:1"><label>${i18n.t('Rotación β (°) a todos')}</label>
+            <input type="number" id="sel-beta" value="0" step="15"></div>
+          <button class="btn-secondary" id="sel-beta-go" style="font-size:11px">${i18n.t('Aplicar')}</button>
+          <button class="btn-secondary" id="sel-beta-90" style="font-size:11px" title="+90°">↻ 90°</button>
+          <button class="btn-secondary" id="sel-beta-180" style="font-size:11px" title="180°">⇅ 180°</button>
+        </div>
         <div class="prop-row" style="align-items:flex-end;gap:6px;margin-bottom:8px">
           <div class="prop-field" style="flex:1"><label>Discretizar (nº tramos c/u)</label>
             <input type="number" id="sel-disc" value="4" min="2" step="1"></div>
@@ -970,6 +977,9 @@ export class PropertiesPanel {
     $('#sel-mat-go')?.addEventListener('click', () => { const v = $('#sel-mat').value; if (v) this.app.setMaterialSelected(v); });
     $('#sel-sec-go')?.addEventListener('click', () => { const v = $('#sel-sec').value; if (v) this.app.setSectionSelected(v); });
     $('#sel-layer-go')?.addEventListener('click', () => { const v = $('#sel-layer').value; if (v) this.app.setLayerSelected(+v); });
+    $('#sel-beta-go')?.addEventListener('click', () => this.app.setBetaSelected(parseFloat(String($('#sel-beta').value).replace(',', '.')) || 0, false));
+    $('#sel-beta-90')?.addEventListener('click', () => this.app.setBetaSelected(90, true));
+    $('#sel-beta-180')?.addEventListener('click', () => this.app.setBetaSelected(180, true));
     $('#sel-disc-go')?.addEventListener('click', () => this.app.discretizeSelected(parseInt($('#sel-disc').value, 10)));
     $('#sel-w-go')?.addEventListener('click', () => this.app.setDistLoadSelected(fromDisp(parseFloat($('#sel-w').value), 'W'), $('#sel-wdir').value, $('#sel-wlc').value));
     $('#sel-w-clr')?.addEventListener('click', () => this.app.setDistLoadSelected(0, $('#sel-wdir').value, $('#sel-wlc').value));
@@ -2105,7 +2115,9 @@ export class PropertiesPanel {
             <select id="e-sec">${secOptions}</select>
           </div>
           <div class="prop-field"><label title="${i18n.t('Giro de los ejes locales y, z alrededor del eje x de la barra (regla de la mano derecha, de n1 a n2). 0 = orientación por defecto.')}">${i18n.t('Ángulo β (°)')}</label>
-            <input type="number" id="e-beta" value="${+elem.beta || 0}" step="1">
+            <div style="display:flex;gap:4px"><input type="number" id="e-beta" value="${+elem.beta || 0}" step="15" style="flex:1;min-width:0">
+              <button class="btn-secondary" type="button" id="e-beta-90" title="+90°" style="font-size:11px;padding:2px 6px">↻90</button>
+              <button class="btn-secondary" type="button" id="e-beta-180" title="180°" style="font-size:11px;padding:2px 6px">⇅</button></div>
           </div>
         </div>
         <div class="prop-row cols2" title="${i18n.t('Excentricidad: el eje de la sección (centroide) queda desplazado de la línea de los nodos, en los ejes locales y, z, igual en los dos extremos (brazo rígido). Ej.: correa apoyada sobre el cordón, viga a ras de la cara del pilar.')}">
@@ -2282,6 +2294,10 @@ export class PropertiesPanel {
     };
 
     sel.querySelector('#e-fl-tors')?.addEventListener('change', () => { save(); this.showElement(this.app.model.elements.get(elem.id)); });
+    for (const [bid, inc] of [['#e-beta-90', 90], ['#e-beta-180', 180]]) sel.querySelector(bid)?.addEventListener('click', () => {
+      const inp = sel.querySelector('#e-beta'); let v = ((parseFloat(inp.value) || 0) + inc) % 360; if (v > 180) v -= 360;
+      inp.value = +v.toFixed(4); save(); this.app.viewport.refreshExtrusion?.();
+    });
     sel.querySelectorAll('input[type=number]:not(#disc-n):not(#disc-len), select').forEach(inp =>
       inp.addEventListener('change', save)
     );
