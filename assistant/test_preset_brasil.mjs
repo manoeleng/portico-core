@@ -37,9 +37,9 @@ for (const [ag, soil] of [[0.10, 'D'], [0.125, 'E'], [0.05, 'C']]) {
 //   S2 = 0,85·0,98·(5/10)^0,125 = 0,7639 (a fórmula com z = 3 m daria 0,7166 — 6 % menor)
 const vb = windLoad({ ...ficha, wind: { ...ficha.wind, a_m: 30, b_m: 15 } }, reglas, 3.0);
 ok('3a. h = 3 m: S2 no valor de z = 5 m (Tab. 3)', vb.S2, 0.85 * 0.98 * Math.pow(0.5, 0.125), 0.001);
-// I-3: empena (α = 0°) com a classe pela face b = 25 m → B: S2 = 0,85·0,98·0,725^0,125 = 0,8004
+// I-3: empena (α = 0°) com a classe pela face b = 25 m → B: S2 = 0,85·0,98·0,725^0,125 = 0,8002
 assert('3b. classe da empena = B', v.classe_empena === 'B');
-ok('3c. S2 da empena (classe B) = 0,8004', v.S2_empena, 0.85 * 0.98 * Math.pow(0.725, 0.125), 0.001);
+ok('3c. S2 da empena (classe B) = 0,8002', v.S2_empena, 0.85 * 0.98 * Math.pow(0.725, 0.125), 0.001);
 // I-2: categoria de utilização fora de I–III → erro (não vira I = 1,0); R obrigatório
 let erro = false; try { responseSpectrum({ seismic: { ag: 0.1, soil: 'D', category: 'IV', R: 3 } }, reglas); } catch { erro = true; }
 assert('3d. categoria "IV" (NCh433) recusada na NBR 15421', erro);
