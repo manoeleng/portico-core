@@ -647,13 +647,19 @@
             <select id="loads-hdr-lc"></select>
           </div>
           <div id="loads-tabs">
-            <button class="ptab ltab active" data-ltab="sel">Sel.</button>
+            <button class="ptab ltab active" data-ltab="nos">Nodos</button>
+            <button class="ptab ltab" data-ltab="barras">Barras</button>
+            <button class="ptab ltab" data-ltab="panos">Paños</button>
             <button class="ptab ltab" data-ltab="casos">Casos</button>
           </div>
           <div id="loads-body">
-            <div id="ltab-sel" class="ptab-content active">
-              <p class="panel-hint">Haga clic en un nodo o elemento para editar sus cargas en el caso activo.</p>
+            <div id="ltab-nos" class="ptab-content active">
+              <p class="panel-hint">Haga clic en un nodo para editar su carga en el caso activo.</p>
             </div>
+            <div id="ltab-barras" class="ptab-content">
+              <p class="panel-hint">Haga clic en una barra para editar su carga en el caso activo.</p>
+            </div>
+            <div id="ltab-panos" class="ptab-content"></div>
             <div id="ltab-casos" class="ptab-content">
               <div id="lc-list"></div>
               <button class="btn-add" id="btn-add-lc-panel">＋ Nuevo caso de carga</button>

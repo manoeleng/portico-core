@@ -21,6 +21,7 @@ import { buildNodeIndex, assembleK, assembleF, getNodeDOFs } from './solver/asse
 import { assembleSparseGlobal, extractFreeCSR } from './solver/sparse.js?v=7';
 import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
+import { regeneratePanelLoads } from './model/panel_loads.js?v=7';
 import { listMacros, getMacro, insertMacro } from './model/macro_registry.js?v=7';
 import { assembleKgInto } from './solver/geometric.js?v=7';
 import { makeFactor, makeFactorCSR, permRCMcsr } from './solver/linsolve.js?v=7';
@@ -913,7 +914,7 @@ class App {
     w = +w; dir = dir || 'gravity';
     this.snapshot();
     const set = new Set(ids);
-    lc.loads = (lc.loads || []).filter(l => !(l.type === 'dist' && set.has(l.elemId)));   // replaces the existing one
+    lc.loads = (lc.loads || []).filter(l => !(l.type === 'dist' && l.panelId == null && set.has(l.elemId)));   // replaces the existing one (panel loads are the panel's)
     if (w && Number.isFinite(w)) for (const id of ids) lc.loads.push({ type: 'dist', elemId: id, dir, w });
     this.refreshLoads(); this.markDirty(); this._updateStats();
     this.toast(w ? `${i18n.t('Carga')} ${w} kN/m (${dir}) ${i18n.t('en')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}` : `${i18n.t('Cargas distribuidas quitadas de')} ${ids.length} ${i18n.t('elem. ·')} ${lc.name}`, 'ok');
@@ -1813,7 +1814,15 @@ class App {
   // dropdown.
   // force=true ignores the cache and re-solves (menu "Recalculate").
   // #105 «Advanced»: pick with checkboxes WHICH static cases to run.
+  // surface loads on panels → member loads (refreshed before every analysis: geometry may have changed)
+  _regenPanelLoads() {
+    const w = regeneratePanelLoads(this.model);
+    if (w.length) this._showWarnings?.(w.map(msg => ({ type: 'replacement', msg })));
+    return w;
+  }
+
   async runAnalysisAdvanced() {
+    this._regenPanelLoads();
     const statics = [...this.model.loadCases.values()].filter(lc => lc.type !== 'spectrum');
     if (!statics.length) { this.toast('No hay casos de carga estáticos que correr', 'warn'); return; }
     const overlay = document.getElementById('modal-overlay');
@@ -1844,6 +1853,7 @@ class App {
 
   // `only` (#105): Set of lcId to solve (null = all static cases).
   runAnalysis(force = false, only = null) {
+    this._regenPanelLoads();
     this._runOnly = only;   // read by the case filter below
     // An areas-only model (wall/slab) is valid: nodes + (member OR area elements) suffice.
     if (this.model.nodes.size === 0 || (this.model.elements.size === 0 && (this.model.areas?.size || 0) === 0)) {

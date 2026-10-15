@@ -26,10 +26,12 @@ export class PropertiesPanel {
     // ── Cargas sub-tabs (selection loads / cases); combinations have their own vertical tab ──
     this._ltabBtns = [...panelEl.querySelectorAll('#loads-tabs .ltab')];
     this._ltabContents = {
-      sel:    document.getElementById('ltab-sel'),
+      nos:    document.getElementById('ltab-nos'),
+      barras: document.getElementById('ltab-barras'),
+      panos:  document.getElementById('ltab-panos'),
       casos:  document.getElementById('ltab-casos'),
     };
-    this._currentLTab = 'sel';
+    this._currentLTab = 'nos';
     this._lastShown = null;   // what the selection panel shows → re-shown when switching Modelo ↔ Cargas
 
     // ── Horizontal sub-tabs (inside Model) ─────────────────────────────────
@@ -121,7 +123,11 @@ export class PropertiesPanel {
   }
 
   // container of the selection panel: Modelo → properties; Cargas → loads of the selection in the active case
-  _selRoot() { return this._target || (this._currentVTab === 'loads' ? this._ltabContents.sel : this._tabContents.sel); }
+  _selRoot() {
+    if (this._target) return this._target;
+    if (this._currentVTab !== 'loads') return this._tabContents.sel;
+    return this._ltabContents[this._currentLTab === 'barras' ? 'barras' : 'nos'];
+  }
   // renders an editor into `el` (the bind functions find their root through _selRoot())
   _renderInto(el, fn) { const prev = this._target; this._target = el; try { fn(); } finally { this._target = prev; } }
   _loadsMode() { return this._currentVTab === 'loads'; }
@@ -129,7 +135,12 @@ export class PropertiesPanel {
   // kind: 'node' | 'elem' | 'area' | 'multi' | 'none' — on an editor tab (Nós/Barras/Placas) the editor of the
   // clicked kind comes to the front; otherwise the description (Sel.)
   _showTarget(kind = 'none') {
-    if (this._loadsMode()) { this._switchLTab('sel'); return; }
+    if (this._loadsMode()) {
+      // Cargas: node → Nós, member → Barras; on Paños the selection feeds the panel being drawn (stay there)
+      if (this._currentLTab === 'panos') return;
+      this._switchLTab(kind === 'node' ? 'nos' : kind === 'elem' ? 'barras' : kind === 'multi' ? (this._multiHasNodes ? 'nos' : 'barras') : this._currentLTab === 'casos' ? 'nos' : this._currentLTab);
+      return;
+    }
     this._switchVTab('model');
     const onEditor = ['nodos', 'elems', 'placas'].includes(this._currentTab);
     const tab = !onEditor ? 'sel' : kind === 'node' ? 'nodos' : kind === 'elem' ? 'elems' : kind === 'area' ? 'placas' : this._currentTab;
@@ -245,6 +256,71 @@ export class PropertiesPanel {
     this._ltabBtns.forEach(b => b.classList.toggle('active', b.dataset.ltab === tab));
     Object.entries(this._ltabContents).forEach(([k, el]) => el?.classList.toggle('active', k === tab));
     if (tab === 'casos')  this.renderLoadCases();
+    if (tab === 'panos')  this.renderPanels();
+  }
+
+  // ── Paños: surface load on a polygon of nodes (CYPE "carga por paño"), expanded into member loads ──────
+  renderPanels() {
+    const root = this._ltabContents.panos;
+    if (!root) return;
+    const t = (k) => i18n.t(k), app = this.app, m = app.model, lc = m.loadCases.get(app._activeLcId);
+    const sel = [...(app.viewport?._selected || [])].filter(k => k.startsWith('node:')).map(k => +k.slice(5));
+    const ed = this._panelEdit ? (lc?.panels || []).find(p => p.id === this._panelEdit) : null;
+    const dirL = { gravity: t('Gravedad ↓'), normal: t('Normal al paño'), globalX: 'Global +X', globalY: 'Global +Y' };
+    const axL = { edge: t('1ª arista'), X: 'X', Y: 'Y', Z: 'Z' };
+    const rows = (lc?.panels || []).map(p => `<tr><td>#${p.id}</td><td>${p.nodes.length} ${t('nodos')}</td><td>${(+p.q).toString().replace('.', ',')} kN/m²</td><td>${esc(dirL[p.dir] || p.dir)}</td><td>${esc(axL[p.axis] || p.axis)}${p.area === 'projected' ? ' · ' + t('proyectada') : ''}</td>
+      <td style="white-space:nowrap"><button class="btn-secondary pn-ed" data-p="${p.id}" title="${esc(t('Editar'))}">✎</button> <button class="btn-danger pn-del" data-p="${p.id}" title="${esc(t('Eliminar'))}">✕</button></td></tr>`).join('');
+    const v = ed || { q: 1, dir: 'gravity', axis: 'edge', area: 'real' };
+    const opt = (o, cur) => Object.entries(o).map(([k, l]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    root.innerHTML = !lc ? `<p class="panel-hint">${t('No hay caso de carga activo.')}</p>` : `
+      <div class="prop-title" style="margin-top:0">${t('Paños del caso')} ${esc(lc.name)}</div>
+      ${rows ? `<table class="sel-desc"><tbody>${rows}</tbody></table>` : `<p class="panel-hint">${t('Sin paños en este caso.')}</p>`}
+      <div class="prop-title">${ed ? `${t('Editar paño')} #${ed.id}` : t('Nueva carga por paño')}</div>
+      <p class="panel-hint" style="margin:0 0 6px">${ed ? `${t('Nodos del contorno')}: ${ed.nodes.join(', ')}`
+        : `${t('Seleccione en orden los nodos del contorno (Ctrl+clic, ≥ 3)')}: <b>${sel.length ? sel.join(', ') : '—'}</b>`}</p>
+      <div class="prop-row cols2">
+        <div class="prop-field"><label>q (kN/m²)</label><input type="number" id="pn-q" value="${v.q}" step="0.05"></div>
+        <div class="prop-field"><label>${t('Dirección')}</label><select id="pn-dir">${opt(dirL, v.dir)}</select></div>
+      </div>
+      <div class="prop-row cols2">
+        <div class="prop-field"><label>${t('Distribución')}</label><select id="pn-mode"><option value="one-way" selected>${t('Unidireccional')}</option><option value="two-way" disabled>${t('Bidireccional (próximamente)')}</option></select></div>
+        <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pn-axis">${opt(axL, v.axis)}</select></div>
+      </div>
+      <div class="prop-row cols1">
+        <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pn-area">${opt({ real: t('Superficie del paño'), projected: t('Proyección horizontal') }, v.area || 'real')}</select></div>
+      </div>
+      <p class="panel-hint" style="margin:4px 0">${t('Unidireccional: cada barra transversal al vano recibe la faja entre las medias distancias a sus vecinas (o hasta el borde): w = q·b. Las barras paralelas al vano no reciben carga.')}</p>
+      <div style="display:flex;gap:6px">
+        ${ed ? `<button class="btn-secondary" id="pn-cancel" style="flex:1">${t('Cancelar')}</button>` : ''}
+        <button class="btn-primary" id="pn-go" style="flex:1" ${!ed && sel.length < 3 ? 'disabled' : ''}>${ed ? t('Actualizar paño') : t('Crear paño con los nodos seleccionados')}</button>
+      </div>`;
+    if (!lc) return;
+    const val = (id) => root.querySelector('#' + id)?.value;
+    const apply = () => {
+      const w = app._regenPanelLoads();
+      app.markDirty(); app.refreshLoads();
+      if (!w.length) app.toast?.(t('Paños actualizados'), 'ok');
+      this.renderPanels();
+    };
+    root.querySelector('#pn-go')?.addEventListener('click', () => {
+      const q = parseFloat(String(val('pn-q')).replace(',', '.'));
+      if (!isFinite(q)) { app.toast?.(t('q inválido'), 'warn'); return; }
+      app.snapshot();
+      lc.panels = lc.panels || [];
+      const props = { q, dir: val('pn-dir'), mode: 'one-way', axis: val('pn-axis'), area: val('pn-area') };
+      if (ed) Object.assign(ed, props);
+      else lc.panels.push({ id: lc.panels.reduce((mx, p) => Math.max(mx, p.id), 0) + 1, nodes: sel, ...props });
+      this._panelEdit = null;
+      apply();
+    });
+    root.querySelector('#pn-cancel')?.addEventListener('click', () => { this._panelEdit = null; this.renderPanels(); });
+    root.querySelectorAll('.pn-ed').forEach(b => b.addEventListener('click', () => { this._panelEdit = +b.dataset.p; this.renderPanels(); }));
+    root.querySelectorAll('.pn-del').forEach(b => b.addEventListener('click', () => {
+      app.snapshot();
+      lc.panels = lc.panels.filter(p => p.id !== +b.dataset.p);
+      if (this._panelEdit === +b.dataset.p) this._panelEdit = null;
+      apply();
+    }));
   }
 
   // active-case selector of the Cargas panel (same list as the toolbar selector, analysis cases only)
@@ -489,14 +565,20 @@ export class PropertiesPanel {
   showSelection(items) {
     this.app.setPanelCollapsed(false);   // seleccionar en la vista 3D despliega el panel
     this._lastShown = { k: 'multi', items };
+    this._multiHasNodes = items.some(i => i.type === 'node');
+    if (this._loadsMode() && this._currentLTab === 'panos') { this.renderPanels(); return; }
     this._showTarget('multi');
     if (this._loadsMode()) {
       const el = items.filter(i => i.type === 'elem'), nd = items.filter(i => i.type === 'node');
-      this._selRoot().innerHTML = `<div class="prop-id">${items.length} ${i18n.t('seleccionado(s)')}</div>`
-        + (el.length ? this._selLoadActionsHTML(el) : '') + (nd.length ? this._nodeLoadActionsHTML(nd) : '')
-        + (!el.length && !nd.length ? `<p class="panel-hint">${i18n.t('Las áreas no tienen cargas en este panel (temperatura por cara: pestaña Modelo).')}</p>` : '');
-      if (el.length) this._bindSelActions(el.map(e => e.id));
-      if (nd.length) this._bindNodeActions();
+      const hint = (k) => `<p class="panel-hint">${i18n.t(k)}</p>`;
+      this._renderInto(this._ltabContents.nos, () => {
+        this._selRoot().innerHTML = nd.length ? `<div class="prop-id">${nd.length} ${i18n.t('nodo(s)')}</div>` + this._nodeLoadActionsHTML(nd) : hint('Haga clic en un nodo para editar su carga en el caso activo.');
+        if (nd.length) this._bindNodeActions();
+      });
+      this._renderInto(this._ltabContents.barras, () => {
+        this._selRoot().innerHTML = el.length ? `<div class="prop-id">${el.length} ${i18n.t('elemento(s)')}</div>` + this._selLoadActionsHTML(el) : hint('Haga clic en una barra para editar su carga en el caso activo.');
+        if (el.length) this._bindSelActions(el.map(e => e.id));
+      });
       return;
     }
     const res  = this.app._results;
@@ -863,6 +945,7 @@ export class PropertiesPanel {
 
   showNothing() {
     this._lastShown = null;
+    if (this._loadsMode() && this._currentLTab === 'panos') { this.renderPanels(); return; }
     this._showTarget('none');
     if (!this._loadsMode()) {
       const t = (k) => i18n.t(k);
@@ -886,6 +969,7 @@ export class PropertiesPanel {
   showNode(node, focusSupports = false) {
     if (!node) { this.showNothing(); return; }
     this._lastShown = { k: 'node', id: node.id };
+    if (this._loadsMode() && this._currentLTab === 'panos') { this.renderPanels(); return; }
     if (focusSupports && !this._loadsMode()) { this._switchVTab('model'); this._switchTab('nodos'); }
     else this._showTarget('node');
     if (this._loadsMode()) {   // Cargas: only the loads of the node (active case + all cases)
@@ -915,6 +999,7 @@ export class PropertiesPanel {
   showElement(elem) {
     if (!elem) { this.showNothing(); return; }
     this._lastShown = { k: 'elem', id: elem.id };
+    if (this._loadsMode() && this._currentLTab === 'panos') { this.renderPanels(); return; }
     this._showTarget('elem');
     if (this._loadsMode()) {   // Cargas: distributed load of the active case + ΔT + all cases
       this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Elemento')} #${elem.id}</div>`
@@ -1140,7 +1225,7 @@ export class PropertiesPanel {
         : (ld.type === 'nodal' && ld.nodeId === id));
       if (!loads.length) continue;
       const desc = loads.map(ld => ld.type === 'dist'
-        ? `w = ${f(ld.w)} kN/m (${dir[ld.dir] || ld.dir || 'grav'})`
+        ? `w = ${f(ld.w)} kN/m (${dir[ld.dir] || ld.dir || 'grav'})${ld.panelId != null ? ` · ${i18n.t('paño')} #${ld.panelId}` : ''}`
         : `F=(${f(ld.F[0])}, ${f(ld.F[1])}, ${f(ld.F[2])}) kN${(ld.F[3]||ld.F[4]||ld.F[5]) ? `<br>M=(${f(ld.F[3])}, ${f(ld.F[4])}, ${f(ld.F[5])})` : ''}`).join('<br>');
       const cmb = combosOf(lc.id);
       rows.push(`<tr><td>${esc(lc.name)}${lc.selfWeight ? ' <span class="muted">+pp</span>' : ''}</td><td>${desc}</td><td>${cmb.length ? cmb.join('<br>') : '<span class="muted">—</span>'}</td></tr>`);
@@ -2224,7 +2309,7 @@ export class PropertiesPanel {
     const lcId = this.app._activeLcId;
     const lc   = this.app.model.loadCases.get(lcId);
     if (lc?.type === 'spectrum') return this._spectralLoadNote('loads-lc-elem');
-    const ex   = lc ? lc.loads.find(l => l.type === 'dist' && l.elemId === elem.id) : null;
+    const ex   = lc ? lc.loads.find(l => l.type === 'dist' && l.elemId === elem.id && l.panelId == null) : null;
     return `<div class="load-section">
       <div class="prop-title load-title-row">${i18n.t('Carga Distribuida')} ${this._lcSelectHTML('loads-lc-elem')}</div>
       <div class="prop-row">
@@ -2267,7 +2352,7 @@ export class PropertiesPanel {
       const w   = parseFloat(sel.querySelector('#dist-w')?.value) || 0;
       const w2raw = sel.querySelector('#dist-w2')?.value;
       const dir = sel.querySelector('#dist-dir')?.value || 'globalZ';
-      const idx = lc.loads.findIndex(l => l.type === 'dist' && l.elemId === elem.id);
+      const idx = lc.loads.findIndex(l => l.type === 'dist' && l.elemId === elem.id && l.panelId == null);
       const load = { type: 'dist', elemId: elem.id, dir, w };
       // w2 only if filled in and differing from w → trapezoidal load
       if (w2raw != null && w2raw !== '' && isFinite(+w2raw) && +w2raw !== w) load.w2 = +w2raw;
@@ -2280,7 +2365,7 @@ export class PropertiesPanel {
       this.app.snapshot();
       const lc = this.app.model.loadCases.get(this.app._activeLcId);
       if (!lc) return;
-      lc.loads = lc.loads.filter(l => !(l.type === 'dist' && l.elemId === elem.id));
+      lc.loads = lc.loads.filter(l => !(l.type === 'dist' && l.elemId === elem.id && l.panelId == null));
       this.app.markDirty();
       this.app.refreshLoads();
     });

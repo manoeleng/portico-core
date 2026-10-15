@@ -2057,7 +2057,9 @@ export function generateWarehouse(spec, libs) {
 
   return {
     version: '1.0', units: 'kN-m', mode: umPortico ? '2D' : '3D',   // a single frame is a plane frame (X–Z)
-    nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])], diaphragms: [],
+    // only the sections some member uses (roof only: no column section; one frame: no purlin/rod) — lists/quantities
+    nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])]
+      .filter(q => q && elements.some(e => e.secId === q.id)), diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, ...(hE > 0 ? [+(H + hE).toFixed(4)] : []), +(H + hE + hR).toFixed(4)] },
     _counters: { nodes: nodes.length, elements: elements.length, materials: mats.length, sections: 3 + (comContrav ? 2 : 0) + (secLace ? 1 : 0) + (secSag ? 1 : 0), diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
