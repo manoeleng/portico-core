@@ -1643,6 +1643,16 @@ export function generateWarehouse(spec, libs) {
   const secCol = pickSection(g.column_section ?? (spec.sections || {}).columns, perfiles, esMadera ? { b_cm: 15, h_cm: 20 } : { b_cm: 30, h_cm: 30 }, 'Column', addWarning); secCol.id = 1;
   const secCord = pickSection(g.chord_size, perfiles, esMadera ? { b_cm: 7.5, h_cm: 15 } : { b_cm: 15, h_cm: 15 }, 'Chord', addWarning); secCord.id = 2;
   const secDiag = pickSection(g.diagonal_size, perfiles, esMadera ? { b_cm: 5, h_cm: 10 } : { b_cm: 10, h_cm: 10 }, 'Diagonal/purlin', addWarning); secDiag.id = 3;
+  // Brazil preset (or warehouse.bracing = true): X bracing in the end bays and pinned web/purlins —
+  // Manual CBCA "Galpões para usos gerais" 2.14/2.15: roof bracing in the end bays against the gable wind,
+  // X diagonals with only the tension one acting (compressed one neglected), purlins take the compression;
+  // vertical X bracing on the longitudinal lines; round rod ≥ 12 mm (NBR 8800).
+  const brasilGalpao = libs.reglas?.loads?.wind?.metodo === 'NBR6123';
+  const comContrav = g.bracing ?? brasilGalpao;
+  const dRod = (g.bracing_rod_mm > 0 ? g.bracing_rod_mm : 12) / 1000;
+  const secRod = { id: 4, name: `Barra redonda φ${Math.round(dRod * 1000)}`, A: +(Math.PI * dRod ** 2 / 4).toFixed(10),
+    Iz: +(Math.PI * dRod ** 4 / 64).toFixed(14), Iy: +(Math.PI * dRod ** 4 / 64).toFixed(14), J: +(Math.PI * dRod ** 4 / 32).toFixed(14),
+    Avy: +(0.9 * Math.PI * dRod ** 2 / 4).toFixed(10), Avz: +(0.9 * Math.PI * dRod ** 2 / 4).toFixed(10), kappay: 1.0, kappaz: 1.0 };
 
   const nodes = [], elements = []; let nid = 0, eid = 0; const nodeAt = new Map(), elemAt = new Set();
   const rk = (v) => Math.round(v * 1e5) / 1e5;
@@ -1681,6 +1691,28 @@ export function generateWarehouse(spec, libs) {
   for (let s = 0; s + 1 < Yf.length; s++) for (let i = 0; i <= nT; i++) {
     addEl(frames[s].T[i], frames[s + 1].T[i], secDiag.id);
     addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
+  }
+  if (comContrav) {
+    // pin both ends of the truss web and of the purlins (ry, rz released; torsion kept): chords stay continuous
+    const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
+    for (const e of elements) {
+      const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
+      const isPurlin = Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.z - b.z) < 1e-6 && Math.abs(a.y - b.y) > 1e-6;
+      const isWeb = e.secId === secDiag.id && Math.abs(a.y - b.y) < 1e-6;
+      if (isPurlin || isWeb) e.releases = [...PIN];
+    }
+    // X bracing (tension-only rods, pinned) in the two end bays: roof plane (top chord) and both side walls
+    const bays = [...new Set([0, Yf.length - 2])].filter(s => s >= 0 && s + 1 < Yf.length);
+    const rod = (n1, n2) => { const id = addEl(n1, n2, secRod.id); if (id != null) { const e = elements[id - 1]; e.releases = [...PIN]; e.cable = true; } };
+    for (const s of bays) {
+      const A = frames[s], B = frames[s + 1];
+      for (let i = 0; i < nT; i++) { rod(A.T[i], B.T[i + 1]); rod(A.T[i + 1], B.T[i]); }   // roof plane, panel by panel
+      for (const x of [0, luz]) {                                                       // side walls
+        const yA = Yf[s], yB = Yf[s + 1];
+        rod(getNode(x, yA, 0), getNode(x, yB, H)); rod(getNode(x, yB, 0), getNode(x, yA, H));
+      }
+    }
+    addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) nos vãos extremos — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
   // ── Roof loads (CM + CV) on the top chords, tributary width sep ──
@@ -1760,10 +1792,10 @@ export function generateWarehouse(spec, libs) {
 
   return {
     version: '1.0', units: 'kN-m', mode: '3D',
-    nodes, elements, materials: [mat], sections: [secCol, secCord, secDiag], diaphragms: [],
+    nodes, elements, materials: [mat], sections: comContrav ? [secCol, secCord, secDiag, secRod] : [secCol, secCord, secDiag], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, +(H + hR).toFixed(4)] },
-    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
+    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: comContrav ? 4 : 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
     _generado: {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,
