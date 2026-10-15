@@ -2536,6 +2536,19 @@ export const EN = {
   "casos": "cases",
   "combinaciones": "combinations",
   "avisos": "warnings",
+  "Sin casos de viento (nombre con «viento»/«vento»/«wind»).": "No wind cases (name containing «viento»/«vento»/«wind»).",
+  "Ejecute el análisis estático (F5) para tener los casos de viento.": "Run the static analysis (F5) to get the wind cases.",
+  "4.2 Derivas sísmicas de entrepiso — NBR 15421 (Tabla 9)": "4.2 Seismic story drifts — NBR 15421 (Table 9)",
+  "4.3 Desplazamiento horizontal del tope de los pilares — viento": "4.3 Horizontal displacement of column tops — wind",
+  "Caso": "Case",
+  "característico": "characteristic",
+  "frecuente": "frequent",
+  "Límite": "Limit",
+  "Razón": "Ratio",
+  "combinación": "combination",
+  "frecuente (ψ1 del viento)": "frequent (wind ψ1)",
+  "rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)": "rare (characteristic wind; NBR 8800 B.2.4: chosen by the engineer of record)",
+  "H = altura del pilar (tope a base).": "H = column height (top to base).",
 };
 
 export default EN;

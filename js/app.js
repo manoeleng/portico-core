@@ -33,6 +33,7 @@ import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
 import { driftLimit, driftLimit15421 } from './design/serviceability.js?v=7';
+import { topDriftCheck } from './design/top_drift.js?v=7';
 import { parseNum } from './utils/num.js?v=7';
 import { parseCSV } from './utils/csv.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
@@ -8838,6 +8839,27 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
   // (1) between CENTERS OF MASS (diaphragm master nodes) and (2) between the
   // EXTERNAL nodes (max level displacement). Both ≤ 0.002·h (2/1000 of the story
   // height). Uses the seismic displacements (spectrum F6+F7).
+  // ── Service: horizontal displacement of the column tops under wind (NBR 6118 Tab. 13.3 / NBR 8800 Tab. B.1) ──
+  // Brazilian codes only (PT locale or NBR codes chosen). Characteristic wind cases (name with vento/viento/
+  // wind) from the static analysis; steel vs concrete by the column material; NBR 8800 one-storey (H/300) when the
+  // model has at most one diaphragm level. Pure check in js/design/top_drift.js.
+  _computeTopDrift() {
+    const codes = JSON.stringify(this.model.designSettings?.codeByFamily || {});
+    if (!(i18n.getLocale?.() === 'pt' || /NBR/.test(codes))) return null;
+    const winds = [...this.model.loadCases.values()].filter(l => l.type !== 'spectrum' && /vient|vent|wind/i.test(l.name || ''));
+    const out = { rows: [], note: '' };
+    if (!winds.length) { out.note = i18n.t('Sin casos de viento (nombre con «viento»/«vento»/«wind»).'); return out; }
+    const byCase = this._resultsByCase;
+    const cases = winds.map(l => ({ name: l.name, res: byCase?.get(l.id) })).filter(c => c.res && typeof c.res.getNodeDisp === 'function')
+      .map(c => ({ name: c.name, disp: (id) => { try { return c.res.getNodeDisp(id); } catch { return null; } } }));
+    if (!cases.length) { out.note = i18n.t('Ejecute el análisis estático (F5) para tener los casos de viento.'); return out; }
+    const nodes = [...this.model.nodes.values()], elements = [...this.model.elements.values()];
+    const steel = elements.some(e => (this.model.materials.get(e.matId)?.E || 0) > 1e8);
+    const r = topDriftCheck({ nodes, elements, cases, code: steel ? 'NBR8800:2024' : 'NBR6118:2026',
+      singleStory: this.model.diaphragms.size <= 1, combo: this.model.designSettings?.topDriftCombo || 'rara' });
+    return { ...r, note: '' };
+  }
+
   _computeDrift() {
     // Limit from the code layer (js/design/serviceability.js), not a hardcoded 0.002; the
     // drift math is the generic primitive (js/solver/drift.js). Here we only assemble the

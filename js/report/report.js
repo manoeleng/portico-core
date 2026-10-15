@@ -164,6 +164,18 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
         : i18n.t('Límite NCh433: 0.002 (2/1000·h). Calculada con los desplazamientos del espectro de respuesta.'), color: '5C6A7D', size: 9 }]);
     } else d.paragraph([{ text: stripTags(drift?.note || i18n.t('Sin datos de derivas sísmicas.')), italic: true, color: '5C6A7D' }]);
 
+    // ── 7b. Top displacement under wind ──
+    const td = app._computeTopDrift?.();
+    if (td) {
+      d.heading(i18n.t('4.3 Desplazamiento horizontal del tope de los pilares — viento'), 3);
+      if (td.rows?.length) {
+        const lim = td.limit ? `H/${Math.round(1 / td.limit)}` : '—';
+        d.table([i18n.t('Caso'), 'H (m)', 'Δ (mm)', `Δ ψ1 (mm)`, i18n.t('Límite'), i18n.t('Razón')],
+          td.rows.map(r => [r.case, fmt(r.H, 2), fmt(r.rara * 1000, 1), fmt(r.freq * 1000, 1), lim, fmt(r.ratio, 2)]));
+        d.paragraph([{ text: `${td.code === 'NBR6118:2026' ? 'NBR 6118:2026, Tab. 13.3' : 'NBR 8800:2024, Tab. B.1'} — ${i18n.t('combinación')} ${td.combo === 'frequente' ? i18n.t('frecuente (ψ1 del viento)') : i18n.t('rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)')}.`, color: '5C6A7D', size: 9 }]);
+      } else d.paragraph([{ text: td.note, italic: true, color: '5C6A7D' }]);
+    }
+
     // ── 8. Limitations ──
     d.heading(i18n.t('8. Alcances y limitaciones'), 1);
     const limits = (app._brandingPro && cm.limitaciones)
@@ -404,6 +416,19 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       deflexHTML = `<p class="muted">${esc(deflex?.note || i18n.t('Sin datos de deformaciones de vigas.'))}</p>`;
     }
 
+    // ── Top displacement under wind (NBR 6118 Tab. 13.3 / NBR 8800 Tab. B.1) ─────────
+    const td = app._computeTopDrift?.();
+    let topHTML = '';
+    if (td) {
+      const lim = td.limit ? `H/${Math.round(1 / td.limit)}` : '—';
+      const ref = td.code === 'NBR6118:2026' ? 'NBR 6118:2026, Tab. 13.3' : 'NBR 8800:2024, Tab. B.1';
+      topHTML = `<h3>${i18n.t('4.3 Desplazamiento horizontal del tope de los pilares — viento')}</h3>` + (td.rows?.length
+        ? `<table style="font-size:9.5px"><thead><tr><th>${i18n.t('Caso')}</th><th>H (m)</th><th>Δ ${i18n.t('característico')} (mm)</th><th>Δ ${i18n.t('frecuente')} ψ1 = ${fmt(td.psi1, 2)} (mm)</th><th>${i18n.t('Límite')}</th><th>${i18n.t('Razón')}</th></tr></thead><tbody>` +
+          td.rows.map(r => `<tr><td>${esc(r.case)}</td><td>${fmt(r.H, 2)}</td><td>${fmt(r.rara * 1000, 1)}</td><td>${fmt(r.freq * 1000, 1)}</td><td>${lim}</td><td class="${r.ratio > 1 ? 'r-bad' : 'r-ok'}">${fmt(r.ratio, 2)}</td></tr>`).join('') +
+          `</tbody></table><p class="muted">${ref} — ${i18n.t('combinación')} ${td.combo === 'frecuente' || td.combo === 'frequente' ? i18n.t('frecuente (ψ1 del viento)') : i18n.t('rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)')}. ${i18n.t('H = altura del pilar (tope a base).')}</p>`
+        : `<p class="muted">${esc(td.note)}</p>`);
+    }
+
     // ── Seismic story drifts (NCh433) ─────────────────────────────────────────
     let driftHTML;
     if (drift && drift.dirs && drift.dirs.length) {
@@ -569,8 +594,9 @@ ${disenoHTML}
 <h2>${i18n.t('4. Verificaciones de servicio')}</h2>
 <h3>${i18n.t('4.1 Deformaciones de vigas — sobrecarga de uso (sin mayorar)')}</h3>
 ${deflexHTML}
-<h3>${i18n.t('4.2 Derivas sísmicas de entrepiso — NCh433 (límite 2/1000·h)')}</h3>
+<h3>${drift?.code === 'NBR15421:2023' ? i18n.t('4.2 Derivas sísmicas de entrepiso — NBR 15421 (Tabla 9)') : i18n.t('4.2 Derivas sísmicas de entrepiso — NCh433 (límite 2/1000·h)')}</h3>
 ${driftHTML}
+${topHTML}
 
 <h2>${i18n.t('5. Limitaciones y alcances')}</h2>
 <ul style="font-size:11px;line-height:1.6">${limitHTML}</ul>

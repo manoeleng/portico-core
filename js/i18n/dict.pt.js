@@ -2282,6 +2282,18 @@ export const PT = {
   "casos": "casos",
   "combinaciones": "combinações",
   "avisos": "avisos",
+  "Sin casos de viento (nombre con «viento»/«vento»/«wind»).": "Sem casos de vento (nome com «viento»/«vento»/«wind»).",
+  "Ejecute el análisis estático (F5) para tener los casos de viento.": "Execute a análise estática (F5) para ter os casos de vento.",
+  "4.2 Derivas sísmicas de entrepiso — NBR 15421 (Tabla 9)": "4.2 Deslocamentos relativos de pavimento — NBR 15421 (Tabela 9)",
+  "4.3 Desplazamiento horizontal del tope de los pilares — viento": "4.3 Deslocamento horizontal do topo dos pilares — vento",
+  "característico": "característico",
+  "frecuente": "frequente",
+  "Límite": "Limite",
+  "Razón": "Razão",
+  "combinación": "combinação",
+  "frecuente (ψ1 del viento)": "frequente (ψ1 do vento)",
+  "rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)": "rara (vento característico; NBR 8800 B.2.4: escolha do responsável técnico)",
+  "H = altura del pilar (tope a base).": "H = altura do pilar (topo à base).",
 };
 
 export default PT;
