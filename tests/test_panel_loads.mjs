@@ -114,6 +114,16 @@ const total = (m, loads) => loads.reduce((s, ld) => { const e = m.elements.get(l
   const su = panelToDistLoads(m, { id: 9, nodes: corners, q: 1, dir: 'normal', axis: 'Y' });
   ok('P7c. vento sucção: componente vertical para cima (w < 0 na gravidade)', comp(su.loads, purl[2], 'gravity'), -b * Math.cos(th), 1e-6);
 }
+// (8) tirantes (cable) never take surface load: a rod along X in the panel, at y = 2,25 (between purlins)
+{
+  const { m, purl, corners } = roof();
+  const mat = [...m.materials.values()][0], sec = [...m.sections.values()][0];
+  const rod = m.addElement(m.addNode(0, 2.25, 3).id, m.addNode(10, 2.25, 3).id, mat.id, sec.id);
+  m.updateElement(rod.id, { cable: true });
+  const r = panelToDistLoads(m, { id: 10, nodes: corners, q: 1, dir: 'gravity', axis: 'Y' });
+  assert('P8. tirante no pano não recebe carga', !r.loads.some((l) => l.elemId === rod.id));
+  ok('P8b. terças continuam com Σ = q·A = 60 kN', total(m, r.loads), 60);
+}
 // (4) two-way refused (no uniform approximation); regeneration replaces only panel loads
 {
   const { m, corners } = roof();

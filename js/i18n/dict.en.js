@@ -2804,6 +2804,11 @@ export const EN = {
   "viento, succión": "wind, suction",
   "vento →|": "wind →|",
   "vento |→": "wind |→",
+  "Tirantes só à tração": "Tension-only rods",
+  "combinaciones resueltas sin tirantes comprimidos": "combinations solved without compressed rods",
+  "inactivos": "inactive",
+  "sin convergencia": "not converged",
+  "máx.": "max.",
 };
 
 export default EN;

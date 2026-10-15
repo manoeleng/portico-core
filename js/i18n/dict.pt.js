@@ -2549,6 +2549,11 @@ export const PT = {
   "viento, succión": "vento, sucção",
   "vento →|": "vento →|",
   "vento |→": "vento |→",
+  "Tirantes só à tração": "Tirantes só à tração",
+  "combinaciones resueltas sin tirantes comprimidos": "combinações resolvidas sem tirantes comprimidos",
+  "inactivos": "inativos",
+  "sin convergencia": "sem convergência",
+  "máx.": "máx.",
 };
 
 export default PT;

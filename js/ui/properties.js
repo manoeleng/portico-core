@@ -298,6 +298,9 @@ export class PropertiesPanel {
         <div class="prop-field"><label>${t('Dirección del vano de la carga')}</label><select id="pn-axis">${opt(axL, v.axis)}</select></div>
       </div>
       <div class="prop-row cols1">
+        <div class="prop-field"><label>${t('Capa')}</label><select id="pn-layer">${(m.layers || []).map(l => `<option value="${l.id}" ${l.id === (ed ? (ed.layer ?? 1) : (m.activeLayer || 1)) ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>
+      </div>
+      <div class="prop-row cols1">
         <div class="prop-field"><label>${t('Área de referencia de q')}</label><select id="pn-area">${opt({ real: t('Superficie del paño (peso de tejas, permanentes)'), projected: t('Proyección horizontal (sobrecargas — NBR 6120 6.4)') }, v.area || 'real')}</select></div>
       </div>
       <p class="panel-hint" style="margin:4px 0">${t('Unidireccional: cada barra transversal al vano recibe la faja entre las medias distancias a sus vecinas (o hasta el borde): w = q·b. Las barras paralelas al vano no reciben carga.')}</p>
@@ -318,7 +321,7 @@ export class PropertiesPanel {
       if (!isFinite(q)) { app.toast?.(t('q inválido'), 'warn'); return; }
       app.snapshot();
       lc.panels = lc.panels || [];
-      const props = { q, dir: val('pn-dir'), mode: 'one-way', axis: val('pn-axis'), area: val('pn-area') };
+      const props = { q, dir: val('pn-dir'), mode: 'one-way', axis: val('pn-axis'), area: val('pn-area'), layer: +val('pn-layer') || 1 };
       if (ed) Object.assign(ed, props);
       else lc.panels.push({ id: lc.panels.reduce((mx, p) => Math.max(mx, p.id), 0) + 1, nodes: sel, ...props });
       this._panelEdit = null;

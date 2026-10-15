@@ -235,6 +235,8 @@ export function elemLocalK(elem, mat, sec, L) {
   // endFixity (αR per bending DOF) becomes a spring here, with the CURRENT section and length.
   const springs = elem.endFixity ? fixitySprings(elem, mat, sec, L) : elem.endSprings;
   if (springs) Ke = applyEndSprings(Ke, springs);
+  // tension-only member found in compression during a per-combination analysis (tension_only.js): slack
+  if (elem._slack) Ke = Ke.map((row) => row.map((v) => v * 1e-9));
   return Ke;
 }
 

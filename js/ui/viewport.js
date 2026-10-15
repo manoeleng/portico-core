@@ -3965,8 +3965,11 @@ export class Viewport {
     const sel = this._selPanel && this._selPanel.lcId === lc.id ? this._selPanel.id : null;
     const b = model.getBounds(), span = Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z, 1);
     for (const p of panels) {
+      const ly = layerById(model, p.layer ?? 1);
+      if (ly.visible === false) continue;                          // panel on a hidden layer
       const f = panelFrame(model, p);
       if (!f) continue;
+      const pcol = model.layerView?.colorByLayer ? new THREE.Color(ly.color) : new THREE.Color(0xf59e0b);
       const lift = span * 0.002, off = f.n.map((c) => c * lift);   // off the plane: no z-fighting with plates
       const M = (q) => this.m2t(q[0] + off[0], q[1] + off[1], q[2] + off[2]);
       const tris = THREE.ShapeUtils.triangulateShape(f.poly.map(([x, y]) => new THREE.Vector2(x, y)), []);
@@ -3975,14 +3978,14 @@ export class Viewport {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       const isSel = p.id === sel;
-      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: isSel ? 0.38 : 0.18,
+      const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: pcol, transparent: true, opacity: isSel ? 0.38 : 0.18,
         side: THREE.DoubleSide, depthWrite: false }));
       fill.userData = { type: 'panel', lcId: lc.id, id: p.id };
       fill.renderOrder = 1;
       const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(f.pts.map(M)),
-        new THREE.LineBasicMaterial({ color: isSel ? 0xffffff : 0xf59e0b }));
-      // span direction: double arrow through the centroid, half the panel size along u
-      const c = f.centroid, L = Math.sqrt(f.area) * 0.35;
+        new THREE.LineBasicMaterial({ color: isSel ? 0xffffff : pcol }));
+      // span direction: double arrow through the centroid, kept INSIDE the area (70 % of the free reach along ±u)
+      const c = f.centroid, L = Math.max(1e-3, 0.7 * f.reachU);
       const dirT = this.m2t(f.u[0], f.u[1], f.u[2]).normalize(), cT = M(c);
       const a1 = new THREE.ArrowHelper(dirT, cT, L, 0xf59e0b, L * 0.25, L * 0.12);
       const a2 = new THREE.ArrowHelper(dirT.clone().negate(), cT, L, 0xf59e0b, L * 0.25, L * 0.12);
@@ -3995,7 +3998,9 @@ export class Viewport {
       const dm = p.dir === 'gravity' ? [0, 0, -1] : p.dir === 'against' ? f.n.map((x) => -x) : p.dir === 'normal' ? f.n
         : p.dir === 'globalX' ? [1, 0, 0] : p.dir === 'globalY' ? [0, 1, 0] : [0, 0, -1];
       const dT = this.m2t(dm[0] * sgq, dm[1] * sgq, dm[2] * sgq).normalize(), La = span * 0.045;
-      const pts = [c, ...f.pts.map((q) => [c[0] + 0.6 * (q[0] - c[0]), c[1] + 0.6 * (q[1] - c[1]), c[2] + 0.6 * (q[2] - c[2])])];
+      // load arrows on a grid of points inside the area, set back from the edges (50 % of the reach from the centroid)
+      const [cx2, cy2] = f.c2, gu = 0.5 * f.reachU, gv = 0.5 * f.reachV, pts = [];
+      for (const i of [-1, 0, 1]) for (const j of [-1, 0, 1]) { const x = cx2 + i * gu, y = cy2 + j * gv; if (f.inside(x, y)) pts.push(f.at(x, y)); }
       for (const q of pts) {
         const tip = M(q);
         const ar = new THREE.ArrowHelper(dT, tip.clone().addScaledVector(dT, -La), La, 0xd97706, La * 0.3, La * 0.15);

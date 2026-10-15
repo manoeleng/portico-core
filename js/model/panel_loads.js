@@ -110,6 +110,7 @@ export function panelToDistLoads(model, panel) {
   // members lying in the panel and across the span direction
   const recv = [];
   for (const e of model.elements.values()) {
+    if (e.cable) continue;                                            // tirantes (bracing, sag rods) carry no surface load
     const a = model.nodes.get(e.n1), b = model.nodes.get(e.n2);
     if (!a || !b) continue;
     const pa = P(a), pb = P(b);
@@ -183,7 +184,21 @@ export function panelFrame(model, panel) {
   for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], k = a[0] * b[1] - b[0] * a[1]; A += k; cx += (a[0] + b[0]) * k; cy += (a[1] + b[1]) * k; }
   A /= 2; cx /= 6 * A; cy /= 6 * A;
   const c = [p0[0] + u[0] * cx + v[0] * cy, p0[1] + u[1] * cx + v[1] * cy, p0[2] + u[2] * cx + v[2] * cy];
-  return { pts, n, u, v, p0, poly, area: Math.abs(A), centroid: c };
+  // free length from the centroid to the boundary along ±u and ±v (arrows drawn inside the area)
+  const reach = (dx, dy) => {
+    let best = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1];
+      const den = dx * ey - dy * ex; if (Math.abs(den) < 1e-12) continue;
+      const tt = ((a[0] - cx) * ey - (a[1] - cy) * ex) / den, s2 = ((a[0] - cx) * dy - (a[1] - cy) * dx) / den;
+      if (tt > 1e-9 && s2 >= -1e-9 && s2 <= 1 + 1e-9) best = Math.min(best, tt);
+    }
+    return isFinite(best) ? best : 0;
+  };
+  const inside = (x, y) => { let k = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) k = !k; } return k; };
+  return { pts, n, u, v, p0, poly, area: Math.abs(A), centroid: c, c2: [cx, cy],
+    reachU: Math.min(reach(1, 0), reach(-1, 0)), reachV: Math.min(reach(0, 1), reach(0, -1)), inside,
+    at: (x, y) => [p0[0] + u[0] * x + v[0] * y, p0[1] + u[1] * x + v[1] * y, p0[2] + u[2] * x + v[2] * y] };
 }
 
 // Replaces the panel-derived member loads of every case by a fresh expansion of its panels.

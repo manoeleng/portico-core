@@ -21,6 +21,7 @@ import { buildNodeIndex, assembleK, assembleF, getNodeDOFs } from './solver/asse
 import { assembleSparseGlobal, extractFreeCSR } from './solver/sparse.js?v=7';
 import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
+import { hasTensionOnly, solveCombinationTensionOnly } from './solver/tension_only.js?v=7';
 import { regeneratePanelLoads } from './model/panel_loads.js?v=7';
 import { renderLayersPanel } from './ui/layers_panel.js?v=7';
 import { listMacros, getMacro, insertMacro } from './model/macro_registry.js?v=7';
@@ -1927,6 +1928,7 @@ class App {
             const res = this._combineFromCache(combo);
             if (res) this._resultsByCase.set('C' + combo.id, res);
           }
+          this._applyTensionOnlyCombos();
           // Don't cache PARTIAL runs (#105): a later full F5 must recompute everything.
           this._resultsCache = only ? null : { sig, autoDisc: !!autoDisc, cases };
           this._persistResults();
@@ -8278,7 +8280,24 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
       const res = this._combineFromCache(combo);
       if (res) this._resultsByCase.set('C' + combo.id, res);
     }
+    this._applyTensionOnlyCombos();
     return true;
+  }
+
+  // Tension-only members (cable: X bracing, sag rods): every static combination is re-solved as one case with the
+  // compressed rods made slack, iteratively (CYPE 3D Memória de cálculo 1.6.2) — replaces the superposed result.
+  _applyTensionOnlyCombos() {
+    if (!hasTensionOnly(this.model) || !this.model.combinations.size) return;
+    let n = 0, slackMax = 0, notConv = 0;
+    for (const combo of this.model.combinations.values()) {
+      try {
+        const r = solveCombinationTensionOnly(this.model, combo, StaticSolver);
+        if (!r?.res) continue;
+        this._resultsByCase.set('C' + combo.id, r.res);
+        n++; slackMax = Math.max(slackMax, r.slack.length); if (!r.converged) notConv++;
+      } catch (e) { console.warn('tirantes (só tração):', combo.name, e); }
+    }
+    if (n) this.toast(`${i18n.t('Tirantes só à tração')}: ${n} ${i18n.t('combinaciones resueltas sin tirantes comprimidos')} (${i18n.t('máx.')} ${slackMax} ${i18n.t('inactivos')})${notConv ? ` · ${notConv} ${i18n.t('sin convergencia')}` : ''}`, notConv ? 'warn' : 'ok');
   }
 
   _persistResults() {
