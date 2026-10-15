@@ -3962,7 +3962,9 @@ export class Viewport {
   // section is generic (no tabulated shape). Centered on the centroid: width (b)
   // along local +X, height (h) along local +Y.
   _sectionShape(sec) {
-    let dz      = sec.design || {};
+    // sec.draw = { shape, dims } — DRAWING-ONLY shape (no effect on analysis or design), e.g. a cold-formed plain U or a
+    // double angle 2L that is not in the profile catalogues
+    let dz      = sec.draw?.shape ? sec.draw : (sec.design || {});
     // DRAWING ONLY: a section without shape (e.g. made by the generator from the catalogue properties) is looked up by
     // its name in the profile catalogues (Gerdau W/HP…, NBR 6355) and a round bar by the φ of its name — the analysis
     // and design data of the section are not touched.
@@ -4073,6 +4075,21 @@ export class Viewport {
       const H = d.d, B = d.b, t = d.t;
       if (!(H > 0 && B > 0 && t > 0 && t < Math.min(H, B))) return null;
       return { outline: [[0, 0], [B, 0], [B, t], [t, t], [t, H], [0, H]] };
+    }
+    // cold-formed plain channel (U simples): web d, flanges bf, thickness t — mid-line thickened
+    if (shape === 'u-cf') {
+      const t = d.t, h = (d.d || 0) - t, bb = (d.bf || 0) - t / 2;
+      if (!(t > 0 && h > 0 && bb > 0)) return null;
+      return { outline: this._thickenPath([[bb, -h / 2], [0, -h / 2], [0, h / 2], [bb, h / 2]], t) };
+    }
+    // double angle 2L b×t back to back, gap g (two separate outlines: the second as a "hole"-free extra outline is not
+    // supported by THREE.Shape → drawn as one outline joined by the gap at the heel line)
+    if (shape === '2l') {
+      const bb = d.b, t = d.t, g = d.gap ?? 0.008;
+      if (!(bb > 0 && t > 0)) return null;
+      const x0 = g / 2;
+      return { outline: [[x0, 0], [x0 + bb, 0], [x0 + bb, t], [x0 + t, t], [x0 + t, bb], [x0, bb], [-x0, bb], [-x0 - t, bb], [-x0 - t, t],
+        [-x0 - bb, t], [-x0 - bb, 0], [-x0, 0]] };
     }
     if (shape === 'tee' || shape === 't' || shape === 't-shape') {
       const H = d.d, bf = d.bf, tf = d.tf, tw = d.tw;

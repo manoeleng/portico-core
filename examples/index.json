@@ -124,5 +124,11 @@
     "title": "Network arch ferroviario (Brunn & Schanack)",
     "description": "Modal de un arco network (péndolas cruzadas) contra una memoria de tesis publicada (TU Dresden).",
     "note": "Corre Modal (F6) y compara la 1ª frecuencia de flexión (~2.34 Hz)."
+  },
+  {
+    "file": "galpao_pff_wanderson.s3d",
+    "title": "Galpão em perfis formados a frio · aula Prof. Wanderson Maia (INBEC)",
+    "description": "Pórtico plano do galpão 26 × 42 m da especialização INBEC/UNICID (2015–16): pilares treliçados de 0,8 m, treliça de banzos paralelos H = 1,5 m a 10 %, perfis U 150x75x2,65, U 200x100x2,65, 2L 60x2,25 e 2L 40x2,25; casos CP, SC, V1–V3 e combinações C1–C10 da apostila.",
+    "note": "Modelo de teste montado a partir do resumo do projeto (págs. 179–199). Alma rotulada, banzos e pernas contínuos, bases rotuladas, peso próprio somado à CP. Aço adotado MR250 (a apostila não informa o aço dos perfis)."
   }
 ]
