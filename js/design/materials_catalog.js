@@ -16,6 +16,39 @@ const CONC = (fc, E) => ({ E, G: E / 2.4, nu: 0.2, rho: 2.5, alpha: 1.0e-5,
 const TIMBER = (Fb, Fc, Ft, Fv, E, rho) => ({ E, G: E / 16, nu: 0.3, rho, alpha: 5e-6,
   design: { family: 'timber', Fb, Fc, Ft, Fv, Fcp: 2.5 } });
 
+// Brazilian structural steel — NBR 8800:2024 4.6.2.9: E = 200 000 MPa, G = 77 000 MPa, ν = 0,3,
+// α = 1,2·10⁻⁵/°C, ρ = 7 850 kg/m³; fy/fu per Tab. A.1 (NBR 7007; MR 250 fu = 400 MPa minimum).
+const STEEL_BR = (Fy, Fu) => ({ E: 2.0e8, G: 7.7e7, nu: 0.3, rho: 7.85, alpha: 1.2e-5,
+  design: { family: 'steel', Fy, Fu, E: 200000 } });
+// Brazilian concrete — NBR 6118:2026: Eci = αE·5600·√fck (fck ≤ 50 MPa, αE = 1,0 granite/gneiss) and
+// Ecs = αi·Eci, αi = 0,8 + 0,2·fck/80 ≤ 1,0 (8.2.8); Gc = Ecs/2,4 and ν = 0,2 (8.2.9); α = 10⁻⁵/°C
+// (8.2.3); reinforced concrete 2 500 kg/m³ (8.2.2). Analysis uses Ecs. Rebar CA-50 (fyk = 500 MPa).
+const CONC_BR = (fck, aE = 1.0) => {
+  const Ecs = Math.min(0.8 + 0.2 * fck / 80, 1.0) * aE * 5600 * Math.sqrt(fck) * 1000;   // kN/m²
+  return { E: Ecs, G: Ecs / 2.4, nu: 0.2, rho: 2.5, alpha: 1.0e-5,
+    design: { family: 'concrete', fc: fck, fyRebar: 500 } };
+};
+
+// Brazilian materials live in a separate catalogue so the base library is unchanged; the Brazil
+// preset exposes them in the UI. getMaterialDef() resolves names from both.
+export const MATERIALS_BR = {
+  'Aço MR250':         STEEL_BR(250, 400),
+  'Aço AR350':         STEEL_BR(350, 450),
+  'Aço AR350 COR':     STEEL_BR(350, 485),
+  'Aço AR415':         STEEL_BR(415, 520),
+  'Concreto C20':      CONC_BR(20),
+  'Concreto C25':      CONC_BR(25),
+  'Concreto C30':      CONC_BR(30),
+  'Concreto C35':      CONC_BR(35),
+  'Concreto C40':      CONC_BR(40),
+  'Concreto C45':      CONC_BR(45),
+  'Concreto C50':      CONC_BR(50),
+};
+export const MATERIAL_FAMILIES_BR = {
+  'Aço (NBR)':      ['Aço MR250', 'Aço AR350', 'Aço AR350 COR', 'Aço AR415'],
+  'Concreto (NBR)': ['Concreto C20', 'Concreto C25', 'Concreto C30', 'Concreto C35', 'Concreto C40', 'Concreto C45', 'Concreto C50'],
+};
+
 export const MATERIALS = {
   // Structural steel (E≈210 GPa; A36/A572 at 200 GPa per ASTM convention).
   'Acero A36':         STEEL(250, 400, 2.0e8),
@@ -48,6 +81,6 @@ export function materialNames() { return Object.keys(MATERIALS); }
 
 // Definition ready for `model.addMaterial(...)` (deep copy + name).
 export function getMaterialDef(name) {
-  const m = MATERIALS[name];
+  const m = MATERIALS[name] || MATERIALS_BR[name];
   return m ? { name, ...JSON.parse(JSON.stringify(m)) } : null;
 }
