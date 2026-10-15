@@ -2586,6 +2586,19 @@ export const PT = {
   "Atrás": "Fundos",
   "Frente": "Frente",
   "Cubo de navegación: clic en una cara, arista o vértice para ver desde ese lado": "Cubo de navegação: clique numa face, aresta ou vértice para ver daquele lado",
+  "Flambagem — comprimentos destravados": "Flambagem — comprimentos destravados",
+  "auto": "auto",
+  "Automático": "Automático",
+  "barra física de": "barra física de",
+  "trecho(s)": "trecho(s)",
+  "extremidade livre (balanço): informe Lx/Ly": "extremidade livre (balanço): informe Lx/Ly",
+  "Flambagem em torno do eixo forte (z local)": "Flambagem em torno do eixo forte (z local)",
+  "Flambagem em torno do eixo fraco (y local)": "Flambagem em torno do eixo fraco (y local)",
+  "Flambagem lateral com torção (FLT) — distância entre contenções da mesa comprimida": "Flambagem lateral com torção (FLT) — distância entre contenções da mesa comprimida",
+  "Fator de modificação para diagrama de momento não uniforme (vazio = 1,0, a favor da segurança)": "Fator de modificação para diagrama de momento não uniforme (vazio = 1,0, a favor da segurança)",
+  "Contenções também impedem a torção (Lb = Lz = Ly)": "Contenções também impedem a torção (Lb = Lz = Ly)",
+  "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).": "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).",
+  "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.": "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.",
 };
 
 export default PT;

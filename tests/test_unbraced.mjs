@@ -104,6 +104,21 @@ const L = (m) => unbracedLengths(m, localAxes);
   const u = L(m);
   ok('U12. trecho com β = 90°: Lx (seu y = −Y global) = 2', u.get(E[0]).Lx, 2); ok('U12b. Ly = 6', u.get(E[0]).Ly, 6);
 }
+{ // U13: shallow Warren truss (depth 0,3 m, panel 1,5 m: |u·Z| of the web = 0,37 < 0,5) — every bottom node with a web
+  // member is a truss node in the plane (4.10.6.1-a): Lx = panel; out of plane nothing restrains: Ly = span
+  const m = new Model(); m.materials.clear(); m.sections.clear();
+  const mat = m.addMaterial({ name: 'S', E: 2e8, G: 8e7, nu: 0.3, rho: 0 });
+  const c = m.addSection({ name: 'C', A: 0.01, Iy: 1e-5, Iz: 3e-5, J: 1e-7, Avy: 0.002, Avz: 0.002 });
+  const w = m.addSection({ name: 'W', A: 0.005, Iy: 1e-6, Iz: 1e-6, J: 1e-8, Avy: 0.001, Avz: 0.001 });
+  const B = [0, 1.5, 3, 4.5, 6].map((x, i) => m.addNode(x, 0, 0, i === 0 || i === 4 ? { ux: 1, uy: 1, uz: 1 } : {}).id);
+  const T = [0.75, 2.25, 3.75, 5.25].map((x) => m.addNode(x, 0, 0.3).id);
+  const bot = []; for (let i = 0; i < 4; i++) bot.push(m.addElement(B[i], B[i + 1], mat.id, c.id).id);
+  for (let i = 0; i < 3; i++) m.addElement(T[i], T[i + 1], mat.id, c.id);
+  for (let i = 0; i < 4; i++) { m.addElement(B[i], T[i], mat.id, w.id); m.addElement(T[i], B[i + 1], mat.id, w.id); }
+  const u = L(m);
+  ok('U13. treliça rasa: banzo inferior Lx = painel 1,5', u.get(bot[1]).Lx, 1.5);
+  ok('U13b. fora do plano sem contenção: Ly = 6', u.get(bot[1]).Ly, 6);
+}
 { // U9: cantilever chain end flagged
   const m = new Model(); m.materials.clear(); m.sections.clear();
   const mat = m.addMaterial({ name: 'S', E: 2e8, G: 8e7, nu: 0.3, rho: 0 });

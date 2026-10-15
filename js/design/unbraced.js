@@ -13,11 +13,12 @@
 //     interior node of the chain restrains direction d when
 //       · a support (restraint or spring) holds the translation along d (projection of d on the held axes ≥ 0,7);
 //       · another member (not a tension-only rod — it gives no restraint in compression) frames in with a direction u
-//         such that |u·d| ≥ 0,5 (at least 30° out of the chain axis towards d) — it carries the restraint force along
-//         its own axis — AND that restraint is ANCHORED (4.10.3.2: the restraining element must be tied to a bracing
-//         substructure): from the node there is a path of members not perpendicular to d (|u·d| ≥ 0,15 — a truss is
-//         stiff in its plane whatever the angle of each bar; tension-only rods included here: the X of a bracing works
-//         with its tensioned diagonal) reaching an ANCHOR — a node whose support holds d, a
+//         such that |u·d| ≥ 0,5 (at least 30° out of the chain axis towards d), or lies in the plane (chain axis, d) and
+//         closes a TRIANGLE with a segment of the chain (a web member of a truss, any angle) — AND that restraint is ANCHORED (4.10.3.2: the restraining element must be tied to a bracing
+//         substructure): from the node there is a path reaching an ANCHOR through members that carry the force along d
+//         axially (|u·d| ≥ 0,15) or that belong to a TRIANGULATED system in the plane (chain axis, d) — a truss is stiff
+//         in its plane whatever the angle of each bar (4.10.6.1-a), a frame of ties without diagonals is not; tension-only
+//         rods included here (the X of a bracing works with its tensioned diagonal) — a node whose support holds d, a
 //         rigid diaphragm node or a plate node (same tests as below). Purlins tying trusses that only sway together
 //         (no roof bracing) are NOT restraints;
 //       · the node belongs to a rigid diaphragm (horizontal component of d ≥ 0,7) or to a plate/area element whose
@@ -46,6 +47,7 @@ export const COLLINEAR_COS = Math.cos(Math.PI / 180);   // 1°
 export const FRAME_IN_MIN = 0.5;                         // |u·d| of a restraining member
 export const HOLD_MIN = 0.7;                             // projection of d held by a support / diaphragm / plate
 export const PATH_MIN = 0.15;                            // |u·d| of the members of the anchorage path (≈ 9°)
+export const IN_PLANE = 0.1;                             // |u·n| of a member lying in the plane (chain axis, d)
 
 /**
  * @param model  PORTICO Model
@@ -58,6 +60,12 @@ export function unbracedLengths(model, localAxesFn) {
   const at = new Map();                                   // nodeId → elements
   for (const e of els) for (const n of [e.n1, e.n2]) { if (!at.has(n)) at.set(n, []); at.get(n).push(e); }
   const axis = new Map(els.map((e) => [e.id, unit(sub(P(model.nodes.get(e.n2)), P(model.nodes.get(e.n1))))]));
+  const nbrs = new Map();                                // nodeId → Set of connected nodeIds (rods included)
+  for (const e of els) for (const [a, b] of [[e.n1, e.n2], [e.n2, e.n1]]) { if (!nbrs.has(a)) nbrs.set(a, new Set()); nbrs.get(a).add(b); }
+  // a real (non-degenerate) triangle: the third node is off the line of the two others
+  const offLine = (a, b, c) => { const pa = P(model.nodes.get(a)), u = sub(P(model.nodes.get(b)), pa), v = sub(P(model.nodes.get(c)), pa); return len(cross3(u, v)) > 1e-6 * Math.max(1e-9, len(u) * len(v)); };
+  const inTriangle = (o) => { const A = nbrs.get(o.n1), B = nbrs.get(o.n2); if (!A || !B) return false; for (const r of A) if (B.has(r) && offLine(o.n1, o.n2, r)) return true; return false; };
+  const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   const continues = (a, b) => !a.cable && !b.cable && Math.abs(dot(axis.get(a.id), axis.get(b.id))) >= COLLINEAR_COS;
 
   // ── 1. chains ─────────────────────────────────────────────────────────────
@@ -85,6 +93,7 @@ export function unbracedLengths(model, localAxesFn) {
     for (const nrm of areaAt.get(nodeId) || []) { const c = dot(d, nrm); if (Math.hypot(d[0] - c * nrm[0], d[1] - c * nrm[1], d[2] - c * nrm[2]) >= HOLD_MIN) return true; }
     return false;
   };
+  const chains = [];
   for (const e0 of els) {
     if (seen.has(e0.id) || e0.cable) continue;
     // grow both ways
@@ -99,6 +108,16 @@ export function unbracedLengths(model, localAxesFn) {
         node = o.n1 === node ? o.n2 : o.n1; cur = o;
       }
     }
+    chains.push(chain);
+  }
+  // nodes of one straight physical member are mutually LINKED (a truss chord split at panel points still closes the
+  // triangles of the web): extended adjacency used by the triangle tests
+  for (const ch of chains) {
+    const ids = [...new Set(ch.flatMap((e) => [e.n1, e.n2]))];
+    if (ids.length > 2) for (const a of ids) for (const b of ids) if (a !== b) nbrs.get(a).add(b);
+  }
+  for (const chain of chains) {
+    const e0 = chain[0];
     // ordered node list along the chain
     const ex = axis.get(e0.id), N1 = model.nodes.get(e0.n1);
     const nodeIds = [...new Set(chain.flatMap((e) => [e.n1, e.n2]))];
@@ -109,9 +128,14 @@ export function unbracedLengths(model, localAxesFn) {
 
     // restraint of direction d at an interior node: an anchor itself, or a member framing in whose far side reaches an
     // anchor through members along d (the chain itself excluded)
+    const chainNodes = new Set(nodeIds);
     const holds = (nodeId, d) => {
       if (anchor(nodeId, d)) return true;
-      const start = (at.get(nodeId) || []).filter((o) => !inChain.has(o.id) && !o.cable && Math.abs(dot(axis.get(o.id), d)) >= FRAME_IN_MIN);
+      const nP = unit(cross3(ex, d)), inPlane = (o) => Math.abs(dot(axis.get(o.id), nP)) <= IN_PLANE;
+      // web member of a truss in the plane (chain, d): its far node is tied to another node of the chain → triangle
+      const web = (o) => { const q = o.n1 === nodeId ? o.n2 : o.n1; for (const r of nbrs.get(q) || []) if (r !== nodeId && chainNodes.has(r) && offLine(nodeId, q, r)) return true; return false; };
+      const start = (at.get(nodeId) || []).filter((o) => !inChain.has(o.id) && !o.cable
+        && (Math.abs(dot(axis.get(o.id), d)) >= FRAME_IN_MIN || (inPlane(o) && Math.abs(dot(axis.get(o.id), ex)) < COLLINEAR_COS && web(o))));
       if (!start.length) return false;
       const seenN = new Set([nodeId]), queue = [];
       for (const o of start) { const nb = o.n1 === nodeId ? o.n2 : o.n1; if (!seenN.has(nb)) { seenN.add(nb); queue.push(nb); } }
@@ -119,7 +143,8 @@ export function unbracedLengths(model, localAxesFn) {
         const q = queue.shift();
         if (anchor(q, d)) return true;
         for (const o of at.get(q) || []) {
-          if (inChain.has(o.id) || Math.abs(dot(axis.get(o.id), d)) < PATH_MIN) continue;
+          if (inChain.has(o.id)) continue;
+          if (Math.abs(dot(axis.get(o.id), d)) < PATH_MIN && !(inPlane(o) && inTriangle(o))) continue;
           const nb = o.n1 === q ? o.n2 : o.n1;
           if (!seenN.has(nb)) { seenN.add(nb); queue.push(nb); }
         }

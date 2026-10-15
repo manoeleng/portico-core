@@ -2841,6 +2841,19 @@ export const EN = {
   "Atrás": "Back",
   "Frente": "Front",
   "Cubo de navegación: clic en una cara, arista o vértice para ver desde ese lado": "Navigation cube: click a face, edge or corner to view from that side",
+  "Flambagem — comprimentos destravados": "Buckling — unbraced lengths",
+  "auto": "auto",
+  "Automático": "Automatic",
+  "barra física de": "physical member of",
+  "trecho(s)": "segment(s)",
+  "extremidade livre (balanço): informe Lx/Ly": "free end (cantilever): enter Lx/Ly",
+  "Flambagem em torno do eixo forte (z local)": "Buckling about the strong axis (local z)",
+  "Flambagem em torno do eixo fraco (y local)": "Buckling about the weak axis (local y)",
+  "Flambagem lateral com torção (FLT) — distância entre contenções da mesa comprimida": "Lateral-torsional buckling — distance between restraints of the compression flange",
+  "Fator de modificação para diagrama de momento não uniforme (vazio = 1,0, a favor da segurança)": "Moment gradient factor (empty = 1.0, conservative)",
+  "Contenções também impedem a torção (Lb = Lz = Ly)": "Restraints also prevent twist (Lb = Lz = Ly)",
+  "Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).": "Tick when the lateral restraints also prevent twist and hold the compression flange (e.g. slab on the compression flange, knee brace). Unticked, Lb and Lz run between the ends and the supports (conservative).",
+  "Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.": "Unbraced lengths (NBR 8800:2024 4.10.6.1). Empty = automatic: physical member (collinear segments) between anchored restraint points (support, diaphragm, plate or a member tied to one). Lx: buckling about the strong axis (local z); Ly: about the weak axis (local y); Lb: lateral-torsional buckling.",
 };
 
 export default EN;

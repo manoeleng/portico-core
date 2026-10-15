@@ -6,6 +6,7 @@ import { localAxes } from '../solver/timoshenko.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
 import { toDisp, fromDisp, ulbl, isTf, inVal, readIn } from '../utils/units.js?v=7';
+import { unbracedLengths } from '../design/unbraced.js?v=7';
 
 // Hard-coded kN label that is an i18n dictionary key (kept verbatim) → translated label with the force unit of the
 // current display system (tf-m: kN → tf inside every compound unit — kN/m → tf/m, kN·m → tf·m, kN·m/m → tf·m/m).
@@ -2115,6 +2116,31 @@ export class PropertiesPanel {
         </div>
       </div>
 
+      ${(() => {
+        // buckling / unbraced lengths (NBR 8800:2024 4.10.6.1): empty field = automatic value (js/design/unbraced.js)
+        let ub = null; try { ub = unbracedLengths(model, localAxes).get(elem.id); } catch { /* degenerate model */ }
+        const dsg = elem.design || {}, tors = dsg.contencaoTorcao === true;
+        const f2 = (v) => (v == null || !isFinite(v)) ? '—' : (+v).toFixed(2).replace('.', ',');
+        const auto = { Lx: ub?.Lx, Ly: ub?.Ly, Lb: tors ? ub?.Ly : ub?.Lb, Cb: 1 };
+        const fld = (k, lbl, tip) => `<div class="prop-field"><label title="${esc(tip)}">${lbl}</label>
+          <input type="number" id="e-fl-${k}" value="${dsg[k] ?? ''}" step="${k === 'Cb' ? 0.05 : 0.1}" min="0" placeholder="${i18n.t('auto')} ${f2(auto[k])}"></div>`;
+        return `<div class="prop-section">
+        <div class="prop-title" title="${esc(i18n.t('Comprimentos destravados (NBR 8800:2024 4.10.6.1). Vazio = automático: barra física (trechos colineares) entre pontos de contenção ancorados (apoio, diafragma, placa ou barra ligada a um deles). Lx: flambagem em torno do eixo forte (z local); Ly: em torno do eixo fraco (y local); Lb: flambagem lateral com torção.'))}">${i18n.t('Flambagem — comprimentos destravados')}</div>
+        <div class="prop-row cols2">
+          ${fld('Lx', 'Lx (m)', i18n.t('Flambagem em torno do eixo forte (z local)'))}
+          ${fld('Ly', 'Ly (m)', i18n.t('Flambagem em torno do eixo fraco (y local)'))}
+        </div>
+        <div class="prop-row cols2">
+          ${fld('Lb', 'Lb (m)', i18n.t('Flambagem lateral com torção (FLT) — distância entre contenções da mesa comprimida'))}
+          ${fld('Cb', 'Cb', i18n.t('Fator de modificação para diagrama de momento não uniforme (vazio = 1,0, a favor da segurança)'))}
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer" title="${esc(i18n.t('Marque quando as contenções laterais também impedem a torção e travam a mesa comprimida (ex.: laje ligada à mesa comprimida, mão-francesa). Sem marcar, Lb e Lz ficam entre as extremidades e os apoios (conservador).'))}">
+          <input type="checkbox" id="e-fl-tors" ${tors ? 'checked' : ''}> ${i18n.t('Contenções também impedem a torção (Lb = Lz = Ly)')}
+        </label>
+        <p class="panel-hint" style="margin:4px 0 0">${ub ? `${i18n.t('Automático')}: Lx ${f2(ub.Lx)} · Ly ${f2(ub.Ly)} · Lb ${f2(auto.Lb)} m — ${i18n.t('barra física de')} ${ub.chain.length} ${i18n.t('trecho(s)')}, ${f2(ub.chainL)} m${ub.freeEnd ? ` · ⚠ ${i18n.t('extremidade livre (balanço): informe Lx/Ly')}` : ''}` : ''}</p>
+      </div>`;
+      })()}
+
       <div class="prop-section">
         <div class="prop-title" title="${i18n.t('Por componente (N, V2, V3, T, M2, M3) y extremo: Fijo (rígido) · Libre (rótula, esfuerzo = 0) · Resorte (fijación parcial semi-rígida). El solver lo condensa en K (análisis lineal F5). k→∞ ⇒ rígido, k→0 ⇒ rótula, como «partial fixity» de SAP2000.')}">${i18n.t('Liberaciones / fijación parcial (rótulas y resortes)')}</div>
         ${orientHint ? `<p class="rel-hint">${orientHint}</p>` : ''}
@@ -2239,11 +2265,23 @@ export class PropertiesPanel {
       const num = (id) => parseFloat(String(sel.querySelector(id)?.value ?? '0').replace(',', '.')) || 0;
       const offset = { y: num('#e-off-y'), z: num('#e-off-z') };
       this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation, layer, beta, offset });
+      // buckling lengths (el.design: user values win over the automatic unbraced lengths; empty = automatic)
+      {
+        const el2 = this.app.model.elements.get(elem.id), dsg = { ...(el2.design || {}) };
+        for (const k of ['Lx', 'Ly', 'Lb', 'Cb']) {
+          const raw = String(sel.querySelector(`#e-fl-${k}`)?.value ?? '').trim().replace(',', '.');
+          const v = parseFloat(raw);
+          if (raw === '' || !(v > 0)) delete dsg[k]; else dsg[k] = v;
+        }
+        if (sel.querySelector('#e-fl-tors')?.checked) dsg.contencaoTorcao = true; else delete dsg.contencaoTorcao;
+        if (Object.keys(dsg).length) el2.design = dsg; else delete el2.design;
+      }
       this.app.renderLayers?.();
       this.app.viewport.refreshElem(this.app.model.elements.get(elem.id));
       this.app.markDirty();
     };
 
+    sel.querySelector('#e-fl-tors')?.addEventListener('change', () => { save(); this.showElement(this.app.model.elements.get(elem.id)); });
     sel.querySelectorAll('input[type=number]:not(#disc-n):not(#disc-len), select').forEach(inp =>
       inp.addEventListener('change', save)
     );
