@@ -319,7 +319,10 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       extraído. Obter a tabela do fabricante (Vallourec/EN 10219-2) para servir de oráculo.
 - [~] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
       (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
-      **U laminado:** a biblioteca não tem; fonte = Gerdau (`_referencias/Catalogos_Tabelas`).
+      **U laminado (15/10/2026):** 7 bitolas Gerdau (3", 4", 6", 10" leve) com A, I, W, r TABELADOS (a geometria de
+      mesa paralela superestima Iy em ~20 %), Zx e J da geometria, Zy = Wy (conservador). **Fonte com problemas:**
+      U 8" tem Iy/ry incoerentes no próprio catálogo (54,10 cm⁴ → ry 1,58 ≠ 1,42) e U 10" pesado/U 12" divergem
+      entre as edições 2009 e 01/23 — ficaram FORA; obter a tabela correta para incluí-los.
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
   (88 W/HP com Zx, It, Cw) e `formados-frio-6355.csv` (150 perfis, NBR 6355:2012 Tab. A, com
   página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884:2005 no acervo (ver Fontes).

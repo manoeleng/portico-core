@@ -153,6 +153,30 @@ function buildTabulated(table) {
   return out;
 }
 
+// Gerdau U laminado (abas inclinadas) — catálogo "Barras e Perfis" (2009, págs. 12) e "Tabela de Bitolas"
+// (01/23), _referencias/Catalogos_Tabelas. [d, bf, tw, tf médio (mm), A cm², Ix cm⁴, Wx cm³, rx cm, Iy cm⁴,
+// Wy cm³, ry cm]. Fora: U 8" (Iy e ry do catálogo inconsistentes entre si) e U 10" pesado/U 12" (as duas
+// edições divergem). U 3" × 7,44: bf = 38,05 (2009; a edição 01/23 traz 35,05, incoerente com Δtw).
+const U_GERDAU = {
+  'U 3" x 6,10': [76.2, 35.81, 4.32, 6.93, 7.78, 68.9, 18.1, 2.98, 8.2, 3.32, 1.03],
+  'U 3" x 7,44': [76.2, 38.05, 6.55, 6.93, 9.48, 77.2, 20.3, 2.85, 10.3, 3.82, 1.04],
+  'U 4" x 8,04': [101.6, 40.23, 4.67, 7.52, 10.1, 159.5, 31.4, 3.97, 13.1, 4.61, 1.14],
+  'U 4" x 9,30': [101.6, 41.83, 6.27, 7.52, 11.9, 174.4, 34.3, 3.84, 15.5, 5.1, 1.14],
+  'U 6" x 12,20': [152.4, 48.77, 5.08, 8.71, 15.5, 546, 71.7, 5.94, 28.8, 8.16, 1.36],
+  'U 6" x 15,60': [152.4, 51.66, 7.98, 8.71, 19.9, 632, 82.9, 5.63, 36, 9.24, 1.34],
+  'U 10" x 22,77': [254, 66.04, 6.1, 11.1, 29, 2800, 221, 9.84, 95, 19, 1.81],
+};
+// Tabulated channels: A, I, W, r from the catalogue (tapered flanges — the parallel-flange geometry
+// overestimates Iy by ~20 %); Zx and J from the geometry (Ix matches within 1 %); Zy = Wy (conservative).
+function buildChannels(table) {
+  const out = {};
+  for (const [name, [d, bf, tw, tf, A, Ix, Wx, rx, Iy, Wy, ry]] of Object.entries(table)) {
+    out[name] = { shape: 'channel', dims: { d: d / 1000, bf: bf / 1000, tw: tw / 1000, tf: tf / 1000 },
+      tab: { A: A / 1e4, Iz: Ix / 1e8, Iy: Iy / 1e8, Sz: Wx / 1e6, Sy: Wy / 1e6, Zy: Wy / 1e6, rz: rx / 100, ry: ry / 100 } };
+  }
+  return out;
+}
+
 // Families → { name → { shape, dims(m) } }
 function buildFamily(table, shape, keys) {
   const out = {};
@@ -183,6 +207,7 @@ for (const [fam, table] of [['VS', VS], ['CVS', CVS], ['CS', CS]]) {
 
 // Angles and circular tubes from the user's library (profiles_lib.js), nominal geometry → fromShape.
 CATALOG['L (cantoneira)'] = buildFamily(L_LIB, 'angle', ['d', 'b', 't']);
+CATALOG['U (Gerdau)'] = buildChannels(U_GERDAU);
 CATALOG['Tubo circular'] = buildFamily(TUBO_RED, 'pipe', ['D', 't']);
 
 // Cold-formed lipped channels of NBR 6355:2012 (tabulated, profiles_cf.js) — checked by NBR 14762.
@@ -208,6 +233,12 @@ export function profileToSection(name) {
   }
   const g = fromShape(p.shape, p.dims);
   if (!g) return null;
+  if (p.tab && p.shape === 'channel') {
+    const t = p.tab;
+    return { A: t.A, Iz: t.Iz, Iy: t.Iy, J: g.J, Avy: g.Avz_web, Avz: g.Avy_flange,
+      design: { shape: 'channel', dims: { ...p.dims }, profile: name, Sz: t.Sz, Sy: t.Sy, Zz: g.Zz, Zy: t.Zy,
+        Cw: g.Cw, rz: t.rz, ry: t.ry, fabricacao: 'laminado' } };
+  }
   if (p.tab) {
     // Tabulated catalog properties (Gerdau W/HP): A, I, J from the catalog, not from the geometry.
     const t = p.tab;

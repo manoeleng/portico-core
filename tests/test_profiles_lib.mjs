@@ -6,6 +6,7 @@
 // Tolerâncias: tubo 0,5 % (geometria exata, tabela arredondada); cantoneira 2,5 % — a geometria nominal
 // não tem raio de concordância nem de borda (L 50 × 5: Ix +2,3 % sobre o catálogo).
 import { catalogNames, profileToSection } from '../js/design/profiles.js';
+import { resolveSectionProps } from '../js/design/section_props.js';
 
 let fails = 0;
 const ok = (name, got, exp, tol) => { const e = Math.abs(got - exp) / (Math.abs(exp) || 1); const p = e <= tol; if (!p) fails++; console.log(`${p ? '✓' : '✗'} ${name}: got=${got} exp=${exp}`); };
@@ -32,6 +33,17 @@ for (const [n, ref, A, Ix, rx] of [
   ok('TC 168,3 × 16 Ag — Fakury/Vallourec', s.A * 1e4, 76.6, 0.005);
   ok('TC 168,3 × 16 r — Fakury/Vallourec', Math.sqrt(s.Iz / s.A) * 100, 5.41, 0.005);
   assert('TC forma pipe', s.design.shape === 'pipe');
+}
+
+// U laminado Gerdau — catálogo "Tabela de Bitolas" 01/23 (_referencias/Catalogos_Tabelas), valores
+// tabelados transferidos sem cálculo; Zy = Wy (conservador, Z ≥ W). r = √(I/A) fecha nas 7 bitolas.
+assert('u1. 7 perfis U (8" e 10"/12" pesados fora por inconsistência da fonte)', catalogNames('U (Gerdau)').length === 7);
+for (const [n, A, Ix, Iy, Wx, Wy] of [['U 4" x 8,04', 10.1, 159.5, 13.1, 31.4, 4.61], ['U 10" x 22,77', 29, 2800, 95, 221, 19]]) {
+  const s = profileToSection(n), p = resolveSectionProps(s);
+  ok(`${n} A`, s.A * 1e4, A, 1e-9); ok(`${n} Ix`, s.Iz * 1e8, Ix, 1e-9); ok(`${n} Iy`, s.Iy * 1e8, Iy, 1e-9);
+  ok(`${n} Wx`, p.Sz * 1e6, Wx, 1e-9); ok(`${n} Wy`, p.Sy * 1e6, Wy, 1e-9); ok(`${n} Zy = Wy`, p.Zy * 1e6, Wy, 1e-9);
+  assert(`${n} forma channel, laminado`, p.shape === 'channel' && p.fabricacao === 'laminado');
+  ok(`${n} rx = √(Ix/A) (coerência da fonte)`, Math.sqrt(Ix / A), s.design.rz * 100, 0.01);
 }
 
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
