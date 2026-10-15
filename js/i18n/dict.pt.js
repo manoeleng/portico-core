@@ -2578,6 +2578,7 @@ export const PT = {
   "excentricidade": "excentricidade",
   "Capa padrão: nombre fijo": "Camada padrão: nome fixo",
   "Doble clic para renombrar": "Duplo clique para renomear",
+  "Ejes de grilla (rótulos)": "Eixos da grade (rótulos)",
 };
 
 export default PT;

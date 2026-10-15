@@ -1498,6 +1498,7 @@ export class Viewport {
       addLbl(`+${+z.toFixed(2)}`, this.m2t(xLo - mX - off, yLo, z));
     });
 
+    g.visible = this._gridAxesVisible();          // the user may have hidden the grid axes (View menu)
     this._scene.add(g);
     this._gridAxesGroup = g;
   }
@@ -2749,6 +2750,14 @@ export class Viewport {
 
   toggleGrid()  { this._grid.visible = !this._grid.visible; }
   toggleAxes()  { this._axesGroup.visible = !this._axesGroup.visible; }
+  // Grid axes (lines + alphanumeric bubbles + level tags): show/hide, remembered in this browser
+  _gridAxesVisible() { try { return localStorage.getItem('portico.gridAxes') !== '0'; } catch { return true; } }
+  toggleGridAxes() {
+    const v = !this._gridAxesVisible();
+    try { localStorage.setItem('portico.gridAxes', v ? '1' : '0'); } catch { /* storage blocked */ }
+    if (this._gridAxesGroup) this._gridAxesGroup.visible = v;
+    return v;
+  }
 
   // ── Diaphragm visualization ────────────────────────────────────────────────
   refreshDiaphragms() {

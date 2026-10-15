@@ -2833,6 +2833,7 @@ export const EN = {
   "excentricidade": "eccentricity",
   "Capa padrão: nombre fijo": "Default layer: fixed name",
   "Doble clic para renombrar": "Double-click to rename",
+  "Ejes de grilla (rótulos)": "Grid axes (labels)",
 };
 
 export default EN;
