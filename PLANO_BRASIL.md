@@ -314,12 +314,13 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       valores do livro (Ix 2829, Iy 1816, J 3665) fecham com os raios de conformação a frio — a área 53,1 é que
       não fecha (51,2 pela EN). Fontes acrescentadas ao acervo: `Aco/EN-10219-2-2019.pdf`,
       `Aco/BR-Catalogo-de-Acos-Estruturais.pdf` (Vallourec, só massas).
-- [~] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
+- [x] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
       (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
-      **U laminado (15/10/2026):** 7 bitolas Gerdau (3", 4", 6", 10" leve) com A, I, W, r TABELADOS (a geometria de
-      mesa paralela superestima Iy em ~20 %), Zx e J da geometria, Zy = Wy (conservador). **Fonte com problemas:**
-      U 8" tem Iy/ry incoerentes no próprio catálogo (54,10 cm⁴ → ry 1,58 ≠ 1,42) e U 10" pesado/U 12" divergem
-      entre as edições 2009 e 01/23 — ficaram FORA; obter a tabela correta para incluí-los.
+      **U laminado (15/10/2026):** 12 bitolas Gerdau (3" a 12") = perfis C da ASTM A6, com TODAS as propriedades
+      (A, I, W, Z, r, J, Cw, x) da AISC Shapes Database v16.0, bloco métrico (`_referencias/Aco/aisc-shapes-database-v160-2.xlsx`).
+      A AISC resolveu os problemas das tabelas Gerdau: U 8" com ry errado (1,42 em vez de 1,58/1,56) e linhas de
+      10"/12" misturadas na edição 01/23. Divergência registrada no teste: U 3" × 6,10 Iy AISC 7,95 × Gerdau 8,20 cm⁴
+      (−3 %; adotado AISC, conservador). A, Ix, Iy das demais conferem com a Gerdau em ≤ 1,5 %.
 - Dados já disponíveis: `C:\projetos\StructPro-Pro\src\StructPro.Sections\data\laminados-gerdau.csv`
   (88 W/HP com Zx, It, Cw) e `formados-frio-6355.csv` (150 perfis, NBR 6355:2012 Tab. A, com
   página da fonte); catálogos Gerdau em `_referencias\Catalogos_Tabelas\`. NBR 5884:2005 no acervo (ver Fontes).

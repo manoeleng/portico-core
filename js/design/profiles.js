@@ -154,26 +154,32 @@ function buildTabulated(table) {
   return out;
 }
 
-// Gerdau U laminado (abas inclinadas) — catálogo "Barras e Perfis" (2009, págs. 12) e "Tabela de Bitolas"
-// (01/23), _referencias/Catalogos_Tabelas. [d, bf, tw, tf médio (mm), A cm², Ix cm⁴, Wx cm³, rx cm, Iy cm⁴,
-// Wy cm³, ry cm]. Fora: U 8" (Iy e ry do catálogo inconsistentes entre si) e U 10" pesado/U 12" (as duas
-// edições divergem). U 3" × 7,44: bf = 38,05 (2009; a edição 01/23 traz 35,05, incoerente com Δtw).
+// Gerdau U laminado (abas inclinadas) = perfis C americanos (ASTM A6): propriedades da AISC Shapes Database
+// v16.0, bloco métrico (_referencias/Aco/aisc-shapes-database-v160-2.xlsx), nome Gerdau pela massa. A AISC
+// substitui as tabelas Gerdau de 2009 e 01/23 (U 8" com ry errado — 1,42 em vez de 1,58/1,56 —, e linhas de
+// 10"/12" misturadas na edição 01/23). Ordem: [d, bf, tw, tf (mm), A (mm²), Ix (10⁶ mm⁴), Sx, Zx (10³ mm³),
+// rx (mm), Iy (10⁶ mm⁴), Sy, Zy (10³ mm³), ry (mm), x (mm), J (10³ mm⁴), Cw (10⁹ mm⁶)].
 const U_GERDAU = {
-  'U 3" x 6,10': [76.2, 35.81, 4.32, 6.93, 7.78, 68.9, 18.1, 2.98, 8.2, 3.32, 1.03],
-  'U 3" x 7,44': [76.2, 38.05, 6.55, 6.93, 9.48, 77.2, 20.3, 2.85, 10.3, 3.82, 1.04],
-  'U 4" x 8,04': [101.6, 40.23, 4.67, 7.52, 10.1, 159.5, 31.4, 3.97, 13.1, 4.61, 1.14],
-  'U 4" x 9,30': [101.6, 41.83, 6.27, 7.52, 11.9, 174.4, 34.3, 3.84, 15.5, 5.1, 1.14],
-  'U 6" x 12,20': [152.4, 48.77, 5.08, 8.71, 15.5, 546, 71.7, 5.94, 28.8, 8.16, 1.36],
-  'U 6" x 15,60': [152.4, 51.66, 7.98, 8.71, 19.9, 632, 82.9, 5.63, 36, 9.24, 1.34],
-  'U 10" x 22,77': [254, 66.04, 6.1, 11.1, 29, 2800, 221, 9.84, 95, 19, 1.81],
+  'U 3" x 6,10': [76.2, 35.8, 4.32, 6.93, 774, 0.687, 18, 21.6, 30, 0.0795, 3.21, 6.54, 10.1, 11.1, 11.2, 0.0824],   // C75X6.1
+  'U 3" x 7,44': [76.2, 38.1, 6.55, 6.93, 948, 0.77, 20.2, 24.9, 28.4, 0.1, 3.74, 7.6, 10.3, 11.2, 17.7, 0.102],   // C75X7.4
+  'U 4" x 8,04': [102, 40.1, 4.67, 7.52, 1020, 1.6, 31.5, 37.5, 39.6, 0.13, 4.54, 9.26, 11.3, 11.6, 16.6, 0.247],   // C100X8
+  'U 4" x 9,30': [102, 41.9, 6.27, 7.52, 1190, 1.74, 34.4, 41.8, 38.4, 0.156, 5.11, 10.2, 11.5, 11.5, 22.8, 0.287],   // C100X9.3
+  'U 6" x 12,20': [152, 48.8, 5.08, 8.71, 1540, 5.45, 71.3, 84.6, 59.4, 0.286, 8, 16.2, 13.6, 13, 30.6, 1.26],   // C150X12.2
+  'U 6" x 15,60': [152, 51.6, 7.98, 8.71, 1980, 6.29, 82.6, 101, 56.4, 0.358, 9.19, 18.7, 13.4, 12.7, 53.3, 1.59],   // C150X15.6
+  'U 8" x 17,10': [203, 57.4, 5.59, 9.91, 2170, 13.5, 133, 158, 79, 0.545, 12.7, 25.7, 15.8, 14.5, 54.1, 4.43],   // C200X17.1
+  'U 8" x 20,50': [203, 59.4, 7.7, 9.91, 2600, 15, 148, 180, 75.9, 0.633, 13.9, 28.3, 15.6, 14.1, 77.4, 5.16],   // C200X20.5
+  'U 10" x 22,77': [254, 66, 6.1, 11.1, 2890, 28, 221, 261, 98.6, 0.945, 18.8, 38.3, 18.1, 16.1, 87, 12.2],   // C250X22.8
+  'U 10" x 29,76': [254, 69.6, 9.63, 11.1, 3790, 32.8, 259, 318, 93.2, 1.17, 21.5, 44.2, 17.5, 15.4, 153, 15.3],   // C250X30
+  'U 12" x 30,80': [305, 74.7, 7.16, 12.7, 3920, 53.7, 352, 420, 117, 1.61, 28.2, 56.9, 20.2, 17.7, 154, 30.1],   // C310X30.8
+  'U 12" x 37,00': [305, 77.5, 9.83, 12.7, 4740, 59.9, 393, 482, 113, 1.85, 30.6, 62.6, 19.8, 17.1, 224, 34.9],   // C310X37
 };
-// Tabulated channels: A, I, W, r from the catalogue (tapered flanges — the parallel-flange geometry
-// overestimates Iy by ~20 %); Zx and J from the geometry (Ix matches within 1 %); Zy = Wy (conservative).
+// Tabulated channels (all section properties from the AISC table — no geometric approximation).
 function buildChannels(table) {
   const out = {};
-  for (const [name, [d, bf, tw, tf, A, Ix, Wx, rx, Iy, Wy, ry]] of Object.entries(table)) {
+  for (const [name, [d, bf, tw, tf, A, Ix, Sx, Zx, rx, Iy, Sy, Zy, ry, x, J, Cw]] of Object.entries(table)) {
     out[name] = { shape: 'channel', dims: { d: d / 1000, bf: bf / 1000, tw: tw / 1000, tf: tf / 1000 },
-      tab: { A: A / 1e4, Iz: Ix / 1e8, Iy: Iy / 1e8, Sz: Wx / 1e6, Sy: Wy / 1e6, Zy: Wy / 1e6, rz: rx / 100, ry: ry / 100 } };
+      tab: { A: A / 1e6, Iz: Ix / 1e6, Iy: Iy / 1e6, Sz: Sx / 1e6, Sy: Sy / 1e6, Zz: Zx / 1e6, Zy: Zy / 1e6,
+        rz: rx / 1000, ry: ry / 1000, x: x / 1000, J: J / 1e9, Cw: Cw * 1e-9 } };
   }
   return out;
 }
@@ -247,9 +253,9 @@ export function profileToSection(name) {
   }
   if (p.tab && p.shape === 'channel') {
     const t = p.tab;
-    return { A: t.A, Iz: t.Iz, Iy: t.Iy, J: g.J, Avy: g.Avz_web, Avz: g.Avy_flange,
-      design: { shape: 'channel', dims: { ...p.dims }, profile: name, Sz: t.Sz, Sy: t.Sy, Zz: g.Zz, Zy: t.Zy,
-        Cw: g.Cw, rz: t.rz, ry: t.ry, fabricacao: 'laminado' } };
+    return { A: t.A, Iz: t.Iz, Iy: t.Iy, J: t.J, Avy: g.Avz_web, Avz: g.Avy_flange,
+      design: { shape: 'channel', dims: { ...p.dims }, profile: name, Sz: t.Sz, Sy: t.Sy, Zz: t.Zz, Zy: t.Zy,
+        Cw: t.Cw, rz: t.rz, ry: t.ry, xc: t.x, fabricacao: 'laminado' } };
   }
   if (p.tab) {
     // Tabulated catalog properties (Gerdau W/HP): A, I, J from the catalog, not from the geometry.
