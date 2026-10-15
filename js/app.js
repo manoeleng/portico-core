@@ -52,6 +52,7 @@ import { autoDetectDiaphragms, computeFloorCR } from './solver/diaphragm.js?v=7'
 import { interstoryDrifts, buildStoryLevels } from './solver/drift.js?v=7';
 import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements } from './model/discretize.js?v=7';
 import { unbracedLengths, memberWithUnbraced } from './design/unbraced.js?v=7';
+import { senseOfMy, myExtremes } from './design/sense_my.js?v=7';
 import { setUnits, normUnits, toDisp, fromDisp, ulbl, fmtU, isTf } from './utils/units.js?v=7';
 import { localAxes, mirroredBeta, mirroredOffset, transformMatrix, globalStiffness, applyReleases, elemLocalK, elemLocalM, rigidEndOffsets } from './solver/timoshenko.js?v=7';
 import { blockCells, cornerGridIndices } from './model/mesher.js?v=7';
@@ -8972,7 +8973,23 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
             My: maxAbs(res, el.id, 'My'), Mz: maxAbs(res, el.id, 'Mz'), L: f.L,
           };
           const member = memberWithUnbraced(el, ub.get(el.id));
-          const r = mod.checkElement({ forces: fuerzas, sec, mat, matName: mat.name, params,
+          // channels (U / Ue, NBR 14762): the weak-axis check depends on which side My compresses — taken from the
+          // SIGN of My along the member (sense_my.js): the largest positive My with the web compressed and the
+          // largest negative My with the flange tips compressed; the worse one governs
+          const shp = sec.design?.cfProps?.shape;
+          let r;
+          if ((shp === 'U' || shp === 'Ue') && fuerzas.My > 0) {
+            const ex = myExtremes(res, el.id), cases = [];
+            if (ex.pos > 1e-9) cases.push([senseOfMy(1), ex.pos]);
+            if (ex.neg > 1e-9) cases.push([senseOfMy(-1), ex.neg]);
+            const rv = (x) => (x == null || !isFinite(x)) ? Infinity : x;
+            for (const [sentido, My] of cases.length ? cases : [[null, fuerzas.My]]) {
+              const ri = mod.checkElement({ forces: { ...fuerzas, My }, sec, mat, matName: mat.name, params,
+                designSettings: this.model.designSettings, member, options: sentido ? { sentidoMy: sentido } : undefined });
+              if (sentido && Array.isArray(ri.avisos)) ri.avisos.push(`My: sentido pelo diagrama — ${sentido === 'alma' ? 'alma' : 'pontas das mesas'} comprimida(s), |My| = ${My.toFixed(3).replace('.', ',')} kN·m${cases.length > 1 ? ' (os dois sentidos ocorrem na barra; governa o pior)' : ''} — premissa: alma do perfil no lado +z local (orientação do catálogo; β gira).`);
+              if (!r || rv(ri.ratioMax) > rv(r.ratioMax)) r = ri;
+            }
+          } else r = mod.checkElement({ forces: fuerzas, sec, mat, matName: mat.name, params,
             designSettings: this.model.designSettings, member });
           r.flamb = member ? { Lx: member.Lx, Ly: member.Ly, Lb: member.Lb, Lz: member.Lz, auto: !!member.unbracedAuto } : null;
           if (!peor || r.ratioMax > peor.ratioMax) { peor = r; peorNom = nombre; peorFuerzas = fuerzas; }
