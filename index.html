@@ -193,6 +193,14 @@
       </div>
 
       <div class="menu-root">
+        <span class="menu-label">Modelo</span>
+        <ul class="menu-drop">
+          <li data-action="materials">Materiales…</li>
+          <li data-action="sections">Secciones…</li>
+        </ul>
+      </div>
+
+      <div class="menu-root">
         <span class="menu-label">Ayuda</span>
         <ul class="menu-drop">
           <li data-action="help-guia">Guía Rápida <kbd>F1</kbd></li>
@@ -552,6 +560,32 @@
     <!-- SCRIM para cerrar el panel en móvil -->
     <div id="panel-scrim"></div>
 
+    <!-- MATERIALS / SECTIONS library (menu Modelo → Materiales… / Secciones…), floating -->
+    <div id="lib-panel" class="lib-panel" style="display:none">
+      <div class="lib-head">
+        <button class="ptab lib-tab active" data-lib="mat">Materiales</button>
+        <button class="ptab lib-tab" data-lib="sec">Secciones</button>
+        <span style="flex:1"></span><span id="lib-close" class="lib-close" title="Cerrar">✕</span>
+      </div>
+      <div class="lib-body">
+        <div id="ptab-mat" class="ptab-content active">
+              <div id="mat-list"></div>
+              <button class="btn-add" id="btn-add-mat">＋ Agregar Material</button>
+            </div>
+
+            <div id="ptab-sec" class="ptab-content">
+              <div id="sec-list"></div>
+              <button class="btn-add" id="btn-add-sec">＋ Agregar Sección</button>
+              <!-- P3-9: Section calculator -->
+              <button class="btn-add" id="btn-section-calc"
+                style="background:rgba(0,188,212,0.1);color:#00bcd4;border-color:#00838f;margin-top:4px">
+                ⊞ Calculadora de Sección
+              </button>
+            </div>
+
+      </div>
+    </div>
+
     <!-- RIGHT PANEL -->
     <aside id="panel">
       <!-- Vertical super-tabs -->
@@ -572,9 +606,8 @@
           <div id="panel-tabs">
             <button class="ptab active" data-tab="sel">Sel.</button>
             <button class="ptab" data-tab="nodos">Nodos</button>
-            <button class="ptab" data-tab="elems">Elem.</button>
-            <button class="ptab" data-tab="mat">Mat.</button>
-            <button class="ptab" data-tab="sec">Sec.</button>
+            <button class="ptab" data-tab="elems">Barras</button>
+            <button class="ptab" data-tab="placas">Placas</button>
             <button class="ptab" data-tab="dia">Diaf.</button>
           </div>
           <div id="panel-body">
@@ -584,27 +617,18 @@
             </div>
 
             <div id="ptab-nodos" class="ptab-content">
+              <div id="node-editor" class="sel-editor"><p class="panel-hint">Seleccione un nodo para editarlo aquí.</p></div>
               <div id="nodes-grid-wrap"></div>
               <button class="btn-add" id="btn-add-node-row" style="margin-top:4px">＋ Nuevo Nodo</button>
             </div>
 
             <div id="ptab-elems" class="ptab-content">
+              <div id="elem-editor" class="sel-editor"><p class="panel-hint">Seleccione una barra para editarla aquí.</p></div>
               <div id="elems-grid-wrap"></div>
             </div>
 
-            <div id="ptab-mat" class="ptab-content">
-              <div id="mat-list"></div>
-              <button class="btn-add" id="btn-add-mat">＋ Agregar Material</button>
-            </div>
-
-            <div id="ptab-sec" class="ptab-content">
-              <div id="sec-list"></div>
-              <button class="btn-add" id="btn-add-sec">＋ Agregar Sección</button>
-              <!-- P3-9: Section calculator -->
-              <button class="btn-add" id="btn-section-calc"
-                style="background:rgba(0,188,212,0.1);color:#00bcd4;border-color:#00838f;margin-top:4px">
-                ⊞ Calculadora de Sección
-              </button>
+            <div id="ptab-placas" class="ptab-content">
+              <div id="area-editor" class="sel-editor"><p class="panel-hint">Seleccione un área (placa / membrana / cáscara) para editarla aquí.</p></div>
             </div>
 
             <div id="ptab-dia" class="ptab-content">

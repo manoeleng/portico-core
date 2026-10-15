@@ -514,6 +514,19 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 #loads-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 #loads-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
 #combos-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px; }
+/* Sel. = read-only description of the selection; editing lives in Nós / Barras / Placas */
+.sel-desc { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
+.sel-desc th { text-align: left; font-weight: 500; color: var(--text-muted); padding: 3px 6px 3px 0; width: 42%; vertical-align: top; }
+.sel-desc td { padding: 3px 0; color: var(--text); font-family: var(--font-mono); word-break: break-word; }
+.sel-desc tr + tr th, .sel-desc tr + tr td { border-top: 1px solid var(--border); }
+.sel-editor { margin-bottom: 10px; }
+.sel-goto { width: 100%; margin: 2px 0 8px; font-size: 11px; }
+/* Materials / Sections library: floating panel opened from the Modelo menu */
+.lib-panel { position: fixed; right: 16px; top: 64px; width: 380px; max-height: calc(100vh - 90px); z-index: 9000; display: flex; flex-direction: column;
+  background: var(--bg-elev, var(--bg2)); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.lib-head { display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: 0 8px; flex-shrink: 0; }
+.lib-close { cursor: pointer; padding: 6px; color: var(--text-muted); }
+.lib-body { overflow-y: auto; }
 .loads-hdr { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .loads-hdr label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .loads-hdr select { flex: 1; min-width: 0; }

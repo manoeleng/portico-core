@@ -130,6 +130,8 @@ export class MenuBar {
       case 'assistant':      a.assistantDialog();            break;
       case 'warehouse':      a.warehouseDialog();            break;
       case 'typology':       a.typologyWizard();             break;
+      case 'materials':      a.panel.openLibrary('mat');     break;
+      case 'sections':       a.panel.openLibrary('sec');     break;
       case 'res-deformed':   a.setResultType('deformed');    break;
       case 'res-N':          a.setResultType('N');           break;
       case 'res-Vy':         a.setResultType('Vy');          break;

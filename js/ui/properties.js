@@ -41,7 +41,11 @@ export class PropertiesPanel {
       mat:   document.getElementById('ptab-mat'),
       sec:   document.getElementById('ptab-sec'),
       dia:   document.getElementById('ptab-dia'),
+      placas: document.getElementById('ptab-placas'),
     };
+    // editors of the selection (Sel. only DESCRIBES it): Nós / Barras / Placas tabs
+    this._editors = { node: document.getElementById('node-editor'), elem: document.getElementById('elem-editor'), area: document.getElementById('area-editor') };
+    this._target = null;   // container being rendered into (an editor), see _renderInto
     this._currentTab = 'sel';
 
     // ── Result sub-tabs (inside Results) ───────────────────────────────────
@@ -117,12 +121,114 @@ export class PropertiesPanel {
   }
 
   // container of the selection panel: Modelo → properties; Cargas → loads of the selection in the active case
-  _selRoot() { return this._currentVTab === 'loads' ? this._ltabContents.sel : this._tabContents.sel; }
+  _selRoot() { return this._target || (this._currentVTab === 'loads' ? this._ltabContents.sel : this._tabContents.sel); }
+  // renders an editor into `el` (the bind functions find their root through _selRoot())
+  _renderInto(el, fn) { const prev = this._target; this._target = el; try { fn(); } finally { this._target = prev; } }
   _loadsMode() { return this._currentVTab === 'loads'; }
   // brings the selection panel of the CURRENT mode to the front (Cargas stays in Cargas, else Modelo)
-  _showTarget() {
-    if (this._loadsMode()) this._switchLTab('sel');
-    else { this._switchVTab('model'); this._switchTab('sel'); }
+  // kind: 'node' | 'elem' | 'area' | 'multi' | 'none' — on an editor tab (Nós/Barras/Placas) the editor of the
+  // clicked kind comes to the front; otherwise the description (Sel.)
+  _showTarget(kind = 'none') {
+    if (this._loadsMode()) { this._switchLTab('sel'); return; }
+    this._switchVTab('model');
+    const onEditor = ['nodos', 'elems', 'placas'].includes(this._currentTab);
+    const tab = !onEditor ? 'sel' : kind === 'node' ? 'nodos' : kind === 'elem' ? 'elems' : kind === 'area' ? 'placas' : this._currentTab;
+    this._switchTab(tab);
+  }
+
+  // ── Materials / Sections library (menu Modelo) ──────────────────────────
+  openLibrary(tab = 'mat') {
+    const el = document.getElementById('lib-panel');
+    if (!el) return;
+    el.style.display = '';
+    el.querySelectorAll('.lib-tab').forEach(b => b.classList.toggle('active', b.dataset.lib === tab));
+    this._tabContents.mat?.classList.toggle('active', tab === 'mat');
+    this._tabContents.sec?.classList.toggle('active', tab === 'sec');
+    this._libTab = tab;
+    if (tab === 'mat') this.renderMaterials(); else this.renderSections();
+    if (!el._wired) {
+      el._wired = true;
+      el.querySelectorAll('.lib-tab').forEach(b => b.addEventListener('click', () => this.openLibrary(b.dataset.lib)));
+      el.querySelector('#lib-close')?.addEventListener('click', () => { el.style.display = 'none'; this._libTab = null; });
+    }
+  }
+
+  // ── Sel.: read-only description of the selection ───────────────────────
+  _descTable(rows) {
+    return `<table class="sel-desc">${rows.filter(Boolean).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`;
+  }
+  _gotoBtn(tab, label) { return `<button type="button" class="btn-secondary sel-goto" data-goto="${tab}">✎ ${label}</button>`; }
+  _bindGoto() { this._tabContents.sel.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => this._switchTab(b.dataset.goto))); }
+  _fmt(v, d = 3) { return (+v).toFixed(d).replace(/\.?0+$/, '').replace('.', ','); }
+
+  _nodeSummaryHTML(node) {
+    const m = this.app.model, t = (k) => i18n.t(k);
+    const r = node.restraints || {}, dof = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz'];
+    const fixed = dof.filter(d => r[d]).map(d => d.toUpperCase());
+    const sp = node.springs || {}, spr = Object.entries(sp).filter(([, k]) => k > 0).map(([k, v]) => `${k.toUpperCase()} = ${this._fmt(v, 1)}`);
+    const pd = node.prescDisp || {}, presc = dof.filter(d => +pd[d]).map(d => `${d.toUpperCase()} = ${this._fmt(pd[d], 4)}`);
+    const nm = node.nodeMass || {}, mass = ['mx', 'my', 'mz'].filter(k => nm[k] > 0).map(k => `${k} = ${this._fmt(nm[k], 2)} t`);
+    const ext = fixed.length || spr.length || presc.length || (Array.isArray(node.springK) && node.springK.some(v => v));
+    const bars = [...m.elements.values()].filter(e => e.n1 === node.id || e.n2 === node.id).map(e => '#' + e.id);
+    const fx = m.nodeFixity(node.id);
+    const fxTxt = { rigid: t('Empotrado'), hinge: t('Articulado'), partial: `${t('Empotramiento parcial (αR)')} = ${this._fmt(fx.alpha, 2)}`, custom: t('Personalizado (por elemento)') }[fx.mode];
+    const nLoads = [...m.loadCases.values()].filter(lc => (lc.loads || []).some(l => l.type === 'nodal' && l.nodeId === node.id)).length;
+    return `<div class="prop-id">${t('Nodo')} #${node.id}</div>` + this._descTable([
+      ['X · Y · Z (m)', `${this._fmt(node.x)} · ${this._fmt(node.y)} · ${this._fmt(node.z)}`],
+      [t('Tipo'), ext ? t('Nodo de apoyo (vínculo exterior)') : t('Nodo interno')],
+      fixed.length && [t('Restricciones'), fixed.join(' ')],
+      spr.length && [t('Resortes'), spr.join(', ')],
+      presc.length && [t('Desplazamiento prescrito'), presc.join(', ')],
+      fxTxt && [t('Vinculación interior'), fxTxt],
+      [t('Elementos conectados'), bars.join(', ') || '—'],
+      mass.length && [t('Masa Nodal Concentrada'), mass.join(', ')],
+      nLoads && [t('Cargas'), `${nLoads} ${t('casos')}`],
+    ]) + this._gotoBtn('nodos', t('Editar en la pestaña Nodos'));
+  }
+
+  _elemSummaryHTML(elem) {
+    const m = this.app.model, t = (k) => i18n.t(k);
+    const a = m.nodes.get(elem.n1), b = m.nodes.get(elem.n2);
+    const L = a && b ? Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) : 0;
+    const mat = m.materials.get(elem.matId), sec = m.sections.get(elem.secId);
+    const fam = sec?.design?.cfProps ? t('formado a frío (NBR 6355)') : sec?.design?.profile ? t('laminado / catálogo')
+      : sec?.design?.shape ? `${t('forma')} ${sec.design.shape}` : t('genérica (A, I informados)');
+    const rel = elem.releases || [], ef = elem.endFixity || {}, es = elem.endSprings || {};
+    const endTxt = (o) => {
+      const parts = [];
+      if (rel[o + 4] && rel[o + 5]) parts.push(t('articulado (M2, M3)'));
+      else { if (rel[o + 4]) parts.push('M2 ' + t('libre')); if (rel[o + 5]) parts.push('M3 ' + t('libre')); }
+      if (rel[o + 3]) parts.push('T ' + t('libre'));
+      for (const i of [4, 5]) if (ef[o + i] > 0) parts.push(`M${i - 2} αR = ${this._fmt(ef[o + i], 2)}`);
+      for (const i of [3, 4, 5]) if (es[o + i] > 0) parts.push(`k M${i - 2 || ''} = ${this._fmt(es[o + i], 0)}`);
+      if (rel[o] || rel[o + 1] || rel[o + 2]) parts.push(t('traslación liberada'));
+      return parts.join(', ') || t('continuo');
+    };
+    const extras = [elem.cable && t('cable (solo tracción)'), elem.compressionOnly && t('solo compresión'),
+      elem.rigidEnd && `${t('trecho rígido')} ${this._fmt(elem.rigidEnd.i || 0, 2)} / ${this._fmt(elem.rigidEnd.j || 0, 2)} m`,
+      elem.foundation && t('fundación elástica')].filter(Boolean);
+    const nLoads = [...m.loadCases.values()].filter(lc => (lc.loads || []).some(l => (l.type === 'dist' || l.type === 'temp') && l.elemId === elem.id)).length;
+    return `<div class="prop-id">${t('Elemento')} #${elem.id}</div>` + this._descTable([
+      [t('Nodos'), `${elem.n1} → ${elem.n2}`],
+      [t('Longitud'), `${this._fmt(L)} m`],
+      [t('Material'), esc(mat?.name || '—')],
+      [t('Sección'), `${esc(sec?.name || '—')} <span style="color:var(--text-muted)">(${fam})</span>`],
+      [t('Extremo i'), endTxt(0)],
+      [t('Extremo j'), endTxt(6)],
+      extras.length && [t('Otros'), extras.join(', ')],
+      nLoads && [t('Cargas'), `${nLoads} ${t('casos')}`],
+    ]) + this._gotoBtn('elems', t('Editar en la pestaña Barras'));
+  }
+
+  _areaSummaryHTML(area) {
+    const m = this.app.model, t = (k) => i18n.t(k), mat = m.materials.get(area.matId);
+    const beh = { membrane: t('Membrana'), plate: t('Placa'), shell: 'Shell' }[area.behavior || 'membrane'] || area.behavior;
+    return `<div class="prop-id">${t('Área')} #${area.id}</div>` + this._descTable([
+      [t('Nodos'), (area.nodes || []).join(', ')],
+      [t('Comportamiento'), beh],
+      [t('Espesor'), area.thickness != null ? `${this._fmt(area.thickness, 3)} m` : '—'],
+      [t('Material'), esc(mat?.name || '—')],
+    ]) + this._gotoBtn('placas', t('Editar en la pestaña Placas'));
   }
   _reshow() {
     const s = this._lastShown, m = this.app.model;
@@ -268,13 +374,12 @@ export class PropertiesPanel {
   }
 
   _switchTab(tab) {
+    if (tab === 'mat' || tab === 'sec') { this.openLibrary(tab); return; }
     this._currentTab = tab;
     this._tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    Object.entries(this._tabContents).forEach(([k, el]) =>
-      el?.classList.toggle('active', k === tab)
-    );
-    if (tab === 'mat')   this.renderMaterials();
-    if (tab === 'sec')   this.renderSections();
+    Object.entries(this._tabContents).forEach(([k, el]) => {
+      if (k !== 'mat' && k !== 'sec') el?.classList.toggle('active', k === tab);   // mat/sec live in the library panel
+    });
     if (tab === 'dia')   this.renderDiaphragms();
     if (tab === 'nodos') this.renderNodesGrid();
     if (tab === 'elems') this.renderElemsGrid();
@@ -384,7 +489,7 @@ export class PropertiesPanel {
   showSelection(items) {
     this.app.setPanelCollapsed(false);   // seleccionar en la vista 3D despliega el panel
     this._lastShown = { k: 'multi', items };
-    this._showTarget();
+    this._showTarget('multi');
     if (this._loadsMode()) {
       const el = items.filter(i => i.type === 'elem'), nd = items.filter(i => i.type === 'node');
       this._selRoot().innerHTML = `<div class="prop-id">${items.length} ${i18n.t('seleccionado(s)')}</div>`
@@ -479,21 +584,31 @@ export class PropertiesPanel {
       }
     }
 
-    // ── Áreas ─────────────────────────────────────────────────────────────────
-    if (areas.length > 0) html += this._areaActionsHTML(areas);
-
-    // ── Acciones masivas ──────────────────────────────────────────────────────
-    if (elems.length > 0) html += this._selActionsHTML(elems);
-    if (nodes.length > 0) html += this._nodeActionsHTML(nodes);
-    html += this._transformHTML(items.length);
-    html += this._groupsHTML();
-
-    this._selRoot().innerHTML = html;
-    if (elems.length > 0) this._bindSelActions(elems.map(e => e.id));
-    if (nodes.length > 0) this._bindNodeActions();
-    if (areas.length > 0) this._bindAreaActions();
-    this._bindTransform();
+    // Sel. = description (counts, ids) + results; the batch actions go to the editor tabs
+    const ids = (arr) => arr.map(i => i.id).slice(0, 40).join(', ') + (arr.length > 40 ? ' …' : '');
+    const t = (k) => i18n.t(k);
+    const desc = `<div class="prop-id">${items.length} ${t('seleccionado(s)')}</div>` + this._descTable([
+      nodes.length && [`${t('Nodos')} (${nodes.length})`, ids(nodes)],
+      elems.length && [`${t('Elementos')} (${elems.length})`, ids(elems)],
+      areas.length && [`${t('Áreas')} (${areas.length})`, ids(areas)],
+    ]) + (nodes.length ? this._gotoBtn('nodos', t('Editar en la pestaña Nodos')) : '')
+       + (elems.length ? this._gotoBtn('elems', t('Editar en la pestaña Barras')) : '')
+       + (areas.length ? this._gotoBtn('placas', t('Editar en la pestaña Placas')) : '');
+    this._tabContents.sel.innerHTML = desc + html + this._groupsHTML();
+    this._bindGoto();
     this._bindGroups();
+    this._renderInto(this._editors.node, () => {
+      this._selRoot().innerHTML = nodes.length ? this._nodeActionsHTML(nodes) + (elems.length ? '' : this._transformHTML(items.length)) : `<p class="panel-hint">${t('Seleccione un nodo para editarlo aquí.')}</p>`;
+      if (nodes.length) { this._bindNodeActions(); if (!elems.length) this._bindTransform(); }
+    });
+    this._renderInto(this._editors.elem, () => {
+      this._selRoot().innerHTML = elems.length ? this._selActionsHTML(elems) + this._transformHTML(items.length) : `<p class="panel-hint">${t('Seleccione una barra para editarla aquí.')}</p>`;
+      if (elems.length) { this._bindSelActions(elems.map(e => e.id)); this._bindTransform(); }
+    });
+    this._renderInto(this._editors.area, () => {
+      this._selRoot().innerHTML = areas.length ? this._areaActionsHTML(areas) : `<p class="panel-hint">${t('Seleccione un área (placa / membrana / cáscara) para editarla aquí.')}</p>`;
+      if (areas.length) this._bindAreaActions();
+    });
   }
 
   _areaActionsHTML(areas) {
@@ -626,7 +741,7 @@ export class PropertiesPanel {
       </div>`;
   }
   _bindTransform() {
-    const $ = (i) => this._selRoot().querySelector(i);
+    const root = this._selRoot(), $ = (i) => root.querySelector(i);
     const num = (i) => parseFloat($(i).value) || 0;
     $('#tr-copy')?.addEventListener('click', () => this.app.copySelection(num('#tr-dx'), num('#tr-dy'), num('#tr-dz'), parseInt($('#tr-rep').value, 10), num('#tr-dx2'), num('#tr-dy2'), num('#tr-dz2'), parseInt($('#tr-rep2').value, 10)));
     $('#tr-move')?.addEventListener('click', () => this.app.moveSelection(num('#tr-dx'), num('#tr-dy'), num('#tr-dz')));
@@ -706,7 +821,7 @@ export class PropertiesPanel {
   }
 
   _bindSelActions(ids) {
-    const $ = (i) => this._selRoot().querySelector(i);
+    const root = this._selRoot(), $ = (i) => root.querySelector(i);
     $('#sel-mat-go')?.addEventListener('click', () => { const v = $('#sel-mat').value; if (v) this.app.setMaterialSelected(v); });
     $('#sel-sec-go')?.addEventListener('click', () => { const v = $('#sel-sec').value; if (v) this.app.setSectionSelected(v); });
     $('#sel-disc-go')?.addEventListener('click', () => this.app.discretizeSelected(parseInt($('#sel-disc').value, 10)));
@@ -748,7 +863,13 @@ export class PropertiesPanel {
 
   showNothing() {
     this._lastShown = null;
-    this._showTarget();
+    this._showTarget('none');
+    if (!this._loadsMode()) {
+      const t = (k) => i18n.t(k);
+      if (this._editors.node) this._editors.node.innerHTML = `<p class="panel-hint">${t('Seleccione un nodo para editarlo aquí.')}</p>`;
+      if (this._editors.elem) this._editors.elem.innerHTML = `<p class="panel-hint">${t('Seleccione una barra para editarla aquí.')}</p>`;
+      if (this._editors.area) this._editors.area.innerHTML = `<p class="panel-hint">${t('Seleccione un área (placa / membrana / cáscara) para editarla aquí.')}</p>`;
+    }
     const sel = this._selRoot();
     if (!sel) return;
     if (this._loadsMode()) {
@@ -756,7 +877,7 @@ export class PropertiesPanel {
       return;
     }
     const ocultos = this.app.viewport?.hiddenCount?.() || 0;
-    sel.innerHTML = '<p class="panel-hint">Haga clic en un nodo, elemento o área para editar sus propiedades. Ctrl+clic para seleccionar varios.</p>'
+    sel.innerHTML = `<p class="panel-hint">${i18n.t('Haga clic en un nodo, barra o área para ver qué es; la edición está en las pestañas Nodos, Barras y Placas. Ctrl+clic para seleccionar varios.')}</p>`
       + (ocultos ? `<p class="panel-hint" style="color:var(--warn)">${ocultos} ${i18n.t('elemento(s) oculto(s) · Vista → Mostrar todo')}</p>` : '')
       + this._groupsHTML();
     this._bindGroups();
@@ -765,7 +886,8 @@ export class PropertiesPanel {
   showNode(node, focusSupports = false) {
     if (!node) { this.showNothing(); return; }
     this._lastShown = { k: 'node', id: node.id };
-    this._showTarget();
+    if (focusSupports && !this._loadsMode()) { this._switchVTab('model'); this._switchTab('nodos'); }
+    else this._showTarget('node');
     if (this._loadsMode()) {   // Cargas: only the loads of the node (active case + all cases)
       this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Nodo')} #${node.id}</div>`
         + this._nodeLoadsHTML(node) + this._allLoadsHTML('node', node.id);
@@ -773,16 +895,19 @@ export class PropertiesPanel {
       return;
     }
     const results = this.app._results;
-    let diaphHTML = '';
-    try { diaphHTML = this._nodeDiaphragmHTML(node); } catch (e) { console.warn('nodeDiaphragmHTML:', e); }
-    this._selRoot().innerHTML = this._nodeHTML(node)
-      + diaphHTML
-      + (results ? this._nodeResultsHTML(node, results) : '');
-    this._bindNodeEvents(node);
+    this._tabContents.sel.innerHTML = this._nodeSummaryHTML(node) + (results ? this._nodeResultsHTML(node, results) : '');
+    this._bindGoto();
+    this._renderInto(this._editors.node, () => {
+      let diaphHTML = '';
+      try { diaphHTML = this._nodeDiaphragmHTML(node); } catch (e) { console.warn('nodeDiaphragmHTML:', e); }
+      this._selRoot().innerHTML = this._nodeHTML(node) + diaphHTML;
+      this._bindNodeEvents(node);
+    });
     if (focusSupports) {
-      const fold = this._selRoot().querySelector('details.supp-fold');
+      const ed = this._editors.node;
+      const fold = ed.querySelector('details.supp-fold');
       if (fold) fold.open = true;
-      const el = this._selRoot().querySelector('.restraints-section');
+      const el = ed.querySelector('.restraints-section');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
@@ -790,7 +915,7 @@ export class PropertiesPanel {
   showElement(elem) {
     if (!elem) { this.showNothing(); return; }
     this._lastShown = { k: 'elem', id: elem.id };
-    this._showTarget();
+    this._showTarget('elem');
     if (this._loadsMode()) {   // Cargas: distributed load of the active case + ΔT + all cases
       this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Elemento')} #${elem.id}</div>`
         + this._elemLoadsHTML(elem) + this._allLoadsHTML('elem', elem.id)
@@ -801,27 +926,34 @@ export class PropertiesPanel {
     }
     const results = this.app._results;
     const one = [{ type: 'elem', id: elem.id }];
-    this._selRoot().innerHTML = this._elemHTML(elem)
-      + (results ? this._elemResultsHTML(elem, results) : '')
-      + this._selActionsHTML(one)   // Actions (material/section/group…) also with 1 element
-      + this._transformHTML(1);       // Move / Copy also with 1 element
-    this._bindElemEvents(elem);
-    this._bindSelActions([elem.id]);
-    this._bindTransform();
+    this._tabContents.sel.innerHTML = this._elemSummaryHTML(elem) + (results ? this._elemResultsHTML(elem, results) : '');
+    this._bindGoto();
+    this._renderInto(this._editors.elem, () => {
+      this._selRoot().innerHTML = this._elemHTML(elem)
+        + this._selActionsHTML(one)   // Actions (material/section/group…) also with 1 element
+        + this._transformHTML(1);     // Move / Copy also with 1 element
+      this._bindElemEvents(elem);
+      this._bindSelActions([elem.id]);
+      this._bindTransform();
+    });
   }
 
   // ── AREA element (membrane / plate / shell) ────────────────────────────────
   showArea(area) {
     if (!area) { this.showNothing(); return; }
     this._lastShown = { k: 'area', id: area.id };
-    this._showTarget();
+    this._showTarget('area');
     if (this._loadsMode()) {
       this._selRoot().innerHTML = `<div class="prop-id">${i18n.t('Área')} #${area.id}</div>`
         + `<p class="panel-hint">${i18n.t('La carga térmica por cara de las áreas se edita en la pestaña Modelo.')}</p>`;
       return;
     }
-    this._selRoot().innerHTML = this._areaHTML(area) + this._areaResultsHTML(area);
-    this._bindAreaEvents(area);
+    this._tabContents.sel.innerHTML = this._areaSummaryHTML(area) + this._areaResultsHTML(area);
+    this._bindGoto();
+    this._renderInto(this._editors.area, () => {
+      this._selRoot().innerHTML = this._areaHTML(area);
+      this._bindAreaEvents(area);
+    });
   }
 
   _areaHTML(area) {
