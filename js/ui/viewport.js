@@ -7,6 +7,8 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { panelFrame, panelMembers } from '../model/panel_loads.js?v=7';
 import { localAxes } from '../solver/timoshenko.js?v=7';
+import { getProfile } from '../design/profiles.js?v=7';
+import { cfProfile } from '../design/profiles_cf.js?v=7';
 import { elemShown, elemLocked, layerById } from '../model/layers.js?v=7';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -3017,7 +3019,7 @@ export class Viewport {
     const maxD = results.getMaxDisp();
     const b = this.app.model.getBounds();
     const span = Math.max(b.max.x-b.min.x, b.max.y-b.min.y, b.max.z-b.min.z, 1);
-    const autoBase = maxD > 1e-12 ? span / 50 / maxD : 100;   // normalizes: δmax → span/50
+    const autoBase = maxD > 1e-12 ? span / 250 / maxD : 100;  // normalizes: δmax → span/250 (factor 1 = middle of the slider)
     this._autoScaleBase = autoBase;
     const f = (factor == null || !isFinite(factor) || factor <= 0) ? 1 : factor;
     const scale = autoBase * f;
@@ -3170,7 +3172,7 @@ export class Viewport {
     // By default it auto-scales (span/50) to amplify the small displacements of
     // cables/trusses. With `trueScale` (large corotational rotation) it is shown at
     // REAL SCALE: the displacement is already physical and large.
-    const autoBase = opts.trueScale ? 1 : (maxD > 1e-12 ? span / 50 / maxD : 1);
+    const autoBase = opts.trueScale ? 1 : (maxD > 1e-12 ? span / 250 / maxD : 1);   // same default as the linear deformed shape
     const f = (factor == null || !isFinite(factor) || factor <= 0) ? 1 : factor;
     const scale = autoBase * f;
     const sc = document.getElementById('result-scale'); if (sc) sc.value = +f.toPrecision(3);
@@ -3920,7 +3922,16 @@ export class Viewport {
   // section is generic (no tabulated shape). Centered on the centroid: width (b)
   // along local +X, height (h) along local +Y.
   _sectionShape(sec) {
-    const dz    = sec.design || {};
+    let dz      = sec.design || {};
+    // DRAWING ONLY: a section without shape (e.g. made by the generator from the catalogue properties) is looked up by
+    // its name in the profile catalogues (Gerdau W/HP…, NBR 6355) and a round bar by the φ of its name — the analysis
+    // and design data of the section are not touched.
+    if (!dz.shape && !dz.cfProps && sec.name) {
+      const p = getProfile(sec.name), phi = /φ\s*(\d+(?:[.,]\d+)?)/.exec(sec.name);
+      if (p?.cf) dz = { cfProps: cfProfile(sec.name) };
+      else if (p?.shape && p.dims) dz = { shape: p.shape, dims: p.dims };
+      else if (phi) dz = { shape: 'circle', dims: { D: parseFloat(phi[1].replace(',', '.')) / 1000 } };
+    }
     const cf    = dz.cfProps;                          // NBR 6355 cold-formed (profiles_cf.js): real shape + dims
     const d     = cf?.dims || dz.dims || dz;           // catalog uses .dims; manual edits sit on design
     const shape = String(cf ? 'cf-' + cf.shape + (cf.shape === 'Z' ? cf.lip : '') : dz.shape || '').toLowerCase();
