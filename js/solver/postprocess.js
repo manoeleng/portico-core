@@ -7,7 +7,7 @@
 // For UDL this reduces to the exact parabolic formula.
 // Displacements at arbitrary xi use cubic Hermite shape functions.
 // ──────────────────────────────────────────────────────────────────────────────
-import { localAxes, stiffnessMatrix, transformMatrix, fixedEndForcesRE, applyReleases, condenseFEF, recoverReleasedDisp, elemLocalK } from './timoshenko.js?v=7';
+import { localAxes, stiffnessMatrix, transformMatrix, fixedEndForcesRE, applyReleases, condenseFEF, recoverReleasedDisp, elemLocalK, springFEF, springMemberDisp } from './timoshenko.js?v=7';
 import { getNodeDOFs, selfWeightPerLength } from './assembler.js?v=7';
 import { areaStress, areaBendingStress, areaStrain, areaCurvature, vonMises } from './membrane.js?v=7';
 
@@ -407,12 +407,17 @@ export class Results {
       : Ke_local;
 
     // Total uncondensed FEF (load-case loads + self-weight)
-    const fefT = this._collectFEF(elem, ex, ey, ez, L);
+    // (end springs: condensed onto the node DOFs exactly as in assembleF — springFEF)
+    const fefRaw = this._collectFEF(elem, ex, ey, ez, L);
+    const fefT = springFEF(elem, mat, sec, L, fefRaw);
 
     // At released DOFs the element's REAL rotation/displacement differs from the
     // nodal one (it was condensed out): recover it so the deflected shape shows the
     // hinge kink. It does not affect fe (Ke_eff has null columns there).
     if (hasRel) ue_local = recoverReleasedDisp(Ke_local, relBool, ue_local, fefT);
+    // End springs (endSprings / αR): the member end rotation differs from the node's by M/k — recover it for
+    // the span field (deflection, deformed shape); fe below still uses the condensed Ke_eff with the node DOFs.
+    const ue_member = springMemberDisp(elem, mat, sec, L, ue_local, fefRaw);
 
     const fe = Array(12).fill(0);
     for (let i = 0; i < 12; i++)
@@ -453,7 +458,7 @@ export class Results {
       ex, ey, ez, L,
       EIz: mat.E * sec.Iz,   // for the distributed-load deflection bubble
       EIy: mat.E * sec.Iy,
-      _ue: ue_local,
+      _ue: ue_member,
     };
   }
 

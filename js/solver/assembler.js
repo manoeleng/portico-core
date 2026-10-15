@@ -4,7 +4,7 @@
 import {
   localAxes, stiffnessMatrix, massMatrix,
   transformMatrix, globalStiffness,
-  applyReleases, fixedEndForcesRE, condenseFEF,
+  applyReleases, fixedEndForcesRE, condenseFEF, springFEF,
   elemLocalK, elemLocalM
 } from './timoshenko.js?v=7';
 import { applyDiaphragmConstraints, applyDiaphragmMass } from './diaphragm.js?v=7';
@@ -223,7 +223,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
 
         const ed = [...dofs(nodeIndex, elem.n1), ...dofs(nodeIndex, elem.n2)];
         for (const ll of _toLocalDistLoad(load, ex, ey, ez)) {
-          let f_local = fixedEndForcesRE(elem, L, ll);
+          let f_local = (mat && sec) ? springFEF(elem, mat, sec, L, fixedEndForcesRE(elem, L, ll)) : fixedEndForcesRE(elem, L, ll);
           if (Ke_loc) f_local = condenseFEF(Ke_loc, relBool, f_local);
           const f_global = Array(12).fill(0);
           for (let i=0; i<12; i++)
@@ -268,6 +268,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
         const Nt = EA * (mat.alpha ?? 0) * (load.dT || 0);
         let f_local = Array(12).fill(0);
         f_local[0] = +Nt; f_local[6] = -Nt;
+        f_local = springFEF(elem, mat, sec, L, f_local);
         const hasRelease = elem.releases?.some(r => r !== 0);
         if (hasRelease) f_local = condenseFEF(elemLocalK(elem, mat, sec, L), elem.releases.map(r => r !== 0), f_local);
         const ed = [...dofs(nodeIndex, elem.n1), ...dofs(nodeIndex, elem.n2)];
@@ -297,7 +298,7 @@ export function assembleF(model, nodeIndex, lcId, selfWeight = false) {
       const Ke_loc_sw  = hasRel_sw ? elemLocalK(elem, mat, sec, L) : null;
       const swLoad = { w: selfWeightPerLength(mat, sec), dir: 'gravity' };
       for (const ll of _toLocalDistLoad(swLoad, ex, ey, ez)) {
-        let f_local = fixedEndForcesRE(elem, L, ll);
+        let f_local = springFEF(elem, mat, sec, L, fixedEndForcesRE(elem, L, ll));
         if (Ke_loc_sw) f_local = condenseFEF(Ke_loc_sw, relBool_sw, f_local);
         const f_global = Array(12).fill(0);
         for (let i=0; i<12; i++)

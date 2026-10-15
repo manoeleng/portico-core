@@ -178,6 +178,71 @@ export class Model {
     return elem;
   }
 
+  // ── Internal fixity of a node (CYPE "vinculação interior") ─────────────────
+  // Applied to the BENDING DOFs (4, 5 of each end; torsion untouched) of every bar end at the node:
+  //   'rigid'   → continuous (no release, no spring, no αR)
+  //   'hinge'   → bending released. With no rotational restraint/spring at the node, ONE end is kept continuous:
+  //               with no nodal moment, n−1 released ends already make the last end moment zero (node equilibrium)
+  //               and the node rotation keeps a stiffness — releasing all n ends leaves it singular (mechanism).
+  //   'partial' → αR on every end (rotation restraint factor, NBR 9062:2017 5.1.2.7; spring at assembly)
+  _nodeEnds(nodeId) {
+    const ends = [];
+    for (const e of this.elements.values()) {
+      if (e.n1 === nodeId) ends.push({ e, o: 0 });
+      if (e.n2 === nodeId) ends.push({ e, o: 6 });
+    }
+    return ends;
+  }
+
+  setNodeFixity(nodeId, mode, alpha) {
+    const node = this.nodes.get(nodeId);
+    const ends = this._nodeEnds(nodeId);
+    if (!node || !ends.length) return false;
+    // every node rotation held by the support (restraint, prescribed value, spring; 2D: rx/rz are implicit)?
+    // Only then may all ends be released. A partly held rotation does not stabilise the others → keep one end.
+    const r = node.restraints || {}, sp = node.springs || {}, pd = node.prescDisp || {}, SK = node.springK;
+    const is2D = this.mode === '2D';
+    // rigid diaphragm: the rz of a slave node is tied to the floor (in-plane rotation held by the diaphragm)
+    const inDiaph = [...this.diaphragms.values()].some(d => (d.nodes || []).includes(nodeId));
+    const held = (d, k, diag) => (is2D && d !== 'ry') || r[d] || +pd[d] || sp[k] > 0 || (Array.isArray(SK) && SK[diag] > 0)
+      || (d === 'rz' && inDiaph);
+    const rotHeld = held('rx', 'krx', 21) && held('ry', 'kry', 28) && held('rz', 'krz', 35);
+    const a = +alpha;
+    if (mode === 'partial' && !(a > 0 && a < 1)) return false;
+    ends.forEach(({ e, o }, k) => {
+      const rel = [...(e.releases || Array(12).fill(0))];
+      const es = { ...(e.endSprings || {}) }, ef = { ...(e.endFixity || {}) };
+      for (const i of [o + 4, o + 5]) {
+        delete es[i]; delete ef[i];
+        rel[i] = (mode === 'hinge' && (rotHeld || k > 0)) ? 1 : 0;
+        if (mode === 'partial') ef[i] = a;
+      }
+      this.updateElement(e.id, { releases: rel, endSprings: es, endFixity: ef });
+    });
+    return true;
+  }
+
+  // → { mode: 'none' | 'rigid' | 'hinge' | 'partial' | 'custom', alpha, n }
+  nodeFixity(nodeId) {
+    const ends = this._nodeEnds(nodeId), n = ends.length;
+    if (!n) return { mode: 'none', n };
+    let rel = 0, cont = 0, alpha = null, sameAlpha = true, nAlpha = 0;
+    for (const { e, o } of ends) {
+      const r = e.releases || [], es = e.endSprings || {}, ef = e.endFixity || {};
+      const a4 = ef[o + 4], a5 = ef[o + 5];
+      if (r[o + 4] && r[o + 5]) rel++;
+      else if (!r[o + 4] && !r[o + 5] && !(es[o + 4] > 0) && !(es[o + 5] > 0) && a4 == null && a5 == null) cont++;
+      else if (a4 > 0 && a4 === a5) { nAlpha++; if (alpha == null) alpha = a4; else if (alpha !== a4) sameAlpha = false; }
+    }
+    if (cont === n) return { mode: 'rigid', n };
+    if (rel === n || (n >= 2 && rel === n - 1 && cont === 1)) {
+      const kept = rel === n ? null : ends.find(({ e, o }) => !(e.releases?.[o + 4] && e.releases?.[o + 5]))?.e.id;
+      return { mode: 'hinge', n, kept };
+    }
+    if (nAlpha === n && sameAlpha) return { mode: 'partial', alpha, n };
+    return { mode: 'custom', n };
+  }
+
   updateElement(id, props) {
     const el = this.elements.get(id);
     if (!el) return null;
@@ -212,6 +277,16 @@ export class Model {
         if (v > 0 && isFinite(v)) es[+k] = v;
       }
       if (Object.keys(es).length) el.endSprings = es; else delete el.endSprings;
+    }
+    // Partial fixity by the rotation restraint factor (NBR 9062:2017 5.1.2.7): { [4|5|10|11]: 0 < αR < 1 }.
+    // Converted to a rotational spring at assembly (timoshenko.js fixitySprings), so it follows section/length.
+    if (props.endFixity !== undefined) {
+      const ef = {};
+      for (const k of Object.keys(props.endFixity || {})) {
+        const v = +props.endFixity[k];
+        if ([4, 5, 10, 11].includes(+k) && v > 0 && v < 1) ef[+k] = v;
+      }
+      if (Object.keys(ef).length) el.endFixity = ef; else delete el.endFixity;
     }
     // Beam on elastic foundation / line spring (1-013): { ky, kz } kN/m per m.
     if (props.foundation !== undefined) {

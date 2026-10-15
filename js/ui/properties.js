@@ -1309,6 +1309,8 @@ export class PropertiesPanel {
         </div>
       </div>
 
+      ${this._nodeFixityHTML(node)}
+
       <div class="prop-section restraints-section">
         <div class="prop-title">Restricciones (1 = fijo)</div>
         <div class="restraint-grid">${checks}</div>
@@ -1450,8 +1452,67 @@ export class PropertiesPanel {
     `;
   }
 
+  // Internal fixity of the node (CYPE "vinculação interior"): engastado / articulado / engaste parcial (αR).
+  // Applies to the bending of every bar end at the node (model.setNodeFixity); the bar panel keeps the per-end detail.
+  _nodeFixityHTML(node) {
+    const fx = this.app.model.nodeFixity(node.id);
+    if (fx.mode === 'none') return '';
+    const a = fx.mode === 'partial' ? fx.alpha : 0.5;
+    const opt = (v, txt) => `<option value="${v}" ${fx.mode === v ? 'selected' : ''}>${txt}</option>`;
+    // premises the engineer must see (review: 3D torsion coupling, partly held rotation, nodal moment, EI)
+    const is3D = this.app.model.mode !== '2D';
+    const hingeNote = fx.mode !== 'hinge' ? '' : (fx.kept
+      ? i18n.t('Barra') + ` #${fx.kept} ` + i18n.t('fica contínua (n−1 extremos liberados): sem momento aplicado no nó, o equilíbrio zera o momento dela.')
+        + (is3D ? ' ' + i18n.t('Em 3D a torção das demais barras segue contínua e pode transmitir momento a essa barra; com momento nodal aplicado ou giro parcialmente restringido no apoio, ela absorve esse momento.') : '')
+      : i18n.t('Todos os extremos liberados (o apoio segura os giros do nó).'));
+    const partialNote = fx.mode !== 'partial' ? '' : i18n.t('Mola linear: o mesmo αR para M+ e M−. Use no modelo o mesmo EI com que αR foi obtido (Anexo A: ajuste o modificador de inércia da seção).');
+    const zone = fx.mode !== 'partial' ? '' : a < 0.15 ? i18n.t('αR < 0,15: a norma trata a ligação como articulada (5.1.2.6/5.1.2.9-g)')
+      : a >= 0.85 ? i18n.t('αR ≥ 0,85: ligação rígida (5.1.2.8)') : i18n.t('semirrígida: 0,15 ≤ αR < 0,85 (5.1.2.7)');
+    return `
+      <div class="prop-section node-fixity-section">
+        <div class="prop-title">${i18n.t('Vinculação interior')} (${fx.n} ${i18n.t('extremos de barra')})</div>
+        <div class="prop-row cols2">
+          <div class="prop-field"><label>${i18n.t('Tipo')}</label>
+            <select id="n-fix-mode">
+              ${opt('rigid', i18n.t('Engastado'))}${opt('hinge', i18n.t('Articulado'))}${opt('partial', i18n.t('Engaste parcial (αR)'))}
+              ${fx.mode === 'custom' ? `<option value="custom" selected disabled>${i18n.t('Personalizado (por barra)')}</option>` : ''}
+            </select>
+          </div>
+          <div class="prop-field" id="n-fix-alpha-wrap" style="${fx.mode === 'partial' ? '' : 'display:none'}">
+            <label title="αR = θ1/θ2 = [1 + 3(EI)sec/(Rsec·Lef)]⁻¹ — ABNT NBR 9062:2017, 5.1.2.7">${i18n.t('Grau de engastamento αR')}</label>
+            <input type="number" id="n-fix-alpha" value="${a}" min="0.01" max="0.99" step="0.05">
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
+          ${i18n.t('Flexão dos extremos de barra no nó (torção contínua). αR = 0 articulado, 1 engastado; Rsec = 3·EI·αR/(Lef·(1−αR)) por barra, com a seção e o comprimento atuais (NBR 9062:2017 5.1.2.7).')}
+          ${zone ? `<br><b>${zone}</b>` : ''}
+          ${partialNote ? `<br>${partialNote}` : ''}
+          ${hingeNote ? `<br>${hingeNote}` : ''}
+        </div>
+      </div>`;
+  }
+
   _bindNodeEvents(node) {
     const sel = this._tabContents.sel;
+
+    // internal fixity → every bar end at the node, then redraw those bars and the panel
+    const applyFixity = () => {
+      const mode = sel.querySelector('#n-fix-mode')?.value;
+      if (!mode || mode === 'custom') return;
+      let a = parseFloat(String(sel.querySelector('#n-fix-alpha')?.value ?? '').replace(',', '.'));
+      if (mode === 'partial' && !(a > 0 && a < 1)) { this.app.toast?.(i18n.t('αR deve estar entre 0 e 1'), 'warn'); return; }
+      this.app.snapshot();
+      this.app.model.setNodeFixity(node.id, mode, a);
+      for (const { e } of this.app.model._nodeEnds(node.id)) this.app.viewport.refreshElem(e);
+      this.app.markDirty();
+      this.showNode(this.app.model.nodes.get(node.id));
+    };
+    sel.querySelector('#n-fix-mode')?.addEventListener('change', e => {
+      e.stopPropagation();
+      const w = sel.querySelector('#n-fix-alpha-wrap'); if (w) w.style.display = e.target.value === 'partial' ? '' : 'none';
+      applyFixity();
+    });
+    sel.querySelector('#n-fix-alpha')?.addEventListener('change', e => { e.stopPropagation(); applyFixity(); });
 
     const numVal = id => parseFloat(sel.querySelector(id)?.value) || 0;
 
@@ -1488,7 +1549,7 @@ export class PropertiesPanel {
       this.app.markDirty();
     };
 
-    sel.querySelectorAll('input[type=number]').forEach(inp =>
+    sel.querySelectorAll('input[type=number]:not(#n-fix-alpha)').forEach(inp =>
       inp.addEventListener('change', save)
     );
     sel.querySelectorAll('[data-dof]').forEach(cb =>
@@ -1595,17 +1656,20 @@ export class PropertiesPanel {
       const rows = relDefs.map(d => {
         const idx = offset + d.i;
         const k = elem.endSprings?.[idx];
-        const mode = (k > 0 && isFinite(k)) ? 'resorte' : (elem.releases[idx] ? 'libre' : 'fijo');
+        const aR = (d.i === 4 || d.i === 5) ? elem.endFixity?.[idx] : undefined;   // αR, NBR 9062:2017 5.1.2.7
+        const mode = (aR > 0 && aR < 1) ? 'alfa' : (k > 0 && isFinite(k)) ? 'resorte' : (elem.releases[idx] ? 'libre' : 'fijo');
         const unit = d.rot ? 'kN·m/rad' : 'kN/m';
+        const showK = mode === 'resorte' || mode === 'alfa';
         return `<div class="rel-comp" style="display:flex;align-items:center;gap:6px" title="${d.lbl}: ${d.tip}">
           <span class="rel-comp-lbl" style="width:26px;font-weight:600">${d.lbl}</span>
           <select class="rel-mode" data-rel="${idx}" style="flex:0 0 auto">
             <option value="fijo"    ${mode === 'fijo'    ? 'selected' : ''}>${i18n.t('Fijo')}</option>
             <option value="libre"   ${mode === 'libre'   ? 'selected' : ''}>Libre</option>
             <option value="resorte" ${mode === 'resorte' ? 'selected' : ''}>${i18n.t('Resorte')}</option>
+            ${(d.i === 4 || d.i === 5) ? `<option value="alfa" ${mode === 'alfa' ? 'selected' : ''} title="αR = [1 + 3EI/(Rsec·Lef)]⁻¹ — NBR 9062:2017 5.1.2.7">αR (NBR 9062)</option>` : ''}
           </select>
-          <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? k : ''}" min="0" step="100"
-            placeholder="${unit}" title="${i18n.t('Rigidez del resorte')} (${unit})" style="width:96px;${mode === 'resorte' ? '' : 'display:none'}">
+          <input type="number" class="rel-k" data-relk="${idx}" value="${mode === 'resorte' ? k : mode === 'alfa' ? aR : ''}" min="0" step="${mode === 'alfa' ? 0.05 : 100}"
+            placeholder="${mode === 'alfa' ? 'αR' : unit}" title="${mode === 'alfa' ? 'αR (0–1)' : i18n.t('Rigidez del resorte') + ' (' + unit + ')'}" style="width:96px;${showK ? '' : 'display:none'}">
         </div>`;
       }).join('');
       return `<div class="releases-half">
@@ -1746,13 +1810,19 @@ export class PropertiesPanel {
       // Unified per-component control: Fijo → rigid; Libre → full release; Resorte →
       // partial-fixity spring (endSprings). A «Resorte» with no valid k falls back to Libre.
       const releases = Array(12).fill(0);
-      const endSprings = {};
+      const endSprings = {}, endFixity = {};
       sel.querySelectorAll('.rel-mode').forEach(s => {
         const idx = +s.dataset.rel;
         if (s.value === 'libre') releases[idx] = 1;
         else if (s.value === 'resorte') {
           const k = parseFloat(sel.querySelector(`.rel-k[data-relk="${idx}"]`)?.value);
           if (k > 0 && isFinite(k)) endSprings[idx] = k; else releases[idx] = 1;
+        } else if (s.value === 'alfa') {
+          // αR (NBR 9062:2017 5.1.2.7): 0 < αR < 1; empty → 0,5; ≥ 1 rigid; ≤ 0 released
+          const inp = sel.querySelector(`.rel-k[data-relk="${idx}"]`);
+          let a = parseFloat(String(inp?.value ?? '').replace(',', '.'));
+          if (!isFinite(a)) { a = 0.5; if (inp) inp.value = a; }
+          if (a <= 0) releases[idx] = 1; else if (a < 1) endFixity[idx] = a;
         }
       });
       const cable    = sel.querySelector('#e-cable')?.checked || false;
@@ -1761,7 +1831,7 @@ export class PropertiesPanel {
       const rigidEnd = { i: parseFloat(sel.querySelector('#e-rig-i')?.value) || 0, j: parseFloat(sel.querySelector('#e-rig-j')?.value) || 0 };
       // Elastic foundation / line spring (1-013): local subgrade moduli y/z.
       const foundation = { ky: parseFloat(sel.querySelector('#e-found-ky')?.value) || 0, kz: parseFloat(sel.querySelector('#e-found-kz')?.value) || 0 };
-      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, foundation });
+      this.app.model.updateElement(elem.id, { n1, n2, matId, secId, releases, cable, compressionOnly, L0factor, rigidEnd, endSprings, endFixity, foundation });
       this.app.viewport.refreshElem(this.app.model.elements.get(elem.id));
       this.app.markDirty();
     };
@@ -1774,7 +1844,10 @@ export class PropertiesPanel {
     sel.querySelectorAll('.rel-mode').forEach(s =>
       s.addEventListener('change', () => {
         const k = sel.querySelector(`.rel-k[data-relk="${s.dataset.rel}"]`);
-        if (k) k.style.display = s.value === 'resorte' ? '' : 'none';
+        if (k) {
+          k.style.display = (s.value === 'resorte' || s.value === 'alfa') ? '' : 'none';
+          k.placeholder = s.value === 'alfa' ? 'αR' : k.placeholder; k.step = s.value === 'alfa' ? 0.05 : 100;
+        }
       })
     );
     const cb_cable = sel.querySelector('#e-cable');
@@ -1806,7 +1879,7 @@ export class PropertiesPanel {
     // Release presets per end. Set the component selects (and hide any spring field).
     const setMode = (idx, mode) => {
       const s = sel.querySelector(`.rel-mode[data-rel="${idx}"]`); if (s) s.value = mode;
-      const k = sel.querySelector(`.rel-k[data-relk="${idx}"]`); if (k) k.style.display = mode === 'resorte' ? '' : 'none';
+      const k = sel.querySelector(`.rel-k[data-relk="${idx}"]`); if (k) k.style.display = (mode === 'resorte' || mode === 'alfa') ? '' : 'none';
     };
     sel.querySelectorAll('[data-rel-pin]').forEach(btn =>
       btn.addEventListener('click', () => {

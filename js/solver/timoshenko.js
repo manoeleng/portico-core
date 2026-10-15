@@ -232,8 +232,81 @@ export function elemLocalK(elem, mat, sec, L) {
     Ke = Ke.map((row, i) => row.map((v, j) => v + Kf[i][j]));
   }
   // End springs / partial fixity (1-008): semi-rigid member↔node connection.
-  if (elem.endSprings) Ke = applyEndSprings(Ke, elem.endSprings);
+  // endFixity (αR per bending DOF) becomes a spring here, with the CURRENT section and length.
+  const springs = elem.endFixity ? fixitySprings(elem, mat, sec, L) : elem.endSprings;
+  if (springs) Ke = applyEndSprings(Ke, springs);
   return Ke;
+}
+
+// Fixed-end forces of a member with END SPRINGS (endSprings / endFixity). The span load acts on the MEMBER end
+// DOFs, which are tied to the node only through the spring: the nodal equivalent is the static condensation of
+// those internal DOFs, f_eq = f_n − K_ni·K_ii⁻¹·f_i, on the same expanded matrix applyEndSprings builds.
+// (Applying the fixed-fixed f directly to the node — the previous behaviour — ignored the spring: a semi-rigid
+// beam under a uniform load got the full wL²/12 at the support whatever the stiffness.) No springs → f unchanged.
+// Expanded member + end-spring system (12 node DOFs + one internal member DOF per spring), shared by
+// springFEF and springMemberDisp — the same matrix applyEndSprings condenses. null when there is no spring.
+function springSystem(elem, mat, sec, L, f) {
+  const springs = elem.endFixity ? fixitySprings(elem, mat, sec, L) : elem.endSprings;
+  if (!springs) return null;
+  const sd = Object.keys(springs).map(Number).filter(i => springs[i] > 0 && isFinite(springs[i]));
+  if (!sd.length) return null;
+  const Kb = elemLocalK({ ...elem, endSprings: undefined, endFixity: undefined }, mat, sec, L);
+  const N = 12 + sd.length;
+  const beamIdx = i => { const p = sd.indexOf(i); return p >= 0 ? 12 + p : i; };
+  const K = Array.from({ length: N }, () => Array(N).fill(0));
+  const F = Array(N).fill(0);
+  for (let a = 0; a < 12; a++) {
+    F[beamIdx(a)] += f ? (f[a] || 0) : 0;
+    for (let b = 0; b < 12; b++) { const v = Kb[a][b]; if (v) K[beamIdx(a)][beamIdx(b)] += v; }
+  }
+  sd.forEach((i, p) => { const k = springs[i], P = 12 + p; K[i][i] += k; K[P][P] += k; K[i][P] -= k; K[P][i] -= k; });
+  const intl = sd.map((_, p) => 12 + p);
+  const KiiInv = invertSmall(intl.map(i => intl.map(j => K[i][j])));
+  return KiiInv ? { sd, K, F, intl, KiiInv } : null;
+}
+
+export function springFEF(elem, mat, sec, L, f) {
+  const S = springSystem(elem, mat, sec, L, f);
+  if (!S) return f;
+  const { K, F, intl, KiiInv } = S;
+  const y = intl.map((_, r) => intl.reduce((s, _, c) => s + KiiInv[r][c] * F[intl[c]], 0));   // K_ii⁻¹·f_i
+  return Array.from({ length: 12 }, (_, i) => F[i] - intl.reduce((s, j, c) => s + K[i][j] * y[c], 0));
+}
+
+// MEMBER-side end displacements of a member with end springs: the member end rotation is not the node's,
+// θ_member = θ_node − M/k. From the internal equilibrium of the expanded system,
+//   u_int = −K_ii⁻¹·(K_in·u_n + f_i)      (f = uncondensed fixed-end forces of the member)
+// Returns ue with the sprung DOFs replaced by u_int (the field inside the span — deflection — uses these);
+// ue unchanged without springs.
+export function springMemberDisp(elem, mat, sec, L, ue, fefRaw = null) {
+  const S = springSystem(elem, mat, sec, L, fefRaw);
+  if (!S) return ue;
+  const { sd, K, F, intl, KiiInv } = S;
+  const rhs = intl.map(r => { let s = -F[r]; for (let j = 0; j < 12; j++) s -= K[r][j] * ue[j]; return s; });
+  const out = [...ue];
+  sd.forEach((i, p) => { out[i] = intl.reduce((s, _, c) => s + KiiInv[p][c] * rhs[c], 0); });
+  return out;
+}
+
+// Partial fixity by the rotation restraint factor αR — ABNT NBR 9062:2017, 5.1.2.7:
+//   αR = θ1/θ2 = [1 + 3(EI)sec/(Rsec·Lef)]⁻¹   ⇒   Rsec = 3·(EI)·αR / (Lef·(1 − αR))
+// (check: αR = 0,85 → Rsec = 17·EI/Lef, the rigid limit of 5.1.2.8-a). elem.endFixity = { [4|5|10|11]: αR },
+// EI about the axis of that DOF (4/10 → Iy, 5/11 → Iz, section modifiers included, as in stiffnessMatrix),
+// Lef = flexible length between the centres of rotation (the rigid end zones excluded).
+// 0 < αR < 1; αR ≥ 1 is a rigid end (no spring) and αR ≤ 0 is left to the release flag. Overrides endSprings
+// on the same DOF.
+export function fixitySprings(elem, mat, sec, L) {
+  const fx = elem.endFixity;
+  if (!fx) return elem.endSprings || null;
+  const ro = rigidEndOffsets(elem, L), Lef = ro ? ro.Lf : L, md = sec.mod || {};
+  const out = { ...(elem.endSprings || {}) };
+  for (const k of Object.keys(fx)) {
+    const i = +k, a = +fx[k];
+    if (![4, 5, 10, 11].includes(i) || !(a > 0 && a < 1)) continue;
+    const I = (i === 4 || i === 10) ? sec.Iy * (md.Iy ?? 1) : sec.Iz * (md.Iz ?? 1);
+    out[i] = 3 * mat.E * I * a / (Lef * (1 - a));
+  }
+  return out;
 }
 
 // LOCAL element mass with rigid end zone (consistent mass of the flexible part

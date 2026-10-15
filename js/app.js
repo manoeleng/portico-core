@@ -1051,6 +1051,7 @@ class App {
                         `${i18n.t('Ke y Me se calculan con la luz FLEXIBLE Lf =')} ${+ro.Lf.toFixed(4)} m ${i18n.t('y se llevan a los nodos por brazo rígido')}`);
     if (elem.foundation) extras.push(i18n.t('fundación elástica (resorte distribuido)'));
     if (elem.endSprings) extras.push(i18n.t('resortes de extremo (empotramiento parcial)'));
+    if (elem.endFixity) extras.push(i18n.t('engaste parcial αR (NBR 9062)'));
     let html = `
       <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
         ${i18n.t('Elemento #')}${elem.id} (${i18n.t('nodos')} ${elem.n1}→${elem.n2}) · L = ${+L.toFixed(4)} m ·
