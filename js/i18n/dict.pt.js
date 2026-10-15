@@ -2316,6 +2316,8 @@ export const PT = {
   "acero": "aço",
   "madera": "madeira",
   "Propuesta:": "Proposta:",
+  "Zona sísmica (NBR 15421)": "Zona sísmica (NBR 15421)",
+  "sin sismo": "sem sismo",
 };
 
 export default PT;

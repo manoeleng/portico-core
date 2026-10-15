@@ -7164,6 +7164,7 @@ ${sel('wh-sterca', t('Correas'), `<option value="">${t('Automática (d ≥ L/40)
 ${sec(t('6. Cargas y viento (NBR 6123)'))}
 <div class="prop-row cols2">${num('wh-cm', t('Peso de cubierta (kN/m²)'), 0.15, 0.05, 0)}${num('wh-cv', t('Sobrecarga de cubierta (kN/m²)'), 0.25, 0.05, 0)}</div>
 <div class="prop-row cols3">${num('wh-v0', 'V0 (m/s)', 35, 1, 0)}${sel('wh-cat', t('Categoría'), '<option>I</option><option>II</option><option>III</option><option selected>IV</option><option>V</option>')}${sel('wh-s3', t('Grupo S3'), '<option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>')}</div>
+<div class="prop-row cols2">${sel('wh-zona', t('Zona sísmica (NBR 15421)'), `<option value="">${t('sin sismo')}</option><option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>`)}</div>
 <small id="wh-status" style="display:block;margin:8px 0;color:var(--text-muted)"></small>
 <div style="display:flex;gap:8px;justify-content:flex-end">
   <button type="button" id="wh-cancel" class="btn-secondary">${t('Cancelar')}</button>
@@ -7177,7 +7178,8 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
         column_type: v('wh-ctype'), column_width_m: n('wh-cw'), column_module_m: n('wh-cmod'),
         chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
         purlin_section: v('wh-sterca') || undefined, bracing_rod_mm: n('wh-rod') },
-      loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0 },
+      loads: { dead_extra_kN_m2: n('wh-cm'), live_load_kN_m2: n('wh-cv'), wind: n('wh-v0') > 0, seismic: v('wh-zona') !== '' },
+      seismic: v('wh-zona') !== '' ? { zona: +v('wh-zona') } : undefined,
       wind: { V0_m_s: n('wh-v0'), categoria: v('wh-cat'), grupoS3: v('wh-s3') },
     });
     let last = null, timer = null;

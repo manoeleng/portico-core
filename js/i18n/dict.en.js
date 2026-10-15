@@ -2571,6 +2571,8 @@ export const EN = {
   "acero": "steel",
   "madera": "timber",
   "Propuesta:": "Proposal:",
+  "Zona sísmica (NBR 15421)": "Seismic zone (NBR 15421)",
+  "sin sismo": "no seismic",
 };
 
 export default EN;

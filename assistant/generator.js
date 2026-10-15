@@ -241,6 +241,7 @@ function applyNbrCombinations(model, spec) {
     else if (lc.selfWeight || /^CM\b/.test(lc.name)) k = 'G';
     else if (/^CV\b/.test(lc.name)) k = roofOnly ? 'Qcob' : 'Q';
     else if (/^Viento/.test(lc.name)) { const base = /^Viento Y\b/.test(lc.name) ? 'V90' : 'V0'; let i = 1; k = base; while (used.has(k)) k = `${base}_${++i}`; }
+    else if (/^Sismo [XY]\b/.test(lc.name)) k = /^Sismo Y\b/.test(lc.name) ? 'E90' : 'E0';   // static (NBR 15421 7.3.2, zone 1)
     if (!k || used.has(k)) { warn('omitted', `Caso "${lc.name}" fora das combinações NBR (sem ação correspondente na NBR 8681/6120/6123/15421).`); continue; }
     used.add(k); sym.set(k, lc.id);
   }
@@ -1852,6 +1853,39 @@ export function generateWarehouse(spec, libs) {
       }
       addWarning('info', `Vento NBR 6123: q = ${vi.q_Nm2} N/m² (α = 90°), ${vi.q_empena_Nm2} N/m² (α = 0°); ${loadCases.length - 2} casos (X e Y × Cpi ${vi.cpi.join(' / ')}); −X/−Y por simetria.`);
     }
+  }
+
+  // ── Seismic NBR 15421:2023 (preset Brasil) — seismic category A (Tab. 5: zones 0 and 1), 7.3.2 ──
+  // Zone 0 (ag < 0,025g): no seismic requirement. Zone 1 (0,025g ≤ ag ≤ 0,05g): horizontal forces
+  // Fx = 0,01·wx applied simultaneously to all levels, independently in two orthogonal directions. Here wx is the
+  // permanent weight (self-weight of every bar + roofing CM) applied as 1 % of each gravity load, at the same place,
+  // horizontally (+X and +Y cases; −X/−Y by symmetry). The roof live load is not included (7.3.2: 25 % of the variable
+  // load only in storage/parking areas). Zones 2–4 (categories B/C) need section 9 or a spectral analysis.
+  if (cargas.seismic && regras.loads?.seismic?.metodo === 'NBR15421') {
+    const sz = spec.seismic || {};
+    const ag = sz.ag_g ?? sz.ag;
+    const zona = sz.zona ?? sz.zone ?? (ag != null ? (ag < 0.025 ? 0 : ag <= 0.05 ? 1 : ag <= 0.10 ? 2 : ag <= 0.15 ? 3 : 4) : null);
+    if (zona == null) addWarning('omitted', 'Sismo NBR 15421: informe seismic.zona ou seismic.ag_g (Fig. 1/Tab. 1) — galpão sem casos de sismo.');
+    else if (+zona === 0) addWarning('info', 'Sismo NBR 15421: zona sísmica 0, categoria A — nenhum requisito de resistência sísmica é exigido (7.3.2).');
+    else if (+zona === 1) {
+      const secById = new Map([secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : [])].map(q => [q.id, q]));
+      const lcEx = { id: loadCases.length + 1, name: 'Sismo X (NBR 15421 7.3.2)', loads: [], selfWeight: false, type: 'static', specDir: null };
+      const lcEy = { id: loadCases.length + 2, name: 'Sismo Y (NBR 15421 7.3.2)', loads: [], selfWeight: false, type: 'static', specDir: null };
+      let W = 0;
+      const push = (eid, w, L) => {
+        if (!(w > 0)) return;
+        W += w * L;
+        lcEx.loads.push({ type: 'dist', elemId: eid, dir: 'globalX', w: +(0.01 * w).toFixed(6) });
+        lcEy.loads.push({ type: 'dist', elemId: eid, dir: 'globalY', w: +(0.01 * w).toFixed(6) });
+      };
+      const Lof = (e) => { const a = nodes.find(n => n.id === e.n1), b = nodes.find(n => n.id === e.n2); return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); };
+      const elById = new Map(elements.map(e => [e.id, e]));
+      for (const e of elements) push(e.id, (+mat.rho || 0) * (+secById.get(e.secId)?.A || 0) * 9.80665, Lof(e));   // self-weight (as the solver)
+      for (const ld of lcCM.loads) if (ld.type === 'dist' && ld.dir === 'gravity') push(ld.elemId, ld.w, Lof(elById.get(ld.elemId)));
+      loadCases.push(lcEx, lcEy);
+      addWarning('info', `Sismo NBR 15421: zona 1, categoria A — Fx = 0,01·wx (7.3.2) em X e em Y separadamente; peso permanente W = ${W.toFixed(1)} kN → H = ${(0.01 * W).toFixed(2)} kN por direção (sobrecarga de cobertura não incluída). W é só o peso do modelo: some fechamentos, forros, instalações e equipamentos fixos; em armazenamento, 25 % da variável. Requisito mínimo da categoria A.`);
+      if (!comContrav) addWarning('omitted', 'Sismo NBR 15421 zona 1: sem contraventamento o galpão não tem sistema resistente declarado na direção Y (7.3.2 exige duas direções ortogonais e mecanismo de torção).');
+    } else addWarning('omitted', `Sismo NBR 15421: zona ${zona} (categoria ${+zona === 2 ? 'B' : 'C'}) exige o método das forças horizontais equivalentes (seção 9) ou análise espectral — não gerado para o galpão.`);
   }
 
   return {
