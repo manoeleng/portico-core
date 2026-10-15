@@ -8,8 +8,7 @@
 // Base normativa do livro: NBR 8800:2008 (os fixtures citam §NBR 8800:2024). A equivalência
 // 2008→2024 desses itens está registrada nas fichas do StructPro-Pro (docs/decisoes.md).
 // Unidades do módulo: kN, m, kN/m² (fixtures em cm, kN/cm², kN·cm → convertidos abaixo).
-// Pulados (dados insuficientes): P1-FS-A / P1-FC-A (Pfeil 7.6.5, CVS 400x87: só A, Zx, Wx, ry e λ;
-// faltam d, bf, tf, tw para o módulo).
+// Pfeil 7.6.5 (CVS 400x87): seção completa tirada da ABNT NBR 5884:2005, Tab. B.2 (ver BR-8800-03/09).
 import { readFileSync } from 'node:fs';
 import { nbr8800 } from '../js/design/codes/nbr8800.js';
 
@@ -143,6 +142,31 @@ const run = (id, input) => { try { return nbr8800.check(input); } catch (e) { fa
     ok('07h. Lr (m)', rb.flexaoX.Lr, 8.02, 0.002);
     ok('07i. VRd alma (kN), regime inelástico', rb.corteY.capacity, 481.2, 0.001);
     assert('07j. regime inelástico', /inel/i.test(rb.corteY.regime), rb.corteY.regime);
+  }
+}
+
+// BR-8800-03 / 09 · Pfeil 9ª ed. Probl. 7.6.5 — pilar A, CVS 400×87 soldado, MR250, L = 3,70 m.
+// Seção: ABNT NBR 5884:2005, Tab. B.2 (lida na página 27 do PDF): d=400, tw=9,5, h=375, tf=12,5, bf=300 mm;
+// A=110,6 cm²; Ix=32339; Wx=1617; rx=17,1; Zx=1787; Iy=5628; Wy=375; ry=7,13; Zy=571; It=50,1; Cw=2111572.
+// Esperados: fixtures do StructPro-Pro (P1-FS-A, P1-FC-A). Na 2024 o caso não muda: mesa (λ=12) e alma
+// (h/tw≈39) não esbeltas na Tab. 4 → Aef = Ag (≡ Q = 1 da 2008); Nez não governa; FLM não depende de Cb.
+{
+  const p = { d: 40, bf: 30, tf: 1.25, tw: 0.95, h: 37.5, A: 110.6, Ix: 32339, Wx: 1617, Zx: 1787, rx: 17.1,
+    Iy: 5628, Wy: 375, Zy: 571, ry: 7.13, It: 50.1, Cw: 2111572 };
+  const sec = { ...secI(p), fabricacao: 'soldado' };
+  const mat = { Fy: 25 * KNCM2, Fu: 40 * KNCM2, E: 20000 * KNCM2 };
+  const rf = run('09', { demands: { Mz: 124.1 }, mat, sec, member: { L: 3.7, Lb: 3.7, Cb: 1 }, options: { gamma_a1: 1.10 } });
+  if (rf) {
+    ok('09a. Mp (kN·m) — Pfeil 7.6.5', rf.flexaoX.Mpl, 446.7, 0.01);
+    ok('09b. Mr (kN·m) — Pfeil 7.6.5', rf.flexaoX.Mr, 283.0, 0.01);
+    ok('09c. MRd FLM semicompacta soldado (kN·m) — Pfeil 7.6.5', rf.flexaoX.MRdFLM, 394.0, 0.01);
+    ok('09d. MRd governante (kN·m)', rf.flexaoX.capacity, 394.0, 0.01);
+  }
+  const rc = run('03b', { demands: { N: -1007, Mz: 124.1 }, mat, sec, member: { L: 3.7, Lb: 3.7, Cb: 1 }, options: { gamma_a1: 1.10 } });
+  if (rc) {
+    ok('03b. χ — Pfeil 7.6.5', rc.axial.chi, 0.864, 0.02);
+    ok('03c. Nc,Rd (kN) — Pfeil 7.6.5', rc.axial.capacity, 2172, 0.02);
+    ok('03d. interação N+M (5.5.1.2) — Pfeil 7.6.5', rc.interaction.demand, 0.74, 0.02);
   }
 }
 
