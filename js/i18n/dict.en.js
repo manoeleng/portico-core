@@ -2688,6 +2688,10 @@ export const EN = {
   "Cubierta shed": "Sawtooth roof",
   "Galpón en arco": "Arched shed",
   "Entrepiso (mezanino)": "Mezzanine",
+  "Nº de pórticos (0 = por la separación)": "No. of frames (0 = by spacing)",
+  "Montante inicial de la cercha (m)": "Truss end depth (m)",
+  "En los vanos elegidos": "In the chosen bays",
+  "Vanos arriostrados (ej.: 1, 3, 6)": "Braced bays (e.g. 1, 3, 6)",
 };
 
 export default EN;

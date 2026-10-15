@@ -2433,6 +2433,10 @@ export const PT = {
   "Cubierta shed": "Cobertura shed",
   "Galpón en arco": "Galpão em arco",
   "Entrepiso (mezanino)": "Mezanino",
+  "Nº de pórticos (0 = por la separación)": "Nº de pórticos (0 = pela separação)",
+  "Montante inicial de la cercha (m)": "Montante inicial da treliça (m)",
+  "En los vanos elegidos": "Nos vãos escolhidos",
+  "Vanos arriostrados (ej.: 1, 3, 6)": "Vãos contraventados (ex.: 1, 3, 6)",
 };
 
 export default PT;

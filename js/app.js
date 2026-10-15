@@ -7157,12 +7157,14 @@ class App {
 ${sec(t('1. Geometría principal'))}
 <div class="prop-row cols2">${num('wh-span', t('Vano (m)'), 15, 0.5, 4)}${num('wh-len', t('Largo (m)'), 30, 1, 4)}</div>
 <div class="prop-row cols2">${num('wh-h', t('Altura del pilar (m)'), 6, 0.25, 2)}${num('wh-sep', t('Separación de pórticos (m)'), 5, 0.25, 1)}</div>
+<div class="prop-row cols2">${num('wh-nport', t('Nº de pórticos (0 = por la separación)'), 0, 1, 0)}${num('wh-he', t('Montante inicial de la cercha (m)'), 0, 0.05, 0)}</div>
 ${sec(t('2. Pilares'))}
 <div class="prop-row cols3">${sel('wh-ctype', t('Tipo'), `<option value="simples">${t('Simple')}</option><option value="treliçado">${t('Reticulado')}</option>`)}${num('wh-cw', t('Ancho (m)'), 0.5, 0.05, 0.2)}${num('wh-cmod', t('Modulación (m)'), 0.5, 0.05, 0.2)}</div>
 ${sec(t('3. Cubierta (cercha)'))}
 <div class="prop-row cols3">${sel('wh-truss', t('Cercha'), '<option>warren</option><option>pratt</option><option>howe</option>')}${num('wh-slope', t('Pendiente (%)'), 10, 1, 1)}${num('wh-psp', t('Separación de correas (m)'), 1.8, 0.1, 0.6)}</div>
 ${sec(t('4. Arriostramientos'))}
-${sel('wh-brace', t('Cubierta y fachadas'), `<option value="extremidades">${t('Solo en los extremos')}</option><option value="todos">${t('En todos los vanos')}</option><option value="sem">${t('Sin arriostramiento')}</option>`)}
+${sel('wh-brace', t('Cubierta y fachadas'), `<option value="extremidades">${t('Solo en los extremos')}</option><option value="todos">${t('En todos los vanos')}</option><option value="escolhidos">${t('En los vanos elegidos')}</option><option value="sem">${t('Sin arriostramiento')}</option>`)}
+<div class="prop-field" id="wh-bays-wrap" style="display:none"><label id="wh-bays-lbl">${t('Vanos arriostrados (ej.: 1, 3, 6)')}</label><input type="text" id="wh-bays" value="1"></div>
 ${sec(t('5. Perfiles y materiales'))}
 ${sel('wh-mat', t('Acero'), opt(ACOS, 'MR250'))}
 ${sel('wh-scol', t('Pilar (cordones)'), opt(W, 'W 250 x 32,7'))}
@@ -7183,6 +7185,8 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     const spec = () => ({
       project: 'galpao', typology: 'galpão', sections: { material: v('wh-mat'), columns: v('wh-scol') },
       warehouse: { span_m: n('wh-span'), length_m: n('wh-len'), column_height_m: n('wh-h'), frame_spacing_m: n('wh-sep'),
+        n_frames: n('wh-nport') >= 2 ? Math.round(n('wh-nport')) : undefined, end_depth_m: n('wh-he') > 0 ? n('wh-he') : undefined,
+        bracing_bays: v('wh-brace') === 'escolhidos' ? String(v('wh-bays')).split(/[^\d]+/).filter(Boolean).map(Number) : undefined,
         slope_pct: n('wh-slope'), truss_type: v('wh-truss'), purlin_spacing_m: n('wh-psp'), bracing: v('wh-brace'),
         column_type: v('wh-ctype'), column_width_m: n('wh-cw'), column_module_m: n('wh-cmod'),
         chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
@@ -7193,6 +7197,11 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     });
     let last = null, timer = null;
     const preview = () => {
+      // chosen-bays field only with that mode; label shows the valid range 1 … n_frames − 1
+      const nf = n('wh-nport') >= 2 ? Math.round(n('wh-nport')) : Math.floor(n('wh-len') / n('wh-sep') + 1e-9) + 1;
+      $('wh-bays-wrap').style.display = v('wh-brace') === 'escolhidos' ? '' : 'none';
+      $('wh-sep').disabled = n('wh-nport') >= 2;
+      $('wh-bays-lbl').textContent = `${t('Vanos arriostrados (ej.: 1, 3, 6)')} — 1…${Math.max(1, nf - 1)}`;
       try {
         const sp = spec(); last = generateModel(sp, libs);
         this._loadJSON(JSON.stringify(last), 'galpao.s3d');

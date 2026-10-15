@@ -130,6 +130,48 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
   }
 }
 
+// (h) number of frames prevails over the spacing: 5 frames over 30 m → spacing 7,5 m
+{
+  const h = generateModel({ ...spec, warehouse: { ...spec.warehouse, n_frames: 5 } }, BR);
+  const ys = [...new Set(h.nodes.map(n => n.y))].sort((p, q) => p - q);
+  assert('h1. 5 pórticos @ 7,5 m (0; 7,5; 15; 22,5; 30)', JSON.stringify(ys) === JSON.stringify([0, 7.5, 15, 22.5, 30]), JSON.stringify(ys));
+}
+// (i) bracing in the chosen bays (1-based): bays 2 and 4 → y 5–10 and 15–20; out-of-range bay warned and ignored
+{
+  const b = generateModel({ ...spec, warehouse: { ...spec.warehouse, bracing: 'escolhidos', bracing_bays: [2, 4, 9] } }, BR);
+  const r = b.elements.filter(e => e.cable), N = (id) => b.nodes[id - 1];
+  assert('i1. 2 vãos × (2·nT + 4) tirantes', r.length === 2 * (2 * nT + 4), String(r.length));
+  assert('i2. só nos vãos 2 (5–10 m) e 4 (15–20 m)', r.every(e => { const y = [N(e.n1).y, N(e.n2).y].sort((p, q) => p - q); return (y[0] === 5 && y[1] === 10) || (y[0] === 15 && y[1] === 20); }));
+  assert('i3. vão 9 (fora de 1…6) avisado', b._warnings.some(w => /fora de 1…6 ignorados: 9/.test(w.msg)));
+  const { F, R } = solve(b, 'Viento Y (Cpi 0)');
+  assert('i4. vãos escolhidos: vento de empena equilibrado (ΣRy = −ΣFy)', Math.abs(R[1] + F[1]) < 1e-3 * Math.abs(F[1]));
+}
+// (j) end depth ("montante inicial") 1,0 m: trapezoidal truss; the end post is the column carried up (same section)
+{
+  const hE = 1.0, hR = 0.75;
+  const j = generateModel({ ...spec, warehouse: { ...spec.warehouse, end_depth_m: hE } }, BR);
+  const N = (id) => j.nodes[id - 1];
+  const zmax = Math.max(...j.nodes.map(n => n.z));
+  assert('j1. cumeeira em H + montante + flecha = 6 + 1 + 0,75 = 7,75 m', Math.abs(zmax - (6 + hE + hR)) < 1e-6, String(zmax));
+  const post = j.elements.find(e => { const a = N(e.n1), c = N(e.n2); return a.x === 0 && c.x === 0 && a.y === 10 && c.y === 10 && Math.min(a.z, c.z) === 6 && Math.max(a.z, c.z) === 7; });
+  assert('j2. montante de extremidade x = 0, 6 → 7 m, seção do pilar e contínuo', post && post.secId === 1 && post.releases.every(r => !r), JSON.stringify(post));
+  const eave = j.nodes.find(n => n.x === 0 && n.y === 10 && n.z === 7);
+  assert('j3. banzo superior nasce no topo do montante (x = 0, z = 7)', !!eave && j.elements.some(e => (e.n1 === eave.id || e.n2 === eave.id) && e.secId === 2));
+  for (const name of ['CM', 'Viento X (Cpi 0)', 'Viento Y (Cpi 0)']) {
+    const { F, R } = solve(j, name);
+    const tol = 1e-3 * Math.max(1, ...F.map(Math.abs));
+    assert(`j4. ${name}: estável e ΣR + ΣF = 0`, R.every(Number.isFinite) && R.every((r, k) => Math.abs(r + F[k]) < tol), `F = [${F.map(v => v.toFixed(2))}] R = [${R.map(v => v.toFixed(2))}]`);
+  }
+  // wall wind now acts up to the eave (H + hE): loaded height of the windward wall line of a frame = 7 m (was 6 m).
+  // (Not the resultant ratio: the wall Cpe of NBR 6123 Tab. 4 depend on h/b, so the pressure itself changes too.)
+  const loadedH = (mod) => { const ids = new Set(mod.loadCases.find(l => l.name === 'Viento X (Cpi 0)').loads.filter(ld => ld.dir === 'globalX').map(ld => ld.elemId));
+    return mod.elements.filter(e => ids.has(e.id)).map(e => [mod.nodes[e.n1 - 1], mod.nodes[e.n2 - 1]])
+      .filter(([a, c]) => a.x === 0 && c.x === 0 && a.y === 10 && c.y === 10).reduce((s, [a, c]) => s + Math.abs(c.z - a.z), 0); };
+  assert('j5. parede a barlavento carregada até o beiral: 7 m (triangular: 6 m)', Math.abs(loadedH(j) - 7) < 1e-9 && Math.abs(loadedH(m) - 6) < 1e-9, `${loadedH(j)} / ${loadedH(m)}`);
+  const q0 = m.loadCases.find(l => l.name === 'Viento X (Cpi 0)')._viento.q_Nm2, q1 = j.loadCases.find(l => l.name === 'Viento X (Cpi 0)')._viento.q_Nm2;
+  assert('j6. q calculado na altura total H + montante + flecha (z = 7,75 m ≥ 6,75 m)', q1 >= q0, `${q0} → ${q1}`);
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);
