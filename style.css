@@ -717,6 +717,7 @@ details.prop-fold[open] > summary { color: var(--text); }
 .prop-field {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;   /* a label wrapping to 2 lines must not push its input below the row's others */
   gap: 3px;
 }
 .prop-field label {
