@@ -2883,6 +2883,14 @@ export const EN = {
   "masa": "mass",
   "Formado en frío del catálogo": "Cold-formed from catalogue",
   "Perfil formado en frío del catálogo: forma, dimensiones y propiedades tabuladas (ver Propiedades). Para cambiarlo, elija otro perfil arriba.": "Cold-formed catalogue profile: tabulated shape, dimensions and properties (see Properties). To change it, pick another profile above.",
+  "Eliminar no usadas": "Delete unused",
+  "sección(es) eliminada(s)": "section(s) deleted",
+  "Barras que usan la sección": "Members using the section",
+  "barra(s)": "member(s)",
+  "sin uso": "unused",
+  "En uso": "In use",
+  "Sin uso en el modelo.": "Not used in the model.",
+  "Sección en uso: cambie la sección de esas barras antes de eliminarla": "Section in use: change those members' section before deleting it",
 };
 
 export default EN;

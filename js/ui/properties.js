@@ -2860,7 +2860,21 @@ export class PropertiesPanel {
   renderSections() {
     const container = document.getElementById('sec-list');
     container.innerHTML = '';
-    for (const sec of this.app.model.sections.values()) {
+    const m = this.app.model;
+    const unused = [...m.sections.keys()].filter((id) => m.sectionUsage(id).count === 0);
+    if (unused.length) {
+      const bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;justify-content:flex-end;margin:0 0 6px';
+      bar.innerHTML = `<button class="btn-secondary" style="font-size:11px">${i18n.t('Eliminar no usadas')} (${unused.length})</button>`;
+      bar.querySelector('button').addEventListener('click', () => {
+        this.app.snapshot();
+        const gone = m.removeUnusedSections();
+        this.app.markDirty(); this.renderSections();
+        this.app.toast(`${gone.length} ${i18n.t('sección(es) eliminada(s)')}`, 'ok');
+      });
+      container.appendChild(bar);
+    }
+    for (const sec of m.sections.values()) {
       container.appendChild(this._secCard(sec));
     }
   }
@@ -2877,6 +2891,7 @@ export class PropertiesPanel {
       <div class="sec-card-head">
         <span class="sec-card-id">${sec.id}</span>
         <span class="sec-card-name">${esc(sec.name)}</span>
+        ${(() => { const u = this.app.model.sectionUsage(sec.id); return `<span class="muted" style="font-size:10px;margin-left:auto;padding-right:6px" title="${esc(i18n.t('Barras que usan la sección'))}">${u.count ? `${u.count} ${i18n.t('barra(s)')}` : i18n.t('sin uso')}</span>`; })()}
         <span class="sec-card-chevron">▶</span>
       </div>
       <div class="sec-card-body">
@@ -2918,8 +2933,10 @@ export class PropertiesPanel {
         </div>
         <div class="sd-props"></div>
         ${this._secDesignHTML(sec)}
+        ${(() => { const u = this.app.model.sectionUsage(sec.id);
+          return `<p class="panel-hint" style="margin:6px 0 0">${u.count ? `${i18n.t('En uso')}: ${u.count} ${i18n.t('barra(s)')} · L = ${u.length.toFixed(2).replace('.', ',')} m · ${i18n.t('masa')} = ${u.mass.toFixed(1).replace('.', ',')} kg` : i18n.t('Sin uso en el modelo.')}</p>`; })()}
         <div class="card-actions">
-          <button class="btn-danger btn-del-sec" style="flex:1;">Eliminar</button>
+          <button class="btn-danger btn-del-sec" style="flex:1;" ${this.app.model.sectionUsage(sec.id).count ? `disabled title="${esc(i18n.t('Sección en uso: cambie la sección de esas barras antes de eliminarla'))}"` : ''}>Eliminar</button>
         </div>
       </div>
     `;

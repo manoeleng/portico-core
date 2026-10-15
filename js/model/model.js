@@ -423,6 +423,25 @@ export class Model {
     return s;
   }
 
+  // Use of a section (RFEM "Statistics"): number of members, total length (m) and steel mass (kg) = Σ ρ·A·L with the
+  // material of each member (ρ in t/m³ → ×1000 kg).
+  sectionUsage(id) {
+    const sec = this.sections.get(id); let count = 0, length = 0, mass = 0;
+    for (const el of this.elements.values()) {
+      if (el.secId !== id) continue;
+      const a = this.nodes.get(el.n1), b = this.nodes.get(el.n2); if (!a || !b) continue;
+      const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z), rho = +this.materials.get(el.matId)?.rho || 0;
+      count++; length += L; mass += rho * (+sec?.A || 0) * L * 1000;
+    }
+    return { count, length, mass };
+  }
+  /** Deletes every section no member uses (CSI "delete unused"); returns the removed sections' names. */
+  removeUnusedSections() {
+    const used = new Set([...this.elements.values()].map((e) => e.secId)), gone = [];
+    for (const [id, s] of [...this.sections]) if (!used.has(id)) { this.sections.delete(id); gone.push(s.name); }
+    return gone;
+  }
+
   removeSection(id) {
     for (const el of this.elements.values()) {
       if (el.secId === id) return { ok: false, reason: 'Sección en uso por elemento(s)' };

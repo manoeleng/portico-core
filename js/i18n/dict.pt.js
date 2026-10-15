@@ -2627,6 +2627,13 @@ export const PT = {
   "masa": "massa",
   "Formado en frío del catálogo": "Formado a frio do catálogo",
   "Perfil formado en frío del catálogo: forma, dimensiones y propiedades tabuladas (ver Propiedades). Para cambiarlo, elija otro perfil arriba.": "Perfil formado a frio do catálogo: forma, dimensões e propriedades tabeladas (ver Propriedades). Para trocar, escolha outro perfil acima.",
+  "Eliminar no usadas": "Excluir não usadas",
+  "sección(es) eliminada(s)": "seção(ões) excluída(s)",
+  "Barras que usan la sección": "Barras que usam a seção",
+  "sin uso": "sem uso",
+  "En uso": "Em uso",
+  "Sin uso en el modelo.": "Sem uso no modelo.",
+  "Sección en uso: cambie la sección de esas barras antes de eliminarla": "Seção em uso: troque a seção dessas barras antes de excluí-la",
 };
 
 export default PT;
