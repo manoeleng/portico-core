@@ -24,6 +24,7 @@ import { aisc360_lrfd, aisc360_asd } from './codes/aisc360.js?v=7';
 import { eurocode3 } from './codes/eurocode3.js?v=7';
 import { nbr8800 } from './codes/nbr8800.js?v=7';
 import { nbr6118 } from './codes/nbr6118.js?v=7';
+import { nbr7190 } from './codes/nbr7190.js?v=7';
 import { aci318, eurocode2 } from './codes/concrete.js?v=7';
 import { timber_nch1198 } from './codes/timber.js?v=7';
 import { eurocode9 } from './codes/eurocode9.js?v=7';
@@ -32,7 +33,7 @@ import { eurocode9 } from './codes/eurocode9.js?v=7';
 let _registered = false;
 export function registerBuiltinCodes() {
   if (_registered) return;
-  [aisc360_lrfd, aisc360_asd, eurocode3, nbr8800, aci318, nbr6118, eurocode2, timber_nch1198, eurocode9].forEach(registerDesignCode);
+  [aisc360_lrfd, aisc360_asd, eurocode3, nbr8800, aci318, nbr6118, eurocode2, timber_nch1198, nbr7190, eurocode9].forEach(registerDesignCode);
   setDefaultCode('steel', 'AISC360-16:LRFD');
   setDefaultCode('concrete', 'ACI318-19');
   setDefaultCode('timber', 'NCh1198');
@@ -69,7 +70,7 @@ export function checkElement({ forces, sec, mat, matName, params = {}, codeId, d
     My: forces.My || 0, Mz: forces.Mz || 0, T: forces.T || 0,
   };
   const mem = { L: forces.L || 1, Lb: (member?.Lb ?? forces.L ?? 1), K: member?.K ?? 1,
-    Cb: member?.Cb ?? 1.0, ho: P.ho, ...(member || {}) };
+    Cb: member?.Cb ?? 1.0, ho: P.ho, role: sec.role, ...(member || {}) };
 
   // warning/fail limits from the legacy JSON or defaults
   const lim = params.limits || {};
