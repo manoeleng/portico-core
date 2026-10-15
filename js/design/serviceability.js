@@ -15,6 +15,9 @@
 //       NCh433/DS61: 0.002 (at the c.m.)      · ASCE7/IBC: 0.020 (Cat. II)
 //       NBR 6118:2026 Tab. 13.3: Hi/850 (comb. frequente) · NBR 8800:2024 Tab. B.1: h/500
 //       Eurocode 8: 0.010 (non-structural decoupled)
+//   · Top lateral displacement (Δtopo/H, H = total height):
+//       NBR 6118:2026 Tab. 13.3: H/1 700 (comb. frequente, ψ1 = 0,30 do vento)
+//       NBR 8800:2024 Tab. B.1: H/400 (2+ pavimentos) · H/300 (galpões e edificações de um pavimento)
 //
 // Units: lengths in m (consistent); the ratios are dimensionless.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -45,6 +48,12 @@ const DRIFT = {
   'NBR6118:2026': 1 / 850,   // Hi/850 between floors, frequent combination
   'NBR8800:2024': 1 / 500,   // h/500, buildings with two or more floors
   _default:   0.020,
+};
+
+// allowable TOP lateral displacement (Δtopo/H) by code; NBR 8800 depends on the number of floors.
+const TOP_DRIFT = {
+  'NBR6118:2026': { multi: 1 / 1700, single: 1 / 1700 },   // Tab. 13.3 (paredes; nota d: H = altura total)
+  'NBR8800:2024': { multi: 1 / 400, single: 1 / 300 },     // Tab. B.1
 };
 
 // Deflection divisor (limit = L/divisor) for a code and use.
@@ -88,5 +97,28 @@ export function checkDrift({ drift, h, code = 'NCh433', allow }) {
     demand: +ratio.toFixed(5), limit: +lim.toFixed(5),
     ratio: lim > 1e-12 ? +(ratio / lim).toFixed(4) : Infinity,
     formula: `Δ/h ≤ ${lim} (${code})`,
+  };
+}
+
+// Allowable top displacement Δtopo/H by code (null when the code has no such limit here).
+export function topDriftLimit(code, { singleStory = false } = {}) {
+  const t = TOP_DRIFT[code]; if (!t) return null;
+  return singleStory ? t.single : t.multi;
+}
+
+/**
+ * Top lateral displacement check (NBR 6118 Tab. 13.3 / NBR 8800 Tab. B.1).
+ * @param {object} o { delta (m, top displacement relative to the base), H (m, total height),
+ *                     code, singleStory=false (NBR 8800: galpão / one storey), allow (Δ/H override) }
+ * @returns { demand (Δ/H), limit (Δ/H), ratio, formula } — null limit → ratio NaN, not checked
+ */
+export function checkTopDrift({ delta, H, code, singleStory = false, allow }) {
+  const lim = allow ?? topDriftLimit(code, { singleStory });
+  const r = H > 1e-12 ? Math.abs(delta) / H : 0;
+  if (!(lim > 0)) return { demand: +r.toFixed(6), limit: null, ratio: NaN, formula: `sem limite de topo para ${code}` };
+  return {
+    demand: +r.toFixed(6), limit: +lim.toFixed(6),
+    ratio: +(r / lim).toFixed(4),
+    formula: `Δtopo/H ≤ 1/${Math.round(1 / lim)} (${code}${singleStory ? ', um pavimento' : ''})`,
   };
 }

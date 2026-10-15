@@ -32,7 +32,7 @@ import { buildNodeIndex, assembleK, assembleF, getNodeDOFs } from '../solver/ass
 import { assembleKg } from '../solver/geometric.js?v=7';
 import { StagedSolver } from '../solver/staged.js?v=7';
 import { checkElement, listDesignCodes, getDesignCode, registerDesignCode } from '../design/design.js?v=7';
-import { checkDeflection, checkDrift, driftLimit } from '../design/serviceability.js?v=7';
+import { checkDeflection, checkDrift, driftLimit, checkTopDrift } from '../design/serviceability.js?v=7';
 import { interstoryDrifts, buildStoryLevels } from '../solver/drift.js?v=7';
 import { polygonProps, compositeProps } from '../design/polygon_props.js?v=7';
 import { jointSCWB, strongColumnWeakBeam } from '../design/seismic.js?v=7';
@@ -331,6 +331,7 @@ export class Portico {
   // ── Estados límite de SERVICIO (#68): flecha y deriva por norma ──────────────
   checkDeflection(opts) { return checkDeflection(opts); }
   checkDrift(opts) { return checkDrift(opts); }
+  checkTopDrift(opts) { return checkTopDrift(opts); }
 
   // Interstory drifts for one direction, checked against a code limit. Composes the
   // generic drift primitive (js/solver/drift.js) with driftLimit(code) — the primitive

@@ -208,7 +208,7 @@ inalterados.
 ### Pendências da Fase 2
 - ψ0,ef da combinação sísmica: padrão ψ0 (conservador); NBR 8681:2025 5.1.3.2 permite ψ2 (opção `psiSismo: 'psi2'`) — escolha do RT por projeto.
 - Combinação direcional do sismo (NBR 15421 8.5) não aplicada no gerador.
-- Deslocamento do topo H/1 700 (NBR 6118) não existe no módulo de ELS (só entre pavimentos).
+- ~~Deslocamento do topo H/1 700 (NBR 6118) não existe no módulo de ELS~~ — feito 15/10/2026: `checkTopDrift`/`topDriftLimit` em `serviceability.js` (NBR 6118 H/1 700; NBR 8800 H/400 e H/300 galpão), exposto na API; teste `tests/test_serviceability_topo.mjs`. Falta ligar à UI (o painel de deriva usa só NCh433).
 - Balanço na NBR 6118: mantida a regra atual do código (vão efetivo 2·L), por decisão do usuário.
 - 3.4 em escopo reduzido: memorial e CSV exportados; os demais `toFixed` da interface e campos de entrada com vírgula ficam para depois.
 
@@ -311,6 +311,11 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
       **Retangulares pendentes:** a biblioteca tem 406, mas o `box` nominal ignora os raios de canto
       (A ~4 % acima em 100×100×6,3) — implementar raios pelo livro de perfis tubulares (re/ri por
       espessura, eq. 1.18) antes de catalogar.
+      **Bloqueado (15/10/2026) — fonte conflitante:** o exemplo 3.7.10 do livro (TR 200×150×8: Ag 53,1;
+      Ix 2829; Iy 1816; J 3665) não fecha com as eq. 1.18–1.29 do próprio livro (re = 1,5t, ri = t:
+      A 52,75 (−0,7 %), Ix 2971 (+5 %), Iy 1894 (+4 %), J 3643) — Ix/Iy do exemplo ficam abaixo até da seção
+      nominal sem raio (3044/1936), o que é impossível. O Apêndice A (tabelas Vallourec) não está no texto
+      extraído. Obter a tabela do fabricante (Vallourec/EN 10219-2) para servir de oráculo.
 - [~] U laminado e cantoneiras — `channel` / `angle`. **Cantoneiras feitas** (15/10/2026): 89 da biblioteca
       (família "L (cantoneira)"), amostra contra catálogo Gerdau ≤ 2,3 % (geometria sem raios).
       **U laminado:** a biblioteca não tem; fonte = Gerdau (`_referencias/Catalogos_Tabelas`).
