@@ -58,7 +58,7 @@ function angleBuckling(dims, sec, E, G, L, Lt) {
   const f = N => (Nu - N) * (Nv - N) * (Nz - N) - N * N * (Nu - N) * v0 * v0 / r02 - N * N * (Nv - N) * u0 * u0 / r02;
   let lo = 0, hi = Math.min(Nu, Nv, Nz);
   for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; (f(mid) > 0 ? lo = mid : hi = mid); }
-  return { Ne: (lo + hi) / 2, Iu, Iv, rmin: Math.sqrt(Iv / A), u0, v0, r02, Nu, Nv, Nz };
+  return { Ne: (lo + hi) / 2, Iu, Iv, Ixx, Iyy, A, rmin: Math.sqrt(Iv / A), u0, v0, r02, Nu, Nv, Nz };
 }
 
 function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
@@ -121,8 +121,34 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     let Ne = Math.min(Nex, Ney, Nez);
     const ang = shape === 'angle' ? angleBuckling(dims, sec, E, G, Math.max(Lx, Ly), Lt) : null;
     if (ang) {
-      Ne = ang.Ne;
-      avisos.push(`Cantoneira simples: Ne pelos eixos principais (rmín = ${(ang.rmin * 100).toFixed(2)} cm) com flexo-torção (5.3.5.2/5.3.5.3), comprimento max(Lx, Ly). Excentricidade da ligação por uma aba (5.3.5.4) NÃO considerada.`);
+      // 5.3.5.4: single angle connected by ONE leg — equivalent unbraced length about the axis parallel to
+      // the connected leg (taken as the larger leg); flexural-torsional only when b/t > 0,71·√(E/fy).
+      const cfg = member.cantoneira || {};
+      const big = Math.max(dims.d, dims.b), small = Math.min(dims.d, dims.b);
+      const Ix1 = dims.b >= dims.d ? ang.Ixx : ang.Iyy, rx1 = Math.sqrt(Ix1 / ang.A), L1 = member.L ?? Math.max(Lx, Ly);
+      const lim71 = 0.71 * Math.sqrt(E / fy), btMax = big / dims.t;
+      const lr = L1 / rx1;
+      const Leq = { plana: lr <= 80 ? 72 * rx1 + 0.75 * L1 : 32 * rx1 + 1.25 * L1,          // 5.3.5.4.2
+                    espacial: lr <= 75 ? 60 * rx1 + 0.80 * L1 : 45 * rx1 + L1 };           // 5.3.5.4.3
+      const NeEq = (k) => Math.PI ** 2 * E * Ix1 / (Leq[k] * Leq[k]);
+      const aplicavel = (k) => big / small <= 1.7 && Leq[k] / rx1 <= 200;                     // 5.3.5.4.1-d/e
+      const NeFT = btMax > lim71 ? ang.Ne : Infinity;                                       // 5.3.5.4.4
+      const tr = cfg.trelica;
+      if (tr === 'concentrica') {
+        Ne = ang.Ne;
+        avisos.push(`Cantoneira com força centrada (declarada): Ne pelos eixos principais com flexo-torção (5.3.5.2/5.3.5.3), rmín = ${(ang.rmin * 100).toFixed(2)} cm.`);
+      } else if (tr === 'plana' || tr === 'espacial') {
+        if (!aplicavel(tr)) { Ne = 0; avisos.push(`Cantoneira fora das condições de 5.3.5.4.1 (abas ${(big / small).toFixed(2)} > 1,7 ou Lx1,eq/rx1 > 200): tratar como flexo-compressão (5.3.5.4.5) — NÃO verificado.`); }
+        else {
+          Ne = Math.min(NeEq(tr), NeFT);
+          avisos.push(`Cantoneira ligada por uma aba, treliça ${tr}: Lx1,eq = ${Leq[tr].toFixed(3)} m (5.3.5.4.${tr === 'plana' ? 2 : 3}), rx1 = ${(rx1 * 100).toFixed(2)} cm${isFinite(NeFT) ? '; b/t > 0,71·√(E/fy): flexo-torção considerada (5.3.5.4.4)' : ''}.`);
+        }
+      } else {
+        const cands = [ang.Ne, ...['plana', 'espacial'].filter(aplicavel).map(NeEq)];
+        Ne = Math.min(...cands);
+        if (!['plana', 'espacial'].some(aplicavel)) { Ne = 0; avisos.push('Cantoneira fora das condições de 5.3.5.4.1: flexo-compressão (5.3.5.4.5) — NÃO verificado.'); }
+        else avisos.push(`Cantoneira: ligação não declarada (member.cantoneira.trelica = 'plana' | 'espacial' | 'concentrica') — adotado o menor Ne entre 5.3.5.4.2, 5.3.5.4.3 e eixos principais (rmín = ${(ang.rmin * 100).toFixed(2)} cm).`);
+      }
     } else if (shape === 'angle') {
       avisos.push('Cantoneira sem dimensões (d, b, t): eixos principais e flexo-torção NÃO verificados (5.3.5.2/5.3.5.3).');
     }
