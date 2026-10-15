@@ -239,7 +239,7 @@ function applyNbrCombinations(model, spec) {
     if (lc.type === 'spectrum') k = lc.specDir === 'Y' ? 'E90' : lc.specDir === 'Z' ? null : 'E0';
     else if (lc.selfWeight || /^CM\b/.test(lc.name)) k = 'G';
     else if (/^CV\b/.test(lc.name)) k = roofOnly ? 'Qcob' : 'Q';
-    else if (/^Viento/.test(lc.name)) k = /Y\b/.test(lc.name) ? 'V90' : 'V0';
+    else if (/^Viento/.test(lc.name)) { const base = /^Viento Y\b/.test(lc.name) ? 'V90' : 'V0'; let i = 1; k = base; while (used.has(k)) k = `${base}_${++i}`; }
     if (!k || used.has(k)) { warn('omitted', `Caso "${lc.name}" fora das combinações NBR (sem ação correspondente na NBR 8681/6120/6123/15421).`); continue; }
     used.add(k); sym.set(k, lc.id);
   }
@@ -1703,12 +1703,67 @@ export function generateWarehouse(spec, libs) {
     { id: 2, name: '1.2CM+1.6CV', factors: [{ lcId: 1, factor: 1.2 }, { lcId: 2, factor: 1.6 }] },
   ];
 
+  // ── Wind NBR 6123:2023 (preset Brasil) — 2 directions × each Cpi (the internal pressure acts on all faces) ──
+  // p = q·(Cpe − Cpi), positive = toward the surface. Per frame, tributary width along Y. Walls → columns
+  // (globalX); gables → the two end columns (globalY, tributary span/2 each); roof → top chord, normal to the
+  // slope split into globalX and gravity (w > 0 downward). Wind +X (α = 90°): A windward wall x = 0, B
+  // leeward, roof EFI (windward slope) / GHJ. Wind +Y (α = 0°): gable C at y = 0, D at y = length; side walls
+  // A1B1 / A2B2 / A3B3 and roof EG / FH / IJ by the frame position (x0 = b/3 or a/4 ≤ 2h, then a/2). −X/−Y by
+  // symmetry of the generated shed.
+  const regras = libs.reglas || {};
+  if (cargas.wind && regras.loads?.wind?.metodo === 'NBR6123') {
+    const theta = Math.atan(2 * hR / luz), sn = Math.sin(theta), cs = Math.cos(theta);
+    const vi = windLoad({ ...spec, geometry: { ...(spec.geometry || {}), roof_slope_deg: theta * 180 / Math.PI, length_m: largo, width_m: luz } }, regras, H + hR);
+    for (const n of vi._notas || []) addWarning('info', `Vento: ${n}`);
+    if (!(vi.q_Nm2 > 0)) addWarning('omitted', 'Vento NBR 6123 não calculado (ver avisos): galpão sem casos de vento.');
+    else {
+      const kN = (v) => (v || 0) / 1000;
+      const colAt = (x, yf) => elements.find(e => { const a = nodes[e.n1 - 1], b = nodes[e.n2 - 1];
+        return e.secId === secCol.id && Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - yf) < 1e-6; })?.id;
+      const roof = (lc, f, trib, pW, pL) => {           // pW windward-slope (x < span/2), pL leeward
+        const nH = frames[f].tops.length / 2;
+        frames[f].tops.forEach((tp, i) => {
+          if (tp.elemId == null) return;
+          const p = kN(i < nH ? pW : pL), sx = i < nH ? sn : -sn;
+          if (p === 0) return;
+          lc.loads.push({ type: 'dist', elemId: tp.elemId, dir: 'globalX', w: +(p * trib * sx).toFixed(6) });
+          lc.loads.push({ type: 'dist', elemId: tp.elemId, dir: 'gravity', w: +(p * trib * cs).toFixed(6) });
+        });
+      };
+      let k = 0;
+      for (const { cpi, presiones: P } of vi.presiones_por_cpi) {
+        const cpiTxt = String(cpi).replace('.', ',');
+        const lcX = { id: 3 + k++, name: `Viento X (Cpi ${cpiTxt})`, loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _cpi: cpi };
+        const lcY = { id: 3 + k++, name: `Viento Y (Cpi ${cpiTxt})`, loads: [], selfWeight: false, type: 'static', specDir: null, _viento: vi, _cpi: cpi };
+        Yf.forEach((yf, f) => {
+          const trib = tributario(Yf, f), c0 = colAt(0, yf), cL = colAt(luz, yf);
+          // +X (α = 90°)
+          if (c0) lcX.loads.push({ type: 'dist', elemId: c0, dir: 'globalX', w: +(kN(P['1']) * trib).toFixed(6) });
+          if (cL) lcX.loads.push({ type: 'dist', elemId: cL, dir: 'globalX', w: +(-kN(P['4']) * trib).toFixed(6) });
+          roof(lcX, f, trib, P.EFI, P.GHJ);
+          // +Y (α = 0°): region of the frame measured from the windward gable y = 0
+          const reg = yf <= vi.x0_m + 1e-9 ? 1 : yf <= largo / 2 + 1e-9 ? 2 : 3;
+          const pS = reg === 1 ? P.A1B1 : reg === 2 ? P.A2B2 : P.A3B3, pR = reg === 1 ? P.EG : reg === 2 ? P.FH : P.IJ;
+          if (c0) lcY.loads.push({ type: 'dist', elemId: c0, dir: 'globalX', w: +(kN(pS) * trib).toFixed(6) });
+          if (cL) lcY.loads.push({ type: 'dist', elemId: cL, dir: 'globalX', w: +(-kN(pS) * trib).toFixed(6) });
+          roof(lcY, f, trib, pR, pR);
+          if (f === 0 || f === Yf.length - 1) {          // gables: C (y = 0, pressure +Y) and D (y = length)
+            const pG = f === 0 ? kN(P.C) : -kN(P.D);
+            for (const c of [c0, cL]) if (c) lcY.loads.push({ type: 'dist', elemId: c, dir: 'globalY', w: +(pG * luz / 2).toFixed(6) });
+          }
+        });
+        loadCases.push(lcX, lcY);
+      }
+      addWarning('info', `Vento NBR 6123: q = ${vi.q_Nm2} N/m² (α = 90°), ${vi.q_empena_Nm2} N/m² (α = 0°); ${loadCases.length - 2} casos (X e Y × Cpi ${vi.cpi.join(' / ')}); −X/−Y por simetria.`);
+    }
+  }
+
   return {
     version: '1.0', units: 'kN-m', mode: '3D',
     nodes, elements, materials: [mat], sections: [secCol, secCord, secDiag], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, +(H + hR).toFixed(4)] },
-    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: 3, diaphragms: 0, loadCases: 2, combinations: 2 },
+    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
     _generado: {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,

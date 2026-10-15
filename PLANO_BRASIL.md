@@ -17,7 +17,7 @@ Revisão de especialista FECHADA nas fases 5, 6, 7, 8 e nos itens cantoneira (88
 em PT) e carrega `presets/brasil/` com leitor CSV que respeita aspas (`js/utils/csv.js`); o gerador aplica, em todas
 as tipologias, as combinações NBR 8681 (`nbrCombinations`; CV → Qcob em galpão/treliça) e o espectro NBR 15421 no
 edifício. Teste `assistant/test_assistente_brasil.mjs`; conferido no navegador. **Limites do gerador (não são da
-norma):** o galpão não gera vento nem sismo, não tem contraventamento e as terças são barras rígidas de ligação
+norma):** vento NBR 6123 no galpão FEITO (15/10/2026: X e Y × cada Cpi, Tab. 6/7 por região, Notas 3; teste `assistant/test_galpao_vento.mjs` por cálculo manual); o galpão ainda não gera sismo, não tem contraventamento e as terças são barras rígidas de ligação
 entre pórticos — proposta de "galpão completo" aguardando o Manoel. O endpoint de LLM não existe (backend privado
 do autor; "traga o seu serviço") — decisão do Manoel.
 

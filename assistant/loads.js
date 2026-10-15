@@ -180,6 +180,11 @@ function windLoadNBR6123(ficha, w, h_techo) {
   const t = ab <= 1.5 ? 0 : ab >= 2 ? 1 : (ab - 1.5) / 0.5;
   const cpeW = {};
   for (const k of ['A1B1', 'A2B2', 'C', 'D', 'A', 'B', 'C1D1', 'C2D2', 'cpe_medio']) cpeW[k] = +(r1[k] + (r2[k] - r1[k]) * t).toFixed(3);
+  // α = 0°, parts A3/B3 (Tab. 6 Nota 3) and I/J (Tab. 7 Nota 3): a/b = 1 → same as A2B2 / FH; a/b ≥ 2 → −0,2
+  const tN3 = ab <= 1 ? 0 : ab >= 2 ? 1 : ab - 1;
+  cpeW.A3B3 = +(cpeW.A2B2 + (-0.2 - cpeW.A2B2) * tN3).toFixed(3);
+  // length of the first region for α = 0° (Tab. 6/7 figures): x = b/3 or a/4, the larger, but ≤ 2h
+  const x0 = Math.min(Math.max(b / 3, a / 4), 2 * h);
   // roof (Tab. 7), two slopes
   const theta = g.roof_slope_deg ?? 0;
   const rowsR = w.cpe_telhado_2aguas.filter(r => (hb <= 0.5 && r.h_b === '<=1/2') || (hb > 0.5 && hb <= 1.5 && r.h_b === '1/2<h/b<=3/2') || (hb > 1.5 && r.h_b !== '<=1/2' && r.h_b !== '1/2<h/b<=3/2'));
@@ -191,6 +196,7 @@ function windLoadNBR6123(ficha, w, h_techo) {
   const u = theta <= lo.theta ? 0 : theta >= hi.theta ? 1 : (theta - lo.theta) / (hi.theta - lo.theta);
   const lin = (x, y) => +(x + (y - x) * u).toFixed(3);
   const cpeR = { EFI: lin(lo.a90.EFI, hi.a90.EFI), GHJ: lin(lo.a90.GHJ, hi.a90.GHJ), EG: lin(lo.a0.EG, hi.a0.EG), FH: lin(lo.a0.FH, hi.a0.FH) };
+  cpeR.IJ = +(cpeR.FH + (-0.2 - cpeR.FH) * tN3).toFixed(3);
   if (u > 0 && u < 1) notas.push(`Cpe do telhado interpolado em θ = ${theta}° (prática; a Tabela 7 não prescreve interpolação).`);
   // internal pressure (6.3.2.1): default four permeable faces → −0,3 or 0 (both, the worse governs)
   const cpiSet = wf.cpi != null ? [].concat(wf.cpi) : w.cpi_padrao ?? [-0.3, 0];
@@ -198,13 +204,14 @@ function windLoadNBR6123(ficha, w, h_techo) {
   // one internal pressure acts on ALL faces at once (it cancels in the net horizontal wall load): a full
   // set per Cpi; 'presiones' is the set with the larger roof suction (governs the roof/uplift)
   const set = (ci) => { const f = (cpe) => +(q * (cpe - ci)).toFixed(2), fe = (cpe) => +(qe * (cpe - ci)).toFixed(2);
-    return { '1': f(cpeW.A), '4': f(cpeW.B), C: fe(cpeW.C), D: fe(cpeW.D), EFI: f(cpeR.EFI), GHJ: f(cpeR.GHJ), EG: fe(cpeR.EG), FH: fe(cpeR.FH) }; };
+    return { '1': f(cpeW.A), '4': f(cpeW.B), C: fe(cpeW.C), D: fe(cpeW.D), EFI: f(cpeR.EFI), GHJ: f(cpeR.GHJ), EG: fe(cpeR.EG), FH: fe(cpeR.FH),
+      A1B1: fe(cpeW.A1B1), A2B2: fe(cpeW.A2B2), A3B3: fe(cpeW.A3B3), IJ: fe(cpeR.IJ) }; };
   const porCpi = cpiSet.map(ci => ({ cpi: ci, presiones: set(ci) }));
   const presiones = porCpi.reduce((a, b) => Math.abs(b.presiones.EFI) > Math.abs(a.presiones.EFI) ? b : a).presiones;
   return {
     V: V0, V0, S1, S2: +S2.toFixed(4), S3, Vk: +Vk.toFixed(3), categoria: cat, classe, q_Nm2: +q.toFixed(2),
     classe_empena: classeEmp, S2_empena: +S2e.toFixed(4), q_empena_Nm2: +qe.toFixed(2),
-    cpi: cpiSet, cpe_paredes: cpeW, cpe_telhado: cpeR, presiones, presiones_por_cpi: porCpi,
+    cpi: cpiSet, cpe_paredes: cpeW, cpe_telhado: cpeR, presiones, presiones_por_cpi: porCpi, x0_m: +x0.toFixed(3), a_m: a, b_m: b,
     _formula: 'Vk = V0·S1·S2·S3; q = 0,613·Vk² [N/m²]; p = q·(Cpe − Cpi) (NBR 6123:2023)',
     _notas: notas,
   };
