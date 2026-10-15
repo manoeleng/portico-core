@@ -1,0 +1,85 @@
+// test_nbr8681.mjs — BR-8681-01: combinaciones NBR generadas para G+Q+V (PLANO_BRASIL 3.2)
+//   node test_nbr8681.mjs
+// Valores esperados calculados A MANO a partir de las tablas (no con el código):
+//   concreto: NBR 6118:2026 Tab. 11.1 (γg 1,4; γq 1,4; T 1,2) · Tab. 11.2 (ψ)
+//   acero:    NBR 8800:2024 Tab. 1 (γg agrupadas 1,35; γq 1,50; V 1,40; T 1,20) · Tab. 2 (ψ)
+//   ψ residencial 0,5/0,4/0,3 · comercial 0,7/0,6/0,4 · viento 0,6/0,3/0 · temperatura 0,6/0,5/0,3
+//   sismo: NBR 15421:2023 5.4 (γg 1,2; γq 1,0; γexc 1,0; viento no se combina)
+import { nbrCombinations } from '../js/design/combinations_nbr.js';
+
+let fails = 0;
+const assert = (name, c, info = '') => { if (!c) fails++; console.log(`${c ? '✓' : '✗'} ${name}${info ? ' · ' + info : ''}`); };
+const same = (a, b) => { const ka = Object.keys(a).sort(), kb = Object.keys(b).sort(); return ka.join() === kb.join() && ka.every(k => Math.abs(a[k] - b[k]) < 1e-9); };
+const has = (list, f) => list.some(c => same(c.factores, f));
+const show = (list) => list.map(c => c.nombre).join(' | ');
+
+// (1) Concreto, G+Q+V0, residencial
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'V0'] });
+  assert('1a. código NBR6118:2026', r.code === 'NBR6118:2026');
+  assert('1b. ELU Q principal: 1,4G + 1,4Q + 0,84V0 (1,4·0,6)', has(r.elu, { G: 1.4, Q: 1.4, V0: 0.84 }), show(r.elu));
+  assert('1c. ELU V principal: 1,4G + 1,4V0 + 0,7Q (1,4·0,5)', has(r.elu, { G: 1.4, V0: 1.4, Q: 0.7 }));
+  assert('1d. ELU G favorable: 1,0G + 1,4V0', has(r.elu, { G: 1.0, V0: 1.4 }));
+  assert('1e. ELU total = 3', r.elu.length === 3, String(r.elu.length));
+  assert('1f. ELS-QP: G + 0,3Q (ψ2 viento = 0)', r.qp.length === 1 && has(r.qp, { G: 1, Q: 0.3 }), show(r.qp));
+  assert('1g. ELS-FREQ Q principal: G + 0,4Q', has(r.freq, { G: 1, Q: 0.4 }), show(r.freq));
+  assert('1h. ELS-FREQ V principal: G + 0,3V0 + 0,3Q', has(r.freq, { G: 1, V0: 0.3, Q: 0.3 }));
+  assert('1i. ELS-RARA: G + Q + 0,3V0', has(r.rara, { G: 1, Q: 1, V0: 0.3 }), show(r.rara));
+  assert('1j. ELS-RARA: G + V0 + 0,4Q', has(r.rara, { G: 1, V0: 1, Q: 0.4 }));
+  assert('1k. sin sismo → sin ELU excepcional', r.exc.length === 0);
+}
+// (2) Acero, G+Q+V0, residencial
+{
+  const r = nbrCombinations({ family: 'steel', cases: ['G', 'Q', 'V0'] });
+  assert('2a. código NBR8800:2024', r.code === 'NBR8800:2024');
+  assert('2b. ELU: 1,35G + 1,5Q + 0,84V0 (1,4·0,6)', has(r.elu, { G: 1.35, Q: 1.5, V0: 0.84 }), show(r.elu));
+  assert('2c. ELU: 1,35G + 1,4V0 + 0,75Q (1,5·0,5)', has(r.elu, { G: 1.35, V0: 1.4, Q: 0.75 }));
+  assert('2d. ELU: 1,0G + 1,4V0', has(r.elu, { G: 1.0, V0: 1.4 }));
+}
+// (3) Dos direcciones de viento: nunca juntas
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'V0', 'V90'] });
+  assert('3a. ninguna combinación con V0 y V90 juntos', r.lista.every(c => !(('V0' in c.factores) && ('V90' in c.factores))));
+  assert('3b. Q principal con V0 y con V90 (2) + V0 (2) + V90 (2) = 6 ELU', r.elu.length === 6, show(r.elu));
+  assert('3c. 1,4G + 1,4Q + 0,84V90', has(r.elu, { G: 1.4, Q: 1.4, V90: 0.84 }));
+}
+// (4) Uso comercial (acero): ψ0 = 0,7
+{
+  const r = nbrCombinations({ family: 'steel', cases: ['G', 'Q', 'V0'], uso: 'comercial' });
+  assert('4a. 1,35G + 1,4V0 + 1,05Q (1,5·0,7)', has(r.elu, { G: 1.35, V0: 1.4, Q: 1.05 }), show(r.elu));
+  assert('4b. ELS-QP: G + 0,4Q', has(r.qp, { G: 1, Q: 0.4 }));
+}
+// (5) Temperatura (concreto): γ 1,2; ψ0 0,6
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'T'] });
+  assert('5a. 1,4G + 1,4Q + 0,72T (1,2·0,6)', has(r.elu, { G: 1.4, Q: 1.4, T: 0.72 }), show(r.elu));
+  assert('5b. 1,4G + 1,2T + 0,7Q', has(r.elu, { G: 1.4, T: 1.2, Q: 0.7 }));
+}
+// (6) Sismo — NBR 15421:2023 5.4
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'V0', 'E0'] });
+  assert('6a. 1,2G + 1,0E0 + 0,5Q (ψ0,ef = ψ0, por defecto)', has(r.exc, { G: 1.2, E0: 1, Q: 0.5 }), show(r.exc));
+  assert('6b. 1,0G + 1,0E0', has(r.exc, { G: 1.0, E0: 1 }));
+  assert('6c. viento no entra en la excepcional', r.exc.every(c => !('V0' in c.factores)));
+  assert('6d. sismo no entra en ELU normal ni ELS', [...r.elu, ...r.qp, ...r.freq, ...r.rara].every(c => !('E0' in c.factores)));
+  const r2 = nbrCombinations({ family: 'steel', cases: ['G', 'Q', 'E0'], psiSismo: 'psi2' });
+  assert('6e. opción ψ2: 1,2G + 1,0E0 + 0,3Q', has(r2.exc, { G: 1.2, E0: 1, Q: 0.3 }), show(r2.exc));
+}
+// (7) Cobertura: ψ de NBR 8681:2025 Tab. 6 (0,8/0,7/0,6)
+{
+  const r = nbrCombinations({ family: 'steel', cases: ['G', 'Qcob', 'V0'] });
+  assert('7a. 1,35G + 1,4V0 + 1,2Qcob (1,5·0,8)', has(r.elu, { G: 1.35, V0: 1.4, Qcob: 1.2 }), show(r.elu));
+}
+// (8) Formato rules.json y errores
+{
+  const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q'] });
+  assert('8a. lista = elu+exc+qp+freq+rara', r.lista.length === r.elu.length + r.exc.length + r.qp.length + r.freq.length + r.rara.length);
+  assert('8b. cada item tiene nombre y factores', r.lista.every(c => typeof c.nombre === 'string' && c.factores && typeof c.factores.G === 'number'));
+  let e1 = false; try { nbrCombinations({ family: 'timber', cases: ['G'] }); } catch { e1 = true; }
+  let e2 = false; try { nbrCombinations({ family: 'steel', cases: ['Q'] }); } catch { e2 = true; }
+  assert('8c. familia inválida lanza error', e1);
+  assert('8d. sin G lanza error', e2);
+}
+
+console.log(fails ? `\n${fails} FALLA(S)` : '\nOK');
+process.exit(fails ? 1 : 0);
