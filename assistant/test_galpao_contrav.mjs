@@ -54,7 +54,9 @@ const m = generateModel(spec, BR);
 const rods = m.elements.filter(e => e.cable);
 const nd = (id) => m.nodes[id - 1];
 // (a) topology: 16 roof panels × 2 diagonals × 2 end bays + 2 walls × 2 diagonals × 2 bays
-const nT = 16;   // n_panels = round(15) → 15 → even 16
+// panels follow the purlin spacing (default 1,8 m): slope length hypot(7,5; 0,75) = 7,537 m → ceil(7,537/1,8) = 5
+// panels per slope → nT = 10 (panel 1,507 m along the slope ≤ 1,8 m)
+const nT = 10;
 assert('a1. barras de contraventamento só de tração (cable)', rods.length === 2 * nT * 2 + 2 * 2 * 2, String(rods.length));
 assert('a2. contraventamento só nos vãos extremos (0–5 m e 25–30 m)', rods.every(e => { const ys = [nd(e.n1).y, nd(e.n2).y].sort((p, q) => p - q); return (ys[0] === 0 && ys[1] === 5) || (ys[0] === 25 && ys[1] === 30); }));
 assert('a3. barra redonda φ12 (mínimo CBCA / NBR 8800)', m.sections.some(s => s.id === 4 && /φ12/.test(s.name)));
@@ -78,6 +80,26 @@ for (const name of ['CM', 'Viento X (Cpi -0,3)', 'Viento Y (Cpi -0,3)', 'Viento 
 {
   const g = generateModel({ typology: 'warehouse', warehouse: { span_m: 15, length_m: 30 } }, GEN);
   assert('d. preset genérico sem contraventamento nem rótulas', !g.elements.some(e => e.cable) && g.elements.every(e => e.releases.every(r => !r)));
+}
+
+// (e) purlins: Ue of NBR 6355 pre-sized d ≥ L/40 = 5000/40 = 125 mm → smallest web 125 mm, t closest to 2,00 mm
+{
+  const terca = m.sections.find(sc => sc.id === 5);
+  assert('e1. terça Ue 125x50x17x2,00 (catálogo NBR 6355, d ≥ L/40)', terca?.name === 'Ue 125x50x17x2,00', terca?.name);
+  const purl = m.elements.filter(e => e.secId === 5);
+  assert('e2. terças em todos os nós do banzo superior (11 linhas × 6 vãos)', purl.length === (nT + 1) * 6, String(purl.length));
+  assert('e3. terças biapoiadas (rotuladas)', purl.every(e => e.releases[4] && e.releases[5] && e.releases[10] && e.releases[11]));
+  const panel = Math.hypot(7.5, 0.75) / (nT / 2);
+  assert('e4. painel ao longo da água ≤ espaçamento das terças (1,8 m)', panel <= 1.8 + 1e-9, panel.toFixed(3));
+}
+// (f) bracing option: every bay / none
+{
+  const all = generateModel({ ...spec, warehouse: { ...spec.warehouse, bracing: 'todos' } }, BR);
+  assert('f1. contraventamento em todos os vãos: 6 vãos × (2·nT + 4)', all.elements.filter(e => e.cable).length === 6 * (2 * nT + 4), String(all.elements.filter(e => e.cable).length));
+  const none = generateModel({ ...spec, warehouse: { ...spec.warehouse, bracing: 'sem' } }, BR);
+  assert('f2. sem contraventamento: nenhum tirante, terças mantidas', !none.elements.some(e => e.cable) && none.elements.some(e => e.secId === 5));
+  const { F, R } = solve(all, 'Viento Y (Cpi 0)');
+  assert('f3. todos os vãos: equilíbrio Y', Math.abs(R[1] + F[1]) < 1e-3 * Math.abs(F[1]));
 }
 
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}

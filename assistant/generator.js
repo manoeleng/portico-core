@@ -10,6 +10,7 @@
 
 import { snowLoad, windLoad, responseSpectrum } from './loads.js';
 import { nbrCombinations } from '../js/design/combinations_nbr.js';
+import { cfNames, cfSection } from '../js/design/profiles_cf.js';
 
 const G_GRAV = 9.80665;          // kN per tonne-force (weight→mass)
 const CM2_M2 = 1e-4;             // cm² → m²
@@ -1638,7 +1639,15 @@ export function generateWarehouse(spec, libs) {
   const slope = (g.slope_pct >= 0 ? g.slope_pct : 15) / 100;
   const hR = g.ridge_height_m > 0 ? g.ridge_height_m : +(slope * (luz / 2)).toFixed(4);
   const tCel = /pratt/i.test(String(g.truss_type || '')) ? 'pratt' : (/howe/i.test(String(g.truss_type || '')) ? 'howe' : 'warren');
-  let nT = Math.max(2, Math.round(g.n_panels || Math.max(4, Math.round(luz)))); if (nT % 2) nT += 1;
+  // Brazil preset: purlins on every top-chord node, so the panel length is set by the purlin spacing —
+  // 1,3 to 1,8 m for trapezoidal sheeting (Manual CBCA de galpões 2.1; tile maker's table). Default 1,8 m.
+  const brasilG = libs.reglas?.loads?.wind?.metodo === 'NBR6123';
+  const spTerca = g.purlin_spacing_m > 0 ? g.purlin_spacing_m : 1.8;
+  let nT;
+  if (brasilG && !g.n_panels) {
+    nT = 2 * Math.max(2, Math.ceil(Math.hypot(luz / 2, hR) / spTerca - 1e-9));
+    if (!(g.purlin_spacing_m > 0)) addWarning('estimated', `Espaçamento das terças não informado: 1,8 m (limite superior para telha trapezoidal, Manual CBCA de galpões; confirme na tabela do fabricante da telha).`);
+  } else { nT = Math.max(2, Math.round(g.n_panels || Math.max(4, Math.round(luz)))); if (nT % 2) nT += 1; }
 
   const secCol = pickSection(g.column_section ?? (spec.sections || {}).columns, perfiles, esMadera ? { b_cm: 15, h_cm: 20 } : { b_cm: 30, h_cm: 30 }, 'Column', addWarning); secCol.id = 1;
   const secCord = pickSection(g.chord_size, perfiles, esMadera ? { b_cm: 7.5, h_cm: 15 } : { b_cm: 15, h_cm: 15 }, 'Chord', addWarning); secCord.id = 2;
@@ -1648,7 +1657,28 @@ export function generateWarehouse(spec, libs) {
   // X diagonals with only the tension one acting (compressed one neglected), purlins take the compression;
   // vertical X bracing on the longitudinal lines; round rod ≥ 12 mm (NBR 8800).
   const brasilGalpao = libs.reglas?.loads?.wind?.metodo === 'NBR6123';
-  const comContrav = g.bracing ?? brasilGalpao;
+  // bracing: 'extremidades' (default with the preset) | 'todos' (every bay) | 'sem' | true/false
+  const modoContrav = g.bracing === true ? 'extremidades' : g.bracing === false ? 'sem'
+    : (typeof g.bracing === 'string' ? (/todo|all/i.test(g.bracing) ? 'todos' : /sem|none|no/i.test(g.bracing) ? 'sem' : 'extremidades') : (brasilGalpao ? 'extremidades' : 'sem'));
+  const comContrav = brasilGalpao || modoContrav !== 'sem';
+  // purlins: cold-formed Ue of NBR 6355 (catalogue in js/design/profiles_cf.js). Pre-sizing d ≥ L/40 (Manual CBCA
+  // 2.9: for L = 6 m a 100–150 mm section is expected) — must be checked by NBR 14762.
+  let secTerca = null;
+  if (comContrav) {
+    const ues = cfNames().filter(n => n.startsWith('Ue')).map(n => ({ n, c: cfSection(n) }));
+    let pick = g.purlin_section ? ues.find(u => u.n === g.purlin_section) : null;
+    if (g.purlin_section && !pick) addWarning('replacement', `Terça "${g.purlin_section}" fora do catálogo NBR 6355: pré-dimensionada.`);
+    if (!pick) {
+      const dMin = sep / 40;
+      const ok = ues.filter(u => u.c.dims.bw >= dMin - 1e-9);
+      const bw = Math.min(...ok.map(u => u.c.dims.bw));
+      pick = ok.filter(u => u.c.dims.bw === bw).sort((x, y) => Math.abs(x.c.dims.t - 0.002) - Math.abs(y.c.dims.t - 0.002))[0] || ues[ues.length - 1];
+      addWarning('estimated', `Terça pré-dimensionada: ${pick.n} (d ≥ L/40 = ${(dMin * 1000).toFixed(0)} mm, Manual CBCA 2.9) — verificar pela NBR 14762.`);
+    }
+    const c = pick.c;
+    secTerca = { id: 5, name: pick.n, A: c.A, Iz: c.Iz, Iy: c.Iy, J: c.J, Avy: +(c.dims.bw * c.dims.t).toFixed(10), Avz: +(2 * c.dims.bf * c.dims.t).toFixed(10),
+      kappay: 1.0, kappaz: 1.0, design: { shape: 'Ue', profile: pick.n, cfProps: c } };
+  }
   const dRod = (g.bracing_rod_mm > 0 ? g.bracing_rod_mm : 12) / 1000;
   const secRod = { id: 4, name: `Barra redonda φ${Math.round(dRod * 1000)}`, A: +(Math.PI * dRod ** 2 / 4).toFixed(10),
     Iz: +(Math.PI * dRod ** 4 / 64).toFixed(14), Iy: +(Math.PI * dRod ** 4 / 64).toFixed(14), J: +(Math.PI * dRod ** 4 / 32).toFixed(14),
@@ -1700,9 +1730,13 @@ export function generateWarehouse(spec, libs) {
       const isPurlin = Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.z - b.z) < 1e-6 && Math.abs(a.y - b.y) > 1e-6;
       const isWeb = e.secId === secDiag.id && Math.abs(a.y - b.y) < 1e-6;
       if (isPurlin || isWeb) e.releases = [...PIN];
+      if (isPurlin && secTerca && a.z > H + 1e-6) e.secId = secTerca.id;            // purlins on the top chord (biapoiadas)
+      else if (isPurlin && secTerca && Math.abs(a.x) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;   // eave purlins
+      else if (isPurlin && secTerca && Math.abs(a.x - luz) < 1e-6 && Math.abs(a.z - H) < 1e-6) e.secId = secTerca.id;
     }
     // X bracing (tension-only rods, pinned) in the two end bays: roof plane (top chord) and both side walls
-    const bays = [...new Set([0, Yf.length - 2])].filter(s => s >= 0 && s + 1 < Yf.length);
+    const bays = modoContrav === 'sem' ? [] : modoContrav === 'todos' ? Yf.slice(0, -1).map((_, i) => i)
+      : [...new Set([0, Yf.length - 2])].filter(s => s >= 0 && s + 1 < Yf.length);
     const rod = (n1, n2) => { const id = addEl(n1, n2, secRod.id); if (id != null) { const e = elements[id - 1]; e.releases = [...PIN]; e.cable = true; } };
     for (const s of bays) {
       const A = frames[s], B = frames[s + 1];
@@ -1712,7 +1746,7 @@ export function generateWarehouse(spec, libs) {
         rod(getNode(x, yA, 0), getNode(x, yB, H)); rod(getNode(x, yB, 0), getNode(x, yA, H));
       }
     }
-    addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) nos vãos extremos — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
+    if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
   // ── Roof loads (CM + CV) on the top chords, tributary width sep ──
@@ -1792,10 +1826,10 @@ export function generateWarehouse(spec, libs) {
 
   return {
     version: '1.0', units: 'kN-m', mode: '3D',
-    nodes, elements, materials: [mat], sections: comContrav ? [secCol, secCord, secDiag, secRod] : [secCol, secCord, secDiag], diaphragms: [],
+    nodes, elements, materials: [mat], sections: comContrav ? [secCol, secCord, secDiag, secRod, secTerca] : [secCol, secCord, secDiag], diaphragms: [],
     loadCases, combinations,
     grids: { x: [0, luz], y: Yf, z: [0, H, +(H + hR).toFixed(4)] },
-    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: comContrav ? 4 : 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
+    _counters: { nodes: nodes.length, elements: elements.length, materials: 1, sections: comContrav ? 5 : 3, diaphragms: 0, loadCases: loadCases.length, combinations: 2 },
     _generado: {
       por: 'assistant/generator.js (warehouse)',
       reglas: (libs.reglas && libs.reglas._meta) ? libs.reglas._meta.version : undefined,
