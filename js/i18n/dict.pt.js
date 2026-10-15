@@ -2294,6 +2294,18 @@ export const PT = {
   "frecuente (ψ1 del viento)": "frequente (ψ1 do vento)",
   "rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)": "rara (vento característico; NBR 8800 B.2.4: escolha do responsável técnico)",
   "H = altura del pilar (tope a base).": "H = altura do pilar (topo à base).",
+  "Ejecute el análisis estático (F5) con casos permanentes y variables nombrados (CM/perm, sobrecarga/CV, viento).": "Execute a análise estática (F5) com casos permanentes e variáveis nomeados (CM/perm, sobrecarga/CV, vento).",
+  "4.4 Flechas de elementos de madera — NBR 7190-1:2022 (sección 8)": "4.4 Flechas de elementos de madeira — NBR 7190-1:2022 (seção 8)",
+  "dentro de la franja": "dentro da faixa",
+  "δ calculada / límites de la Tab. 21 (extremo estricto–extremo tolerante; dentro de la franja la elección es del proyectista).": "δ calculada / limites da Tab. 21 (extremo rigoroso–extremo tolerante; dentro da faixa a escolha é do projetista).",
+  "clase de humedad": "classe de umidade",
+  "δinst: combinación rara; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) (combinación casi permanente). Casos:": "δinst: combinação rara; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) (combinação quase permanente). Casos:",
+  "Ningún vano de madera entre apoyos (nudos con restricción vertical o unidos a pilares).": "Nenhum vão de madeira entre apoios (nós com restrição vertical ou ligados a pilares).",
+  "voladizo": "balanço",
+  "Forma EN 1995 de δfin (informativa; Dias et al. 2019, sobre el proyecto de 2018): δG·(1 + φ) + δQ1·(1 + ψ2·φ) + Σ δQj·(ψ1j + ψ2j·φ) — mayor de la tabla:": "Forma EN 1995 de δfin (informativa; Dias et al. 2019, sobre o projeto de 2018): δG·(1 + φ) + δQ1·(1 + ψ2·φ) + Σ δQj·(ψ1j + ψ2j·φ) — maior da tabela:",
+  "Flecha medida respecto a los apoyos de cada vano (voladizo: respecto al apoyo). Limitaciones: la análisis debe usar E0,m y deformación por cortante (8.1); no incluye la deformación de las uniones (Kser, 7.1.12) — necesaria en cerchas y pórticos con uniones metálicas.": "Flecha medida em relação aos apoios de cada vão (balanço: em relação ao apoio). Limitações: a análise deve usar E0,m e deformação por cisalhamento (8.1); não inclui a deformação das ligações (Kser, 7.1.12) — necessária em treliças e pórticos com ligações metálicas.",
+  "Materiales frágiles (8.2) no verificados: active designSettings.timberFrageis.": "Materiais frágeis (8.2) não verificados: ative designSettings.timberFrageis.",
+  "Alcance: vigas de madera casi horizontales entre apoyos (nudos con restricción vertical o pilares); barras de madera fuera de ese alcance (inclinadas, diagonales, montantes):": "Escopo: vigas de madeira aproximadamente horizontais entre apoios (nós com restrição vertical ou pilares); barras de madeira fora desse escopo (inclinadas, diagonais, montantes):",
 };
 
 export default PT;

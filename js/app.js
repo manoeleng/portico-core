@@ -3,7 +3,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { Model }           from './model/model.js?v=7';
 import { csvLocalize }     from './report/numfmt.js?v=7';
-import { nbrCombinations } from './design/combinations_nbr.js?v=7';
+import { nbrCombinations, NBR_PSI } from './design/combinations_nbr.js?v=7';
 import { setDefaultCode }  from './design/registry.js?v=7';
 import { Serializer }      from './model/serializer.js?v=7';
 import { Viewport }        from './ui/viewport.js?v=7';
@@ -34,6 +34,8 @@ import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
 import { driftLimit, driftLimit15421 } from './design/serviceability.js?v=7';
 import { topDriftCheck } from './design/top_drift.js?v=7';
+import { timberDeflectionCheck } from './design/timber_deflection.js?v=7';
+import { beamSpans, spanDeflection } from './design/beam_spans.js?v=7';
 import { parseNum } from './utils/num.js?v=7';
 import { parseCSV } from './utils/csv.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
@@ -8858,6 +8860,48 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     const r = topDriftCheck({ nodes, elements, cases, code: steel ? 'NBR8800:2024' : 'NBR6118:2026',
       singleStory: this.model.diaphragms.size <= 1, combo: this.model.designSettings?.topDriftCombo || 'rara' });
     return { ...r, note: '' };
+  }
+
+  // ── Service: deflections of TIMBER members by NBR 7190-1:2022 section 8 (δinst, δfin with creep, δnet,fin) ──
+  // Timber elements (material family 'timber' or name), nearly horizontal. Characteristic cases from the static
+  // analysis: permanent (self-weight, CM/perm/muerta/dead/G), use (viva/sobrecarga/uso/CV/live; roof when the name
+  // has cob/techo/roof), wind (vent/wind). ψ from NBR 8681:2025 Tab. 6 (designSettings.usoNbr, default
+  // residencial); φ from Tab. 20 (designSettings.timberMaterial / timberClasseUmidade, default serrada / classe 2).
+  // Pure check in js/design/timber_deflection.js.
+  _computeTimberDeflections() {
+    const famT = (mat) => mat?.design?.family === 'timber' || (!mat?.design?.family && /mader|pino|wood|c1[68]|c24|timber|eucalipto/i.test(mat?.name || ''));
+    const isT = (e) => famT(this.model.materials.get(e.matId));
+    const allEls = [...this.model.elements.values()];
+    if (!allEls.some(isT)) return null;
+    const ds = this.model.designSettings || {};
+    const out = { rows: [], note: '', classe: ds.timberClasseUmidade ?? 2, material: ds.timberMaterial || 'serrada', uso: ds.usoNbr || 'residencial',
+      frageis: !!ds.timberFrageis, cases: [] };
+    const byCase = this._resultsByCase;
+    const lcs = [...this.model.loadCases.values()].filter(l => l.type !== 'spectrum');
+    const kindOf = (l) => l.selfWeight || /^CM\b|perm|muerta|dead|^G\b|peso/i.test(l.name || '') ? 'G'
+      : /vient|vent|wind/i.test(l.name || '') ? 'V'
+      : /viva|sobrecarga|uso|\bcv\b|live/i.test(l.name || '') ? (/cob|techo|roof/i.test(l.name || '') ? 'Qcob' : 'Q') : null;
+    const cases = lcs.map(l => ({ l, k: kindOf(l), res: byCase?.get(l.id) })).filter(c => c.k && c.res && typeof c.res.getElemAtXi === 'function');
+    if (!cases.length) { out.note = i18n.t('Ejecute el análisis estático (F5) con casos permanentes y variables nombrados (CM/perm, sobrecarga/CV, viento).'); return out; }
+    out.cases = cases.map(c => `${c.l.name} (${c.k})`);
+    const psiOf = (k) => (k === 'V' ? NBR_PSI.V : k === 'Qcob' ? NBR_PSI.Qcob : NBR_PSI[out.uso] || NBR_PSI.residencial);
+    // spans between supports and cantilevers (js/design/beam_spans.js); only lines made of timber elements
+    const spans = beamSpans({ nodes: this.model.nodes, elements: allEls }).filter(sp => sp.elements.every(id => isT(this.model.elements.get(id))));
+    const defl = (res, sp) => spanDeflection(sp, (id) => { try { return res.getNodeDisp(id); } catch { return null; } },
+      (eid, xi) => { try { return res.getElemAtXi(eid, xi); } catch { return null; } });
+    for (const sp of spans) {
+      const dG = cases.filter(c => c.k === 'G').reduce((s, c) => s + defl(c.res, sp), 0);
+      const dQ = cases.filter(c => c.k !== 'G').map(c => { const p = psiOf(c.k); return { delta: defl(c.res, sp), psi1: p[1], psi2: p[2] }; });
+      const r = timberDeflectionCheck({ L: sp.L, cantilever: sp.kind === 'balanco', dG, dQ, material: out.material, classeUmidade: out.classe, frageis: out.frageis });
+      if (r.erro) { out.note = r.erro; return out; }
+      out.rows.push({ id: sp.elements.join('+'), kind: sp.kind, sec: this.model.sections.get(this.model.elements.get(sp.elements[0])?.secId)?.name || '', ...r });
+    }
+    if (!out.rows.length) out.note = i18n.t('Ningún vano de madera entre apoyos (nudos con restricción vertical o unidos a pilares).');
+    const inSpan = new Set(spans.flatMap(sp => sp.elements));
+    out.fora = allEls.filter(e => isT(e) && !inSpan.has(e.id)).length;   // inclined/vertical timber bars, trusses without supports
+    const rank = { excede: 2, faixa: 1, atende: 0 };
+    out.rows.sort((a, b) => (rank[b.status] - rank[a.status]) || (b.fin.ratioStrict - a.fin.ratioStrict));
+    return out;
   }
 
   _computeDrift() {

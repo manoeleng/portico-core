@@ -164,6 +164,19 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
         : i18n.t('Límite NCh433: 0.002 (2/1000·h). Calculada con los desplazamientos del espectro de respuesta.'), color: '5C6A7D', size: 9 }]);
     } else d.paragraph([{ text: stripTags(drift?.note || i18n.t('Sin datos de derivas sísmicas.')), italic: true, color: '5C6A7D' }]);
 
+    // ── 7c. Timber deflections (NBR 7190-1:2022) ──
+    const twd = app._computeTimberDeflections?.();
+    if (twd) {
+      d.heading(i18n.t('4.4 Flechas de elementos de madera — NBR 7190-1:2022 (sección 8)'), 3);
+      if (twd.rows?.length) {
+        const c = (v) => `${fmt(v.delta * 1000, 1)} / ${fmt(v.limStrict * 1000, 1)}–${fmt(v.limLenient * 1000, 1)}`;
+        const st = (x) => x === 'excede' ? i18n.t('NO CUMPLE') : x === 'faixa' ? i18n.t('dentro de la franja') : i18n.t('cumple');
+        d.table([i18n.t('Viga'), i18n.t('Sección'), 'L (m)', 'δinst (mm)', 'δfin (mm)', 'δnet,fin (mm)', i18n.t('Estado')],
+          twd.rows.slice(0, 60).map(r => [`#${r.id}`, r.sec, fmt(r.L, 2), c(r.inst), c(r.fin), c(r.net), st(r.status)]));
+        d.paragraph([{ text: `${i18n.t('δ calculada / límites de la Tab. 21 (extremo estricto–extremo tolerante; dentro de la franja la elección es del proyectista).')} φ = ${fmt(twd.rows[0].phi, 2)}; ψ «${twd.uso}».`, color: '5C6A7D', size: 9 }]);
+      } else d.paragraph([{ text: twd.note, italic: true, color: '5C6A7D' }]);
+    }
+
     // ── 7b. Top displacement under wind ──
     const td = app._computeTopDrift?.();
     if (td) {
@@ -416,6 +429,20 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
       deflexHTML = `<p class="muted">${esc(deflex?.note || i18n.t('Sin datos de deformaciones de vigas.'))}</p>`;
     }
 
+    // ── Timber deflections (NBR 7190-1:2022 section 8) ──────────────────────────
+    const tw = app._computeTimberDeflections?.();
+    let timberHTML = '';
+    const stTxt = (st) => st === 'excede' ? i18n.t('NO CUMPLE') : st === 'faixa' ? i18n.t('dentro de la franja') : i18n.t('cumple');
+    const stCls = (st) => st === 'excede' ? 'r-bad' : st === 'faixa' ? 'r-warn' : 'r-ok';
+    if (tw) {
+      const cell = (v) => `<td class="${stCls(v.status)}">${fmt(v.delta * 1000, 1)} / ${fmt(v.limStrict * 1000, 1)}–${fmt(v.limLenient * 1000, 1)}</td>`;
+      timberHTML = `<h3>${i18n.t('4.4 Flechas de elementos de madera — NBR 7190-1:2022 (sección 8)')}</h3>` + (tw.rows?.length
+        ? `<table style="font-size:9.5px"><thead><tr><th>${i18n.t('Viga')}</th><th>${i18n.t('Sección')}</th><th>L (m)</th><th>δinst (mm)</th><th>δfin (mm)</th><th>δnet,fin (mm)</th><th>${i18n.t('Estado')}</th></tr></thead><tbody>` +
+          tw.rows.slice(0, 60).map(r => `<tr><td>#${r.id}${r.kind === 'balanco' ? ` (${i18n.t('voladizo')})` : ''}</td><td>${esc(r.sec)}</td><td>${fmt(r.L, 2)}</td>${cell(r.inst)}${cell(r.fin)}${cell(r.net)}<td class="${stCls(r.status)}">${stTxt(r.status)}</td></tr>`).join('') +
+          `</tbody></table><p class="muted">${i18n.t('δ calculada / límites de la Tab. 21 (extremo estricto–extremo tolerante; dentro de la franja la elección es del proyectista).')} φ = ${fmt(tw.rows[0].phi, 2)} (Tab. 20, ${esc(tw.material)}, ${i18n.t('clase de humedad')} ${tw.classe}); ψ NBR 8681:2025 «${esc(tw.uso)}». ${i18n.t('δinst: combinación rara; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) (combinación casi permanente). Casos:')} ${esc(tw.cases.join(', '))}. ${i18n.t('Forma EN 1995 de δfin (informativa; Dias et al. 2019, sobre el proyecto de 2018): δG·(1 + φ) + δQ1·(1 + ψ2·φ) + Σ δQj·(ψ1j + ψ2j·φ) — mayor de la tabla:')} ${fmt(Math.max(...tw.rows.map(r => r.finEN)) * 1000, 1)} mm. ${i18n.t('Flecha medida respecto a los apoyos de cada vano (voladizo: respecto al apoyo). Limitaciones: la análisis debe usar E0,m y deformación por cortante (8.1); no incluye la deformación de las uniones (Kser, 7.1.12) — necesaria en cerchas y pórticos con uniones metálicas.')}${tw.frageis ? '' : ' ' + i18n.t('Materiales frágiles (8.2) no verificados: active designSettings.timberFrageis.')}${tw.fora ? ` ${i18n.t('Alcance: vigas de madera casi horizontales entre apoyos (nudos con restricción vertical o pilares); barras de madera fuera de ese alcance (inclinadas, diagonales, montantes):')} ${tw.fora}.` : ''}</p>`
+        : `<p class="muted">${esc(tw.note)}</p>`);
+    }
+
     // ── Top displacement under wind (NBR 6118 Tab. 13.3 / NBR 8800 Tab. B.1) ─────────
     const td = app._computeTopDrift?.();
     let topHTML = '';
@@ -597,6 +624,7 @@ ${deflexHTML}
 <h3>${drift?.code === 'NBR15421:2023' ? i18n.t('4.2 Derivas sísmicas de entrepiso — NBR 15421 (Tabla 9)') : i18n.t('4.2 Derivas sísmicas de entrepiso — NCh433 (límite 2/1000·h)')}</h3>
 ${driftHTML}
 ${topHTML}
+${timberHTML}
 
 <h2>${i18n.t('5. Limitaciones y alcances')}</h2>
 <ul style="font-size:11px;line-height:1.6">${limitHTML}</ul>

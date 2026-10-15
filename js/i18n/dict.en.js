@@ -2549,6 +2549,18 @@ export const EN = {
   "frecuente (ψ1 del viento)": "frequent (wind ψ1)",
   "rara (viento característico; NBR 8800 B.2.4: la elige el responsable técnico)": "rare (characteristic wind; NBR 8800 B.2.4: chosen by the engineer of record)",
   "H = altura del pilar (tope a base).": "H = column height (top to base).",
+  "Ejecute el análisis estático (F5) con casos permanentes y variables nombrados (CM/perm, sobrecarga/CV, viento).": "Run the static analysis (F5) with named permanent and variable cases (CM/perm, live/CV, wind).",
+  "4.4 Flechas de elementos de madera — NBR 7190-1:2022 (sección 8)": "4.4 Deflections of timber members — NBR 7190-1:2022 (section 8)",
+  "dentro de la franja": "within the range",
+  "δ calculada / límites de la Tab. 21 (extremo estricto–extremo tolerante; dentro de la franja la elección es del proyectista).": "computed δ / Tab. 21 limits (strict end–lenient end; within the range the choice is the designer's).",
+  "clase de humedad": "service class",
+  "δinst: combinación rara; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) (combinación casi permanente). Casos:": "δinst: rare combination; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) (quasi-permanent combination). Cases:",
+  "Ningún vano de madera entre apoyos (nudos con restricción vertical o unidos a pilares).": "No timber span between supports (nodes with vertical restraint or connected to columns).",
+  "voladizo": "cantilever",
+  "Forma EN 1995 de δfin (informativa; Dias et al. 2019, sobre el proyecto de 2018): δG·(1 + φ) + δQ1·(1 + ψ2·φ) + Σ δQj·(ψ1j + ψ2j·φ) — mayor de la tabla:": "EN 1995 form of δfin (informative; Dias et al. 2019, on the 2018 draft): δG·(1 + φ) + δQ1·(1 + ψ2·φ) + Σ δQj·(ψ1j + ψ2j·φ) — largest in the table:",
+  "Flecha medida respecto a los apoyos de cada vano (voladizo: respecto al apoyo). Limitaciones: la análisis debe usar E0,m y deformación por cortante (8.1); no incluye la deformación de las uniones (Kser, 7.1.12) — necesaria en cerchas y pórticos con uniones metálicas.": "Deflection measured relative to the supports of each span (cantilever: relative to the support). Limitations: the analysis must use E0,m and shear deformation (8.1); connection slip (Kser, 7.1.12) is not included — required for trusses and frames with metal connections.",
+  "Materiales frágiles (8.2) no verificados: active designSettings.timberFrageis.": "Brittle materials (8.2) not checked: enable designSettings.timberFrageis.",
+  "Alcance: vigas de madera casi horizontales entre apoyos (nudos con restricción vertical o pilares); barras de madera fuera de ese alcance (inclinadas, diagonales, montantes):": "Scope: nearly horizontal timber beams between supports (nodes with vertical restraint or columns); timber bars outside this scope (inclined, diagonals, posts):",
 };
 
 export default EN;

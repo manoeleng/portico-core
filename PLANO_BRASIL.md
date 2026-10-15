@@ -22,7 +22,7 @@ do autor; "traga o seu serviço") — decisão do Manoel.
 
 **Pendências técnicas abertas** (detalhes nas notas de cada fase):  na 8800 (ruptura da seção líquida 5.2.2-b e alma esbelta pelo Anexo E FEITAS em 15/10/2026) resta o **bug contra a segurança** da fabricação não informada (aviso diz "adotado soldado", mas FLM/Tab. 4 usam as fórmulas de laminado — confirmado pela revisão, aguardando o Manoel autorizar a correção `welded = fabricacao !== 'laminado'`);
  seção não retangular e torção de perfis abertos (17.5.2) na
-6118; ELS de madeira; Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da
+6118 (ELS de madeira FEITO 15/10/2026); Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da
 aba; campos `type="number"` com vírgula (decisão de produto). Fora do plano: o caminho AISC 360 tem a mesma
 limitação da cantoneira que foi corrigida na NBR 8800.
 
@@ -215,7 +215,7 @@ inalterados.
 > a ficha sem essa correção.
 
 - [x] **3.3** `serviceability.js`: adicionar entradas `NBR6118:2026` e `NBR8800:2024`
-      (`NBR7190`: os limites de ELS de madeira continuam pendentes — escolha de projeto, ver fase 7):
+      (`NBR7190`: ELS de madeira FEITO em 15/10/2026 — ver fase 7):
 
 | Verificação | NBR 6118:2026 Tab. 13.3 | NBR 8800:2024 Tab. B.1 |
 | --- | --- | --- |
@@ -315,7 +315,8 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 - Testes: `tests/test_nbr7190.mjs` com BR-7190-01.
 
 > **Fase 7 (NBR 7190-1:2022) concluída em 15/10/2026** — `js/design/codes/nbr7190.js` (kmod1·kmod2, γw 1,4/1,8, Tab. 2/3, tração, compressão com kc da 2022, flexão oblíqua kM = 0,7, flexo-tração/compressão, cisalhamento resultante, estabilidade lateral βM, limites 9.3). Testes: Dias, Calil Jr, Lahr, Martins (2019) Ex. 1–4. Revisão do especialista: FECHADO.
-> Pendências: ELS de madeira (faixas de flecha da Tab. 21 são escolha de projeto); kmod3 de MLC aplicado como fator adicional (leitura sinalizada).
+> **ELS de madeira FEITO (15/10/2026, revisão FECHADA)** — `js/design/timber_deflection.js` (NBR 7190-1:2022 seção 8: δinst pela combinação rara com cada variável como principal; δfin = δG·(1 + φ) + Σ ψ2·δQ·(1 + φ) do texto publicado, com a forma EN 1995 de Dias et al. 2019 mostrada como informativa — a forma da norma é menos conservadora; φ da Tab. 20; δnet,fin com contraflecha ≤ 2/3·δG; Tab. 21 em três estados 'atende' / 'faixa' (escolha do projetista) / 'excede'; frágeis 8.2 pela leitura mais severa ΣδQ — parêntese em branco no PDF, LACUNA de leitura) e `js/design/beam_spans.js` (flecha por vão entre apoios — nó com uz ou topo de pilar que desce a um vínculo uz; balanços pela raiz; diagonais/montantes de treliça não são apoio). Memorial seção 4.4 (padrões serrada / classe 2 / residencial em `designSettings.timberMaterial`/`timberClasseUmidade`/`usoNbr`, frágeis em `timberFrageis`; limitações E0,m e cisalhamento, Kser das ligações não incluído; contagem de barras de madeira fora do escopo). Testes `tests/test_timber_deflection.mjs` (cálculo manual) e `tests/test_beam_spans.mjs` (linhas elásticas analíticas); conferido no navegador com o solver real (vão de 4 m e balanço de 2 m em 2 elementos: 5,750 e 3,505 mm = flexão + cisalhamento à mão).
+> Pendências: banzo superior inclinado de tesouras fora do escopo do ELS (só contado); **bug**: a tabela geral de flechas (`_computeBeamDeflections`, outros materiais) mede pela corda de cada elemento — balanços ~5× subestimados (aguardando o Manoel; correção natural: reutilizar `beam_spans.js`); kmod3 de MLC aplicado como fator adicional (leitura sinalizada).
 
 ### 7.4 NBR 14762 — formados a frio (Fase 8, incluída em 14/10/2026)
 - Depende de novas formas `lipped_channel` (Ue) e `zee` (Z) em `section_props.js`.
