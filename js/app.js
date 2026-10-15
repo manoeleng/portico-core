@@ -2,6 +2,7 @@
 // App — main orchestrator
 // ──────────────────────────────────────────────────────────────────────────────
 import { Model }           from './model/model.js?v=7';
+import { csvLocalize }     from './report/numfmt.js?v=7';
 import { Serializer }      from './model/serializer.js?v=7';
 import { Viewport }        from './ui/viewport.js?v=7';
 import { PropertiesPanel } from './ui/properties.js?v=7';
@@ -55,6 +56,8 @@ import { StagedSolver }      from './solver/staged.js?v=7';
 import { solveNonlinear, solveNonlinearDC } from './solver/nl_lite.js?v=7';
 import { formFind }          from './solver/formfind.js?v=7';
 import { i18n } from './i18n/i18n.js?v=7';
+// CSV export: 'pt' → ';' separator + decimal comma; es/en → unchanged (identity).
+const _csv = (csv) => csvLocalize(csv, i18n.getLocale());
 // BCP-47 tag of the active UI language for dates (es → es-CL keeps the historic format).
 const _localeTag = () => ({ pt: 'pt-BR', en: 'en-US' })[i18n.getLocale()] || 'es-CL';
 import { reportHTML, reportDocx, reportDocxCover, reportDocxBody } from './report/report.js?v=7';
@@ -1070,7 +1073,7 @@ class App {
         this._matrixCSV(KG, L12, i18n.t('K global del elemento')),
         this._matrixCSV(Me, L12, i18n.t('Me masa local')),
       ].filter(Boolean).join('\r\n#\r\n');
-      this._downloadText(csv, `matrices_elemento_${elem.id}.csv`, 'text/csv;charset=utf-8');
+      this._downloadText(_csv(csv), `matrices_elemento_${elem.id}.csv`, 'text/csv;charset=utf-8');
     });
   }
 
@@ -1111,7 +1114,7 @@ class App {
     document.getElementById('gmtx-csv')?.addEventListener('click', () => {
       const csv = this._matrixCSV(toRows(K), labels, `K global (${nDOF} GDL)`) +
         '\r\n#\r\n' + this._matrixCSV(toRows(M), labels, `M global (${nDOF} GDL)`);
-      this._downloadText(csv, 'matrices_globales.csv', 'text/csv;charset=utf-8');
+      this._downloadText(_csv(csv), 'matrices_globales.csv', 'text/csv;charset=utf-8');
     });
   }
 
@@ -2485,7 +2488,7 @@ class App {
     if (!this._results) { this.toast('No hay resultados — ejecute el análisis primero', 'warn'); return; }
     const csv = this._results.toCSV(i18n.t);
     const name = (this._resultCaseLabel(this._activeResultKey) || 'resultados').replace(/[^\w\-]+/g, '_');
-    this._downloadText(csv, `resultados_${name}.csv`, 'text/csv;charset=utf-8');
+    this._downloadText(_csv(csv), `resultados_${name}.csv`, 'text/csv;charset=utf-8');
     this.toast(`${i18n.t('Resultados de')} «${this._resultCaseLabel(this._activeResultKey) || '—'}» ${i18n.t('exportados (CSV)')}`, 'ok');
   }
 
@@ -2960,7 +2963,7 @@ class App {
       this.toast('No hay resultados modales — ejecute Análisis Modal primero', 'warn'); return;
     }
     const csv = this._modalResults.toCSV(i18n.t);
-    this._downloadText(csv, 'resultados_modales.csv', 'text/csv;charset=utf-8');
+    this._downloadText(_csv(csv), 'resultados_modales.csv', 'text/csv;charset=utf-8');
     this.toast('Resultados modales exportados', 'ok');
   }
 
@@ -2969,7 +2972,7 @@ class App {
       this.toast('No hay resultados espectrales — ejecute Espectro de Respuesta primero', 'warn'); return;
     }
     const csv = this._results.toCSV(i18n.t);
-    this._downloadText(csv, 'resultados_espectrales.csv', 'text/csv;charset=utf-8');
+    this._downloadText(_csv(csv), 'resultados_espectrales.csv', 'text/csv;charset=utf-8');
     this.toast('Resultados espectrales exportados', 'ok');
   }
 
@@ -3863,7 +3866,7 @@ class App {
     let csv = `# Time-history ${R.method === 'direct' ? i18n.t('(Newmark directo)') : R.method === 'nldirect' ? i18n.t('(Newmark directo NO lineal, corotacional)') : `${i18n.t('modal')} · ${R.modes.length} ${i18n.t('modos')}`} · dir ${R.dir} · zeta ${(R.zeta*100).toFixed(1)}% · ${R.agName}\n`;
     csv += `t[s],a_g[m/s2],${col}\n`;
     for (let k = 0; k < R.nSteps; k++) csv += `${(k*R.dt).toFixed(5)},${R.ag[k].toFixed(6)},${h[k].toExponential(6)}\n`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `timehistory_${R.monType}${R.monId}_${R.monComp}.csv`; a.click();
     URL.revokeObjectURL(a.href);
@@ -4230,7 +4233,7 @@ class App {
     let csv = `# ${i18n.t('Cargas móviles')} · ${R.mode === 'il' ? i18n.t('línea de influencia (carga unitaria)') : i18n.t('envolvente del tren')} · ${R.label}\n`;
     csv += `posicion[m],${R.label.replace(/[,\s]+/g, '_')}[${R.unit}]\n`;
     for (let i = 0; i < R.xs.length; i++) csv += `${R.xs[i].toFixed(4)},${R.ys[i].toExponential(6)}\n`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `cargas_moviles_${R.mode}.csv`; a.click(); URL.revokeObjectURL(a.href);
     this.toast(i18n.t('Resultado exportado'), 'ok');
@@ -4513,7 +4516,7 @@ class App {
     csv += `# T1=${R.T1.toFixed(4)}s · pisos en fluencia: ${R.yielded.map((y,i)=>y?i+1:null).filter(x=>x).join('/')||'ninguno'}\n`;
     csv += 't[s],a_g[m/s2],' + R.stories.map((s, i) => `u_piso${i + 1}[m]`).join(',') + '\n';
     for (let k = 0; k < R.nSteps; k++) csv += `${(k*R.dt).toFixed(5)},${R.ag[k].toFixed(6)},` + R.U[k].slice(0, n).join(',') + '\n';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `timehistory_NL_${R.dir}.csv`; a.click(); URL.revokeObjectURL(a.href);
     this.toast(i18n.t('Historia exportada'), 'ok');
@@ -4739,7 +4742,7 @@ class App {
         num(x.bending?.ratio), num(x.shear?.ratio), num(x.axial?.ratio), num(x.interaction?.ratio),
         num(x.ratioMax), (x.ratioMax <= 1 ? 'si' : 'NO'), dmmS].join(',') + '\n';
     }
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([_csv(csv)], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `reporte_diseno_${(this._modelName || 'modelo').replace(/\W+/g, '_')}.csv`; a.click();
     URL.revokeObjectURL(a.href);

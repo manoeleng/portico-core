@@ -10,6 +10,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
+import { localizeNum } from './numfmt.js?v=7';
 
 export function reportDocx(app, Docx, imgs, diseno, deflex, drift) {
     const d = new Docx();
@@ -49,8 +50,8 @@ export function reportDocxCover(app, d, opts = {}) {
 export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
     const m = app.model;
     const cm = app._report();   // effective report: per-project + global defaults (#41)
-    const fmt = (v, dec = 3) => (v == null || !isFinite(v)) ? '—'
-      : (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? (+v).toExponential(2) : (+v).toFixed(dec));
+    const fmt = (v, dec = 3) => localizeNum((v == null || !isFinite(v)) ? '—'
+      : (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? (+v).toExponential(2) : (+v).toFixed(dec)), i18n.getLocale());
     const stripTags = s => String(s ?? '').replace(/<[^>]+>/g, '');
 
     // ── 1. Design basis ──
@@ -172,8 +173,8 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
 
 export function reportHTML(app, imgs, diseno, deflex, drift) {
     const m = app.model;
-    const fmt = (v, d = 3) => (v == null || !isFinite(v)) ? '—'
-      : (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? (+v).toExponential(2) : (+v).toFixed(d));
+    const fmt = (v, d = 3) => localizeNum((v == null || !isFinite(v)) ? '—'
+      : (Math.abs(v) >= 1e5 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? (+v).toExponential(2) : (+v).toFixed(d)), i18n.getLocale());
     const proyecto = (document.title || '').replace(/^●\s*/, '').replace(/\s*—\s*[^—]*$/, '').trim() || i18n.t('Modelo sin título');
     const fecha = new Date().toLocaleDateString(i18n.getLocale() === 'en' ? 'en-US' : 'es-CL', { year:'numeric', month:'long', day:'numeric' });
     const U = m.units || 'kN-m';
