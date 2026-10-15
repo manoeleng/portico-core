@@ -2576,6 +2576,8 @@ export const PT = {
   "Excentricidad y (m)": "Excentricidade y (m)",
   "Excentricidad z (m)": "Excentricidade z (m)",
   "excentricidade": "excentricidade",
+  "Capa padrão: nombre fijo": "Camada padrão: nome fixo",
+  "Doble clic para renombrar": "Duplo clique para renomear",
 };
 
 export default PT;

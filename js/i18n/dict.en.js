@@ -2831,6 +2831,8 @@ export const EN = {
   "Excentricidad y (m)": "Eccentricity y (m)",
   "Excentricidad z (m)": "Eccentricity z (m)",
   "excentricidade": "eccentricity",
+  "Capa padrão: nombre fijo": "Default layer: fixed name",
+  "Doble clic para renombrar": "Double-click to rename",
 };
 
 export default EN;

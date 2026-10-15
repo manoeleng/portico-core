@@ -35,7 +35,7 @@ limitação da cantoneira que foi corrigida na NBR 8800.
    **Deformada no sólido 3D com mapa de cores** (deslocamento ou tensão ao longo da barra) — hoje a deformada é só em
    linha (Hermite) e o mapa de cores só existe em placas/cascas.
 3. Camadas: o nome de referência da camada **padrão** não pode ser modificado; o das camadas criadas só fica
-   editável com **duplo clique** (evita renomear sem querer).
+   editável com **duplo clique** (evita renomear sem querer). FEITO 15/10/2026 (Enter confirma, Esc cancela).
 4. Cartola (NBR 6355 Tab. A.6): decisão do Manoel pendente — (a) recalcular x0/r0/Cw pelo E.2.1.2c da NBR 14762 com
    errata da tabela, ou (b) deixar sem verificação à flexo-torção.
 5. Dimensionamento de Z e cartola pela NBR 14762 (especificação pronta pelo engenheiro-aco; hoje "NÃO verificada").
