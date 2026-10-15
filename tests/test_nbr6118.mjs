@@ -176,6 +176,11 @@ const cort = (id, dd, V, options, rebar) => run(id, { demands: { N: 0, Vy: V, Vz
   const tir = nbr6118.check({ demands: { N: 500, Vy: 60 }, mat, sec: rect([{ As: 10e-4, d: 0.04 }, { As: 10e-4, d: 0.46 }]) });
   ok4('05e. tirante → Vc = 0', tir.cortante.Vc === 0 && Math.abs(tir.cortante.capacity - 120.6) / 120.6 < 0.01, String(tir.cortante.capacity));
   // 20×50, 4φ20 em cada face: barras distribuídas na largura → eixo fraco derivado (M1d,mín nos dois eixos)
+  // R1: viga com compressão ínfima (ruído numérico do pórtico) mantém a verificação de ductilidade
+  const duc2 = nbr6118.check({ demands: { N: -0.01, Mz: 100 }, mat, sec: rect([{ As: 25e-4, d: 0.46 }]), member: { L: 5 } });
+  ok4('05h. viga com N = −0,01 kN continua reprovando por x/d > 0,45', duc2.flexao.ratio === Infinity && !duc2.pilar);
+  const vig = nbr6118.check({ demands: { N: -5, Mz: 20 }, mat, sec: rect([{ As: 3e-4, d: 0.46 }]), member: { L: 8, role: 'viga' } });
+  ok4('05i. viga marcada (role viga) com compressão pequena não vira pilar', !vig.pilar);
   const ax = nbr6118.check({ demands: { N: -1000 }, mat, sec: rect([{ n: 4, dia: 20, d: 0.04 }, { n: 4, dia: 20, d: 0.46 }]), member: { L: 0.5 } });
   ok4('05f. pilar curto, N = 1000 kN, M = 0 (só M1d,mín) → atende', Number.isFinite(ax.interaction.ratio) && ax.interaction.ratio < 1, String(ax.interaction.ratio));
   const axA = nbr6118.check({ demands: { N: -1000 }, mat, sec: rect([{ As: 12.57e-4, d: 0.04 }, { As: 12.57e-4, d: 0.46 }]), member: { L: 0.5 } });

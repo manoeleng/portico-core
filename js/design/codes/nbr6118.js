@@ -18,7 +18,9 @@
 // `cover_mm` is that centroid distance, not the nominal cover) and also reports the required
 // As for the beam (single/double reinforcement). Without explicit bars, with a non-rectangular
 // section or with torsion the result is NOT verified (ratio = ∞, never a silent pass).
-// Detailing limits (As,mín/máx, dimensions) are reported as warnings (avisos). ELS (deflection,
+// Detailing limits (As,mín/máx, dimensions) are reported as warnings (avisos). The moment SENSE
+// is not checked (magnitudes; layers measured from the compressed fiber). Flexo-tension uses
+// N = 0 in the ductility check (conservative). ELS (deflection,
 // cracking) is not part of check(): see the serviceability helpers.
 // Units: kN, m, kN/m² (strengths converted to MPa only inside the empirical expressions).
 // Source transcription: PLANO_BRASIL "Fase 5" fichas (checked against the 2026 PDF).
@@ -230,13 +232,22 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const My = Math.abs(demands.My || 0), Mz = Math.abs(demands.Mz || 0);
   const Nc = -N;                                                  // compression +
 
-  // ── columns (any compression): γn (13.2.3) and local 2nd order (15.8) ──────────
-  // le: member.le / lez / ley; without it the member length L is used (le ≤ L, conservative).
+  // ── columns: γn (13.2.3) and local 2nd order (15.8) ─────────────────────────────
+  // A column is a member where compression is PREPONDERANT (14.4.1.2, no numeric limit): the section
+  // role ('pilar'/'viga', member.role/tipo) decides; without a role, ν = Nd/(Ac·fcd) ≥ 0,10 is the
+  // ADOPTED criterion (flagged). Beams with small compression keep the ductility check below.
+  // le: member.le / lez / ley; without it the member length L (NOT conservative for cantilevers or
+  // sway frames, where le > L — warned).
   let pilar = null, gn = 1.0;
   let MzD = Mz, MyD = My, NcD = Nc;
-  if (Nc > 0) {
+  const nuD = Nc / (A * P.fcd * 1000);
+  const roleCol = member.role === 'pilar' || member.tipo === 'pilar' || member.isColumn === true;
+  const roleBeam = member.role === 'viga' || member.tipo === 'viga';
+  const isCol = Nc > 0 && (roleCol || (!roleBeam && nuD >= 0.10));
+  if (isCol && !roleCol) avisos.push(`Compressão preponderante adotada por ν = ${nuD.toFixed(3)} ≥ 0,10 (14.4.1.2 não fixa limite): verificado como pilar.`);
+  if (isCol) {
     if (!(member.le > 0 || member.lez > 0 || member.ley > 0)) {
-      avisos.push(`Compressão sem comprimento equivalente (member.le): adotado le = L = ${(member.L || 1).toFixed(2)} m e αb = 1,0 (conservador, 15.6/15.8.2).`);
+      avisos.push(`Pilar sem comprimento equivalente (member.le): adotado le = L = ${(member.L || 1).toFixed(2)} m${member.L ? '' : ' (L não informado: valor padrão)'} e αb = 1,0 — NÃO conservador para balanço (le = 2L) ou nós móveis; informe le (15.6).`);
     }
     member = { ...member, le: member.le ?? member.L ?? 1 };
     const bmin = Math.min(b, h);
@@ -345,6 +356,7 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   const alpha = options.alpha ?? 90;
   // tension with small eccentricity (e = M/N inside the bars): neutral axis outside → Vc = 0 (17.4.2.2-b)
   const vcZero = N > 0 && (Mz / N) <= Math.max(d - h / 2, 0);
+  const vcZeroZ = N > 0 && (My / N) <= Math.max(b / 2 - cover, 0);       // plane of Vz: e = My/N
   if (vcZero) avisos.push('Tração com pequena excentricidade (LN fora da seção): Vc = 0 (17.4.2.2-b).');
   const VyD = gn * Vy, VzD = gn * Vz;
   const sv = shearCheck({ VSd: VyD, bw: b, d, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero });
@@ -355,7 +367,7 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
   else if (sv.aswS < sv.aswMin - 1e-12) avisos.push('Armadura transversal abaixo da mínima ρsw,mín = 0,2·fct,m/fywk (17.4.1.1.1).');
   if (N < 0) avisos.push('Flexo-compressão: Vc tomado sem o acréscimo (1 + M0/MSd,máx) — conservador (17.4.2.2-b).');
   const dz = b - cover;
-  const svz = shearCheck({ VSd: VzD, bw: h, d: dz, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir: null, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero });
+  const svz = shearCheck({ VSd: VzD, bw: h, d: dz, fck, fcd: P.fcd, fctm: P.fctm, fyd, fywk: fyk, gc, stir: null, modelo, thetaDeg: theta, alphaDeg: alpha, N, vcZero: vcZeroZ });
   const corteZ = ratObj(VzD, Math.min(svz.VRd2, svz.VRd3), { dir: 'Vz', modelo: svz.modelo });
 
   if (pilar && !(pilar.z.ok && pilar.y.ok)) { flexao.ratio = Infinity; interaction.ratio = Infinity; }
