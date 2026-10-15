@@ -2984,6 +2984,7 @@ export class Viewport {
       line.visible = true;
     }
     for (const [, grp] of this._suppGroups) grp.visible = true;
+    for (const o of this._extrudedObjects || []) o.visible = true;     // undeformed solids back (deformed solid view)
     this.applyLayers();
     this.resetAreaColors();
     this._inResultsMode = false;
@@ -3026,12 +3027,16 @@ export class Viewport {
     for (const [, line] of this._elemLines) line.material.color.set(0x222840);
     for (const [, mesh] of this._nodeMeshes) mesh.visible = false;
     for (const [, grp]  of this._suppGroups)  grp.visible  = false;
+    // solid view on: the undeformed solids are hidden and each member is drawn as a deformed solid coloured by |δ|
+    const solid = !!this._showExtruded;
+    if (solid) for (const o of this._extrudedObjects || []) o.visible = false;
 
     // Hermite cubic interpolation — smooth deformed shape (8 pts per element)
     const NPTS = 8;
     for (const elem of this.app.model.elements.values()) {
       const n1  = this.app.model.nodes.get(elem.n1);
       const n2  = this.app.model.nodes.get(elem.n2);
+      if (solid && this._deformedSolid(elem, results, scale, maxD)) continue;
       const pts = [];
       for (let k = 0; k <= NPTS; k++) {
         const xi = k / NPTS;
@@ -3073,6 +3078,49 @@ export class Viewport {
     this._drawColorbar(0, maxD);
     // The faces deform with the nodes and are colored by von Mises (if there are areas).
     this.colorAreasByVM(results, scale);
+  }
+
+  // Deformed SOLID of a member: the real section outline swept along the deformed member axis (getElemAtXi: Hermite
+  // field, global ux, uy, uz; the eccentricity e moves the axis), vertex colour = |δ|/δmax on the same scale as the
+  // colour bar. The section keeps its undeformed orientation (twist not drawn) — a picture, not a result.
+  // Returns false when the member cannot be drawn (the caller falls back to the line).
+  _deformedSolid(elem, results, scale, maxD) {
+    const model = this.app.model;
+    const n1 = model.nodes.get(elem.n1), n2 = model.nodes.get(elem.n2), sec = model.sections.get(elem.secId);
+    if (!n1 || !n2 || !sec) return false;
+    let la; try { la = localAxes(n1, n2, elem.beta); } catch { return false; }
+    let ring = this._sectionShape(sec).getPoints(6).map((p) => [p.x, p.y]);
+    if (ring.length > 2) { const [a0, a1] = ring[0], [b0, b1] = ring[ring.length - 1]; if (Math.hypot(a0 - b0, a1 - b1) < 1e-12) ring.pop(); }
+    const m = ring.length; if (m < 3) return false;
+    const NS = 12, oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0, pos = [], col = [], idx = [];
+    for (let k = 0; k <= NS; k++) {
+      const xi = k / NS, d = results.getElemAtXi(elem.id, xi);
+      if (!d) return false;
+      const c = _dispColor(maxD > 1e-12 ? Math.min(1, Math.hypot(d.ux, d.uy, d.uz) / maxD) : 0);
+      const b = [0, 1, 2].map((i) => [n1.x, n1.y, n1.z][i] + xi * ([n2.x, n2.y, n2.z][i] - [n1.x, n1.y, n1.z][i])
+        + oy * la.ey[i] + oz * la.ez[i] + scale * [d.ux, d.uy, d.uz][i]);
+      for (const [sx, sy] of ring) {   // shape x → −ez, shape y → ey (as in the undeformed solid)
+        const v = this.m2t(b[0] - sx * la.ez[0] + sy * la.ey[0], b[1] - sx * la.ez[1] + sy * la.ey[1], b[2] - sx * la.ez[2] + sy * la.ey[2]);
+        pos.push(v.x, v.y, v.z); col.push(c.r, c.g, c.b);
+      }
+    }
+    for (let k = 0; k < NS; k++) for (let i = 0; i < m; i++) {
+      const a = k * m + i, b = k * m + (i + 1) % m, c = a + m, d = b + m;
+      idx.push(a, c, b, b, c, d);
+    }
+    const tris = THREE.ShapeUtils.triangulateShape(ring.map(([x, y]) => new THREE.Vector2(x, y)), []);
+    for (const [p, q, r] of tris) { idx.push(p, r, q); idx.push(NS * m + p, NS * m + q, NS * m + r); }   // end caps
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const mode = this._extrudeMode || 'solid';
+    const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ vertexColors: true, side: THREE.DoubleSide,
+      ...(mode === 'translucent' ? { transparent: true, opacity: 0.55, depthWrite: false } : {}),
+      ...(mode === 'edges' ? { wireframe: true } : {}) }));
+    mesh.userData = { type: 'elem', id: elem.id };
+    this._scene.add(mesh); this._resultObjects.push(mesh);
+    return true;
   }
 
   // ── Area STRESS contour (von Mises) ─────────────────────────────────────────

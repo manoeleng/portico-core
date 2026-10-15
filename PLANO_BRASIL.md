@@ -33,7 +33,10 @@ limitação da cantoneira que foi corrigida na NBR 8800.
    (sem θ×e — não afeta esforços); tendão em barra excêntrica não vê o offset; corotacional 2D recusa offset.
 2. 3D realista: materiais por tipo (aço/concreto/madeira) e telhas/fechamento sobre os panos. Modos da vista sólida (sólido, translúcido, arestas) FEITOS em 15/10/2026 (`4282e56`).
    **Deformada no sólido 3D com mapa de cores** (deslocamento ou tensão ao longo da barra) — hoje a deformada é só em
-   linha (Hermite) e o mapa de cores só existe em placas/cascas.
+   linha (Hermite) e o mapa de cores só existe em placas/cascas. FEITO 15/10/2026 (vista sólida ligada + Deformada).
+   Achado (anterior): na análise linear os tirantes φ12 (cable) e as barras 10x10 fletem pelo peso próprio como vigas
+   biarticuladas (flecha 1,33 m no meio do vão no galpão 15×30, contra δmax nodal 3,8 mm) — a deformada em escala
+   ×156 desenha linhas enormes. Decidir: desenhar cabo como corda entre nós, ou tratar o peso próprio do tirante.
 3. Camadas: o nome de referência da camada **padrão** não pode ser modificado; o das camadas criadas só fica
    editável com **duplo clique** (evita renomear sem querer). FEITO 15/10/2026 (Enter confirma, Esc cancela).
 4. Cartola (NBR 6355 Tab. A.6): decisão do Manoel pendente — (a) recalcular x0/r0/Cw pelo E.2.1.2c da NBR 14762 com
