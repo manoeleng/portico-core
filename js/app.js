@@ -33,6 +33,7 @@ import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
 import { buildNLTrussProblem, buildCorotProblem, remapCorotSteps, buildFormFindProblem, setupPushoverControl } from './solver/nl_frame.js?v=7';
 import { driftLimit } from './design/serviceability.js?v=7';
+import { parseNum } from './utils/num.js?v=7';
 import { getSpectrum } from './design/spectra/index.js?v=7';
 const buildSpectrum = (o) => getSpectrum('NCh433').build(o);   // spectra registry (PLANO_BRASIL 5.5)
 import { selectProfile, steelCandidates, predimensionar, candidatesForFamily } from './design/autodesign.js?v=7';
@@ -5334,7 +5335,7 @@ class App {
       overlay.classList.remove('hidden');
       setTimeout(() => { const el = document.getElementById('ff-q'); el?.focus(); el?.select(); }, 50);
       overlay._resolve = () => {
-        const q0 = parseFloat(document.getElementById('ff-q')?.value);
+        const q0 = parseNum(document.getElementById('ff-q')?.value);
         if (!(q0 > 0)) { this.toast('q debe ser un número > 0', 'warn'); resolve(null); return; }
         const axes = document.getElementById('ff-axes')?.value === 'xyz' ? [0, 1, 2] : [2];
         resolve({ q0, axes });
@@ -5632,7 +5633,7 @@ class App {
       overlay.classList.remove('hidden');
       const redrawCurve = () => {
         const mode = document.getElementById('pl-mode')?.value || 'perfecto';
-        const res = parseFloat(document.getElementById('pl-residual')?.value) || 0.01;
+        const res = parseNum(document.getElementById('pl-residual')?.value) || 0.01;
         const hasCaida = mode === 'fragil' || mode === 'ductil_caida';
         const rr = document.getElementById('pl-res-row'); if (rr) rr.style.display = hasCaida ? '' : 'none';
         const dr = document.getElementById('pl-defu-row'); if (dr) dr.style.display = mode === 'ductil_caida' ? '' : 'none';
@@ -5640,22 +5641,22 @@ class App {
       };
       setTimeout(() => { document.getElementById('pl-mode')?.addEventListener('change', redrawCurve); document.getElementById('pl-residual')?.addEventListener('input', redrawCurve); const el = document.getElementById('pl-mp-def'); el?.focus(); el?.select(); }, 50);
       overlay._resolve = () => {
-        const mpDefault = parseFloat(document.getElementById('pl-mp-def')?.value);
+        const mpDefault = parseNum(document.getElementById('pl-mp-def')?.value);
         if (!(mpDefault > 0)) { this.toast('Mp debe ser un número > 0', 'warn'); resolve(null); return; }
         let mpSel = mpDefault, soloSel = false;
         if (hasSel) {
-          mpSel = parseFloat(document.getElementById('pl-mp-sel')?.value);
+          mpSel = parseNum(document.getElementById('pl-mp-sel')?.value);
           if (!(mpSel > 0)) { this.toast('Mp de la selección debe ser > 0', 'warn'); resolve(null); return; }
           soloSel = !!document.getElementById('pl-solo-sel')?.checked;
         }
         const pattern = document.getElementById('pl-pattern')?.value || 'all';
         this._lastPattern = pattern;
         const mode = document.getElementById('pl-mode')?.value || 'perfecto';
-        const residual = (mode === 'perfecto') ? 1 : Math.max(0, (parseFloat(document.getElementById('pl-residual')?.value) || 0.01) / 100);
-        const thetaU = parseFloat(document.getElementById('pl-thetau')?.value) || 0.02;
-        const deltaU = parseFloat(document.getElementById('pl-deltau')?.value) || 0.02;
-        const Np = parseFloat(document.getElementById('pl-np')?.value);
-        const Vp = parseFloat(document.getElementById('pl-vp')?.value);
+        const residual = (mode === 'perfecto') ? 1 : Math.max(0, (parseNum(document.getElementById('pl-residual')?.value) || 0.01) / 100);
+        const thetaU = parseNum(document.getElementById('pl-thetau')?.value) || 0.02;
+        const deltaU = parseNum(document.getElementById('pl-deltau')?.value) || 0.02;
+        const Np = parseNum(document.getElementById('pl-np')?.value);
+        const Vp = parseNum(document.getElementById('pl-vp')?.value);
         resolve({ mpDefault, mpSel, soloSel, pattern, mode, residual, thetaU, deltaU, Np: Np > 0 ? Np : 0, Vp: Vp > 0 ? Vp : 0 });
       };
       overlay._reject = () => resolve(null);
