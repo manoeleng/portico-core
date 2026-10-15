@@ -12,6 +12,7 @@ export class Serializer {
       version: '1.0',
       units: model.units,
       mode: model.mode || '3D',
+      ...(model.planar ? { planar: true } : {}),   // 3D view, solved in the X–Z plane (single representative frame)
       nodes:      [...model.nodes.values()],
       elements:   [...model.elements.values()],
       areas:      [...model.areas.values()],
@@ -57,6 +58,7 @@ export class Serializer {
 
     m.units = obj.units || 'kN-m';
     m.mode  = obj.mode === '2D' ? '2D' : '3D';
+    m.planar = obj.planar === true && m.mode === '3D';
 
     for (const d of arr(obj.materials, 'materials'))  { m.materials.set(d.id, d); }
     for (const d of arr(obj.sections, 'sections'))  { m.sections.set(d.id, d); }

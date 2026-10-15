@@ -1047,7 +1047,7 @@ export class Viewport {
   // Unit size (height ≈ 1), scaled every frame to SUPP_PX on screen (_updateNodePxFactor).
   _suppState(node) {
     const r = node.restraints || {}, pd = node.prescDisp || {}, sp = node.springs || {};
-    const is2D = this.app?.model?.mode === '2D';
+    const is2D = this.app?.model?.mode === '2D' || this.app?.model?.planar === true;   // in-plane DOFs classify
     const fix = {}, presc = {};
     for (const d of ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']) { presc[d] = (+pd[d] || 0) !== 0; fix[d] = !!r[d] || presc[d]; }
     const T = is2D ? ['ux', 'uz'] : ['ux', 'uy', 'uz'], R = is2D ? ['ry'] : ['rx', 'ry', 'rz'];
@@ -1309,9 +1309,11 @@ export class Viewport {
     const is2D = this.app.model.mode === '2D';
     const badge = document.getElementById('mode-badge');
     if (badge) {
-      badge.textContent = is2D ? '2D' : '3D';
+      const planar = !is2D && this.app.model.planar === true;
+      badge.textContent = is2D ? '2D' : planar ? '3D · ' + i18n.t('plano') : '3D';
       badge.title = is2D
         ? i18n.t('Modelo 2D: pórtico plano X–Z (cámara ortográfica fija; uy/rx/rz restringidos automáticamente). El modo se elige en Archivo → Nuevo.')
+        : planar ? i18n.t('Vista 3D, cálculo plano X–Z: uy, rx y rz restringidos en el análisis (pórtico aislado).')
         : i18n.t('Modelo 3D: estructura tridimensional. El modo se elige en Archivo → Nuevo.');
       badge.classList.toggle('badge-2d', is2D);
     }

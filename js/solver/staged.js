@@ -61,7 +61,7 @@ export class StagedSolver {
 
     const ni   = buildNodeIndex(model);
     const nDOF = ni.size * 6;
-    const is2D = model.mode === '2D';
+    const is2D = (model.mode === '2D' || model.planar === true);
 
     const U         = new Float64Array(nDOF);   // accumulated displacement
     const Racc      = new Float64Array(nDOF);   // accumulated reactions

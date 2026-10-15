@@ -137,7 +137,7 @@ export function solvePlastic(model, {
 
   const nodeIndex = buildNodeIndex(model);
   const nDOF = nodeIndex.size * 6;
-  const is2D = model.mode === '2D';
+  const is2D = (model.mode === '2D' || model.planar === true);
   const freeDOF = [];
   for (const node of model.nodes.values()) {
     const d = getNodeDOFs(nodeIndex, node.id), r = node.restraints;

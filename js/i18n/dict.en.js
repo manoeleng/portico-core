@@ -2778,6 +2778,7 @@ export const EN = {
   "Contra el paño (presión: opuesta a la normal)": "Against the panel (pressure: opposite to the normal)",
   "Superficie del paño (peso de tejas, permanentes)": "Panel surface (roofing weight, dead loads)",
   "Proyección horizontal (sobrecargas — NBR 6120 6.4)": "Horizontal projection (live loads — NBR 6120 6.4)",
+  "Vista 3D, cálculo plano X–Z: uy, rx y rz restringidos en el análisis (pórtico aislado).": "3D view, plane X–Z analysis: uy, rx and rz restrained in the analysis (single frame).",
 };
 
 export default EN;

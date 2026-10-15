@@ -109,7 +109,7 @@ export function buildNLTrussProblem(model, { contribs = null } = {}) {
   if (!elems.length) return { ok: false, reason: 'no-elements' };
 
   // Free DOFs (translations only; in 2D, uy fixed)
-  const is2D = model.mode === '2D';
+  const is2D = (model.mode === '2D' || model.planar === true);
   const free = [];
   nodeIds.forEach((id, i) => {
     const r = model.nodes.get(id).restraints;

@@ -193,7 +193,7 @@ export function assembleDirectSystem(model, o = {}) {
   const nodeIndex = buildNodeIndex(model);
   const nDOF = nodeIndex.size * 6;
   const freeMap = new Int32Array(nDOF).fill(-1);
-  const is2D = model.mode === '2D';   // planar: lock uy, rx, rz (as the rest of the solver)
+  const is2D = (model.mode === '2D' || model.planar === true);   // planar: lock uy, rx, rz (as the rest of the solver)
   let nF = 0;
   for (const nd of model.nodes.values()) {
     const b = 6 * nodeIndex.get(nd.id), r = nd.restraints || {};

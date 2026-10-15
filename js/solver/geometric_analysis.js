@@ -28,7 +28,7 @@ import { SparseSym, assembleSparseGlobal, extractFreeCSR } from './sparse.js?v=7
 export function buildGeomLoads(model, contribs = null) {
   const nodeIndex = buildNodeIndex(model);
   const nDOF = nodeIndex.size * 6;
-  const is2D = model.mode === '2D';
+  const is2D = (model.mode === '2D' || model.planar === true);
   const freeDOF = [];
   for (const node of model.nodes.values()) {
     const d = getNodeDOFs(nodeIndex, node.id), r = node.restraints;

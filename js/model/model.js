@@ -201,7 +201,7 @@ export class Model {
     // every node rotation held by the support (restraint, prescribed value, spring; 2D: rx/rz are implicit)?
     // Only then may all ends be released. A partly held rotation does not stabilise the others → keep one end.
     const r = node.restraints || {}, sp = node.springs || {}, pd = node.prescDisp || {}, SK = node.springK;
-    const is2D = this.mode === '2D';
+    const is2D = this.mode === '2D' || this.planar === true;
     // rigid diaphragm: the rz of a slave node is tied to the floor (in-plane rotation held by the diaphragm)
     const inDiaph = [...this.diaphragms.values()].some(d => (d.nodes || []).includes(nodeId));
     const held = (d, k, diag) => (is2D && d !== 'ry') || r[d] || +pd[d] || sp[k] > 0 || (Array.isArray(SK) && SK[diag] > 0)

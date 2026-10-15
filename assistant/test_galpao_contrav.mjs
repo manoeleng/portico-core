@@ -28,7 +28,7 @@ copiar('static_solver.js'); copiar('model.js');
 const { Model } = await import(pathToFileURL(path.join(tmp, 'model.js')).href);
 const { StaticSolver } = await import(pathToFileURL(path.join(tmp, 'static_solver.js')).href);
 function solve(modelo, lcName) {
-  const m = new Model(); m.materials.clear(); m.sections.clear(); m.units = modelo.units; m.mode = modelo.mode;
+  const m = new Model(); m.materials.clear(); m.sections.clear(); m.units = modelo.units; m.mode = modelo.mode; m.planar = modelo.planar === true;
   for (const d of modelo.materials) m.materials.set(d.id, d);
   for (const d of modelo.sections) m.sections.set(d.id, d);
   for (const d of modelo.nodes) m.nodes.set(d.id, d);
@@ -240,7 +240,7 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
   // roof dead load on the tributary width 5 m: qCM·trib·span = 0,15·5·15 = 11,25 kN plus self-weight
   const qRoof = o.loadCases.find(l => l.name === 'CM').loads.reduce((sm, ld) => { const e = o.elements[ld.elemId - 1], a = o.nodes[e.n1 - 1], b = o.nodes[e.n2 - 1]; return sm + ld.w * Math.hypot(b.x - a.x, b.z - a.z); }, 0);
   assert(`o3. ${ct}: telha na largura de influência 5 m → 0,15·5·15 = 11,25 kN (w gravado com 6 casas)`, Math.abs(qRoof - 11.25) < 1e-5 * 11.25, qRoof.toFixed(6));
-  assert(`o3b. ${ct}: pórtico isolado é plano (2D) e sem caso de vento Y`, o.mode === '2D' && !o.loadCases.some(l => /^Viento Y/.test(l.name)));
+  assert(`o3b. ${ct}: pórtico isolado em vista 3D com cálculo plano (planar) e sem caso de vento Y`, o.mode === '3D' && o.planar === true && !o.loadCases.some(l => /^Viento Y/.test(l.name)));
   for (const nm of ['CM', 'Viento X (Cpi 0)', 'Viento X (Cpi -0,3)']) { const r = solve(o, nm); const tol = 1e-3 * Math.max(1, ...r.F.map(Math.abs));
     assert(`o4. ${ct} · ${nm}: estável e equilíbrio`, r.R.every(Number.isFinite) && r.R.every((v, i) => Math.abs(v + r.F[i]) < tol), `F=[${r.F.map(v => v.toFixed(2))}] R=[${r.R.map(v => v.toFixed(2))}]`); }
 }

@@ -1694,7 +1694,7 @@ export function generateWarehouse(spec, libs) {
   const H = g.column_height_m > 0 ? g.column_height_m : 6;
   const sep = nPort >= 2 ? +(largo / (nPort - 1)).toFixed(6) : (g.frame_spacing_m > 0 ? g.frame_spacing_m : 5);
   const tribOf = (f) => umPortico ? sep : tributario(Yf, f);
-  if (umPortico) addWarning('info', `Pórtico isolado (modelo plano 2D, X–Z — fora do plano não há sistema resistente sem os demais pórticos): largura de influência = ${sep} m (cargas de telhado e vento); terças, contraventamento e correntes não gerados. Cpe do vento com comprimento = ${sep} m — para um pórtico interno de galpão longo, gere o galpão completo.`);
+  if (umPortico) addWarning('info', `Pórtico isolado (vista 3D, cálculo plano X–Z: uy, rx e rz travados — fora do plano não há sistema resistente sem os demais pórticos): largura de influência = ${sep} m (cargas de telhado e vento); terças, contraventamento e correntes não gerados. Cpe do vento com comprimento = ${sep} m — para um pórtico interno de galpão longo, gere o galpão completo.`);
   const slope = (g.slope_pct >= 0 ? g.slope_pct : 15) / 100;
   const hR = g.ridge_height_m > 0 ? g.ridge_height_m : +(slope * (luz / 2)).toFixed(4);
   // end depth of the truss ("montante inicial"): 0 = triangular truss (top chord meets the bottom chord on the
@@ -2056,7 +2056,8 @@ export function generateWarehouse(spec, libs) {
   }
 
   return {
-    version: '1.0', units: 'kN-m', mode: umPortico ? '2D' : '3D',   // a single frame is a plane frame (X–Z)
+    // a single frame is solved as a plane frame (X–Z: uy, rx, rz locked by the solver) but stays in the 3D view
+    version: '1.0', units: 'kN-m', mode: '3D', ...(umPortico ? { planar: true } : {}),
     // only the sections some member uses (roof only: no column section; one frame: no purlin/rod) — lists/quantities
     nodes, elements, materials: mats, sections: [secCol, secCord, secDiag, ...(comContrav ? [secRod, secTerca] : []), ...(secLace ? [secLace] : []), ...(secSag ? [secSag] : [])]
       .filter(q => q && elements.some(e => e.secId === q.id)), diaphragms: [],

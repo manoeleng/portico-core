@@ -50,7 +50,7 @@ export class StaticSolver {
     // 2D model (planar X–Z frame): the out-of-plane DOFs (uy, rx, rz) are
     // automatically restrained at every node — the user only handles the in-plane
     // DOFs: ux, uz and the rotation ry.
-    const is2D = model.mode === '2D';
+    const is2D = (model.mode === '2D' || model.planar === true);
 
     // Prescribed displacement (#54): value imposed at a restrained DOF.
     // up[gi] = known displacement of the support DOF (0 = normal support).

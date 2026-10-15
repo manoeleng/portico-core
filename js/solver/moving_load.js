@@ -63,7 +63,7 @@ function prepare(model) {
   const ni = buildNodeIndex(model);
   const nDOF = ni.size * 6;
   const { K } = assembleK(model, ni);
-  const is2D = model.mode === '2D';
+  const is2D = (model.mode === '2D' || model.planar === true);
   const freeDOF = [], fixedDOF = [];
   const dofNames = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz'];
   for (const node of model.nodes.values()) {
