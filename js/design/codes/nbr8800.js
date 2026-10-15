@@ -34,12 +34,17 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   const ga1 = options.gamma_a1 ?? 1.10, ga2 = options.gamma_a2 ?? 1.35;   // Tab. 3
   const avisos = [];
   const { A, Iz, Iy, J, Cw, Sz, Sy, Zz, Zy, rz, ry, shape } = sec;
-  const isI = shape === 'I' && Cw > 0;
+  const isI = shape === 'I' && Cw > 0 && J > 0;
   const dims = sec.dims || {};
   const tf = dims.tf, tw = dims.tw, bf = dims.bf ?? sec.b, d = dims.d ?? sec.h;
-  const lamF = sec.lambdaFlange, lamW = sec.lambdaWeb;              // bf/2tf and h/tw
-  const hWeb = (lamW > 0 && tw > 0) ? lamW * tw : (d && tf ? d - 2 * tf : 0);
+  // λ of flange (bf/2tf) and web (h/tw): catalogue values, else derived from the plate dims
+  const hWeb = (sec.lambdaWeb > 0 && tw > 0) ? sec.lambdaWeb * tw : (d > 0 && tf > 0 ? d - 2 * tf : 0);
+  const lamF = sec.lambdaFlange > 0 ? sec.lambdaFlange : (bf > 0 && tf > 0 ? bf / (2 * tf) : NaN);
+  const lamW = sec.lambdaWeb > 0 ? sec.lambdaWeb : (hWeb > 0 && tw > 0 ? hWeb / tw : NaN);
   const welded = sec.fabricacao === 'soldado';
+  if (shape === 'I' && !isI) avisos.push('Perfil I sem Cw/J: verificação simplificada (sem FLT nem flambagem por torção).');
+  if (isI && !(isFinite(lamF) && isFinite(lamW))) avisos.push('Faltam λ da mesa/alma e dimensões da chapa: flambagem local, FLM e FLA NÃO verificadas.');
+  if (isI && !(sec.lambdaWeb > 0) && isFinite(lamW) && !welded) avisos.push('h/tw derivado de d − 2·tf: em laminado a norma desconta os raios de concordância (D.3) — informe λ de catálogo.');
   if (isI && sec.fabricacao !== 'laminado' && sec.fabricacao !== 'soldado') {
     avisos.push('Fabricação não informada: adotado perfil soldado (FLM/flambagem local mais conservadoras).');
   }
@@ -47,8 +52,9 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   const sr = 0.3 * fy;                                              // σr (D.2.8-e)
 
   const L = member.L || 1;
-  const kOver = ['K', 'Kz', 'Ky', 'Kt'].some(k => member[k] != null && member[k] !== 1);
-  if (kOver) avisos.push('Coeficiente K ≠ 1 informado: a NBR 8800:2024 usa comprimento destravado (5.3.5.1) com análise de 2ª ordem (4.10.6.2); K só para barra isolada.');
+  const Ks = ['K', 'Kz', 'Ky', 'Kt'].map(k => member[k]).filter(v => v != null);
+  if (Ks.some(v => v < 1)) avisos.push('K < 1 informado: sem base na NBR 8800:2024 (comprimento destravado, 5.3.5.1) e contra a segurança.');
+  else if (Ks.some(v => v > 1)) avisos.push('K > 1 informado (barra isolada/balanço): a NBR 8800:2024 é omissa (comprimento destravado + análise de 2ª ordem, 4.10.6.2) — decisão do RT.');
   const Lx = member.Lx ?? (member.Kz ?? member.K ?? 1) * L;          // buckling about strong axis
   const Ly = member.Ly ?? (member.Ky ?? member.K ?? 1) * L;          // about weak axis
   const Lt = member.Lz ?? (member.Kt ?? 1) * L;                      // torsion
@@ -63,6 +69,8 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
   let axial, NRd;
   if (N >= 0) {
     NRd = A * fy / ga1;
+    const slT = Math.max(L / rz, L / ry);
+    if (slT > 300) avisos.push(`Esbeltez de barra tracionada ${slT.toFixed(0)} > 300 (5.2.8.1).`);
     axial = ratObj(Nabs, NRd, { modo: 'tração', formula: 'Nt,Rd = Ag·fy/γa1 (5.2.2-a)' });
     if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (5.2.2-b) não verificada — o modelo não tem área líquida.');
   } else {
@@ -86,7 +94,7 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
         if (e.bt <= e.lim / Math.sqrt(chi)) continue;
         const sel = (e.c2 * e.lim / e.bt) ** 2 * fy;
         const k = Math.sqrt(sel / (chi * fy));
-        const ratio = (1 - e.c1 * k) * k;                         // bef/b
+        const ratio = Math.min(1, (1 - e.c1 * k) * k);           // bef/b (≤ 1 at the transition)
         if (e.t > 0 && e.b > 0) Aef -= e.n * (1 - ratio) * e.b * e.t;
         else localOk = false;
       }
@@ -125,11 +133,12 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     if (slenderWeb) { MnFLA = 0; avisos.push(`Alma esbelta (h/tw = ${lamW.toFixed(1)} > ${lrW.toFixed(1)}): Anexo E fora do escopo — flexão NÃO verificada.`); }
     const cap = 1.5 * W * fy;                                      // 5.4.2.2
     const cand = [[MnFLT, ramoFLT], [MnFLM, 'FLM'], [MnFLA, 'FLA'], [cap, '1,5·W·fy (5.4.2.2)']];
-    const [Mn, ramo] = cand.reduce((a, b) => b[0] < a[0] ? b : a);
+    const unk = cand.some(([v]) => !isFinite(v));
+    const [Mn, ramo] = cand.filter(([v]) => isFinite(v)).reduce((a, b) => b[0] < a[0] ? b : a);
     flexaoX = ratObj(Mz, Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ramo, Mpl, Mr, Mcr,
       Lp: lp * ry, Lr: lr * ry, Cb, MRdFLT: MnFLT / ga1, MRdFLM: MnFLM / ga1,
       formula: 'MRd = min(FLT, FLM, FLA)/γa1 ≤ 1,5·W·fy/γa1 (Anexo D)' });
-    if (slenderWeb) flexaoX.ratio = Infinity;
+    if (slenderWeb || unk) flexaoX.ratio = Infinity;
     // minor axis: FLM only (D.2.8-c, D.2.8-g)
     const Wy = Sy, Mply = Zy * fy, Mry = (fy - sr) * Wy;
     const McrFy = (welded ? 0.90 * E * kc : 0.69 * E) * Wy / (lamF * lamF);

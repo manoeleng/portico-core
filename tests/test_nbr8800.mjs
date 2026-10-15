@@ -122,5 +122,49 @@ const run = (id, input) => { try { return nbr8800.check(input); } catch (e) { fa
   }
 }
 
+// BR-8800-07 · Itens NOVOS da 2024 — I soldado sintético d=500, bf=300, tf=12,5, tw=6,3 mm; fy=345 MPa;
+// E=200 GPa; L=Lb=4 m; Cb=1. Oráculo: cálculo INDEPENDENTE do revisor (Python, do zero, a partir do PDF da
+// NBR 8800:2024 — Ne=min(Nex,Ney,Nez), Aef por largura efetiva com kc, FLM soldado, cortante inelástico).
+// Não é literatura: ratificar pelo RT.
+{
+  const { resolveSectionProps } = await import('../js/design/section_props.js');
+  const sec = resolveSectionProps({ design: { shape: 'I', dims: { d: 0.5, bf: 0.3, tf: 0.0125, tw: 0.0063 }, fabricacao: 'soldado' } });
+  const mat = { Fy: 345e3, E: 200e6 };
+  const rc = run('07c', { demands: { N: -100 }, mat, sec, member: { L: 4, Lb: 4, Cb: 1 } });
+  const rb = run('07b', { demands: { Mz: 100, Vy: 10 }, mat, sec, member: { L: 4, Lb: 4, Cb: 1 } });
+  if (rc && rb) {
+    ok('07a. Ne = Ney (kN)', rc.axial.Ne, 6941, 0.001);
+    ok('07b. λ0', rc.axial.lambda0, 0.7222, 0.001);
+    ok('07c. χ', rc.axial.chi, 0.8039, 0.001);
+    ok('07d. Aef (cm²) — mesa e alma esbeltas, 5.3.4.2', rc.axial.Aef * 1e4, 92.22, 0.001);
+    ok('07e. Nc,Rd (kN)', rc.axial.capacity, 2325, 0.001);
+    ok('07f. MRd FLM soldado (kN·m) — governa', rb.flexaoX.capacity, 610.9, 0.001);
+    ok('07g. MRd FLT (kN·m)', rb.flexaoX.MRdFLT, 640.3, 0.001);
+    ok('07h. Lr (m)', rb.flexaoX.Lr, 8.02, 0.002);
+    ok('07i. VRd alma (kN), regime inelástico', rb.corteY.capacity, 481.2, 0.001);
+    assert('07j. regime inelástico', /inel/i.test(rb.corteY.regime), rb.corteY.regime);
+  }
+}
+
+// BR-8800-08 · Robustez (revisão): avisos e falha visível
+{
+  const c = D.casos['BR-8800-05'], p = D.perfis[c.perfil];
+  const base = { mat: matOf(c), options: { gamma_a1: 1.10 } };
+  const rK = run('08a', { ...base, demands: { N: -100 }, sec: secI(p), member: { L: 3, Lb: 3, K: 0.7 } });
+  if (rK) assert('08a. K < 1 gera aviso de contra a segurança', rK.avisos.some(a => /K < 1/.test(a)));
+  const s = secI(p); delete s.lambdaFlange; delete s.lambdaWeb; s.dims = {};
+  const rL = run('08b', { ...base, demands: { Mz: 50 }, sec: s, member: { L: 3, Lb: 3 } });
+  if (rL) {
+    assert('08b. sem λ nem dims → aviso', rL.avisos.some(a => /NÃO verificadas/.test(a)));
+    assert('08c. sem λ nem dims → flexão não passa em silêncio', rL.flexaoX.ratio === Infinity);
+  }
+  const rI = run('08d', { ...base, demands: { N: -300, Mz: 40 }, sec: secI(p), member: { L: 3, Lb: 3 } });
+  if (rI) {
+    const nr = 300 / rI.axial.capacity, mm = 40 / rI.flexaoX.capacity;
+    const H = nr >= 0.2 ? nr + 8 / 9 * mm : nr / 2 + mm;
+    ok('08d. interação 5.5.1.2 coerente com as capacidades', rI.interaction.demand, H, 0.001);
+  }
+}
+
 console.log(fails ? `\n${fails} FALHA(S)` : '\nTODOS OK');
 process.exit(fails ? 1 : 0);
