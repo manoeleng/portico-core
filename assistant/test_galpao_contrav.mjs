@@ -291,6 +291,13 @@ for (const ct of ['laminado', 'treliçado', 'concreto', 'sem']) {
   assert('q1. vento de empena: ΣFy = (pC − pD)·vão·(H + flecha/2) — inclui o triângulo acima do beiral', Math.abs(gable - exp) < 1e-6 * Math.abs(exp), `${gable.toFixed(4)} vs ${exp.toFixed(4)}`);
 }
 
+// (r) purlins and sag rods are excluded from the strength check (their analysis forces are not design forces)
+{
+  const r = generateModel({ ...spec, warehouse: { ...spec.warehouse, sag_rod_lines: 1 } }, BR);
+  assert('r1. terças e correntes marcadas designExcluded com o motivo', r.elements.filter(e => e.secId === 5 || e.secId === 7).every(e => typeof e.designExcluded === 'string' && e.designExcluded.length > 20)
+    && r.elements.filter(e => e.secId === 1 || e.secId === 2).every(e => !e.designExcluded));
+}
+
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 console.log(fails ? `\n${fails} FALHA(S)` : '\nOK');
 process.exit(fails ? 1 : 0);

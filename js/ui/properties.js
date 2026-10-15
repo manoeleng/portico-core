@@ -402,6 +402,7 @@ export class PropertiesPanel {
       <div style="max-height:58vh;overflow:auto;border:1px solid var(--border,#334);border-radius:5px">
         <table class="dis-table"><thead><tr><th>Elem</th><th>Sec.</th><th>Gob.</th><th>D/C</th><th>|δ| mm</th><th></th></tr></thead><tbody>${rows}</tbody></table>
       </div>
+      ${dis.excluidos?.length ? `<p class="panel-hint" style="margin-top:6px;color:var(--warn)"><b>${dis.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}</b> — ${esc([...new Set(dis.excluidos.map(x => x.why))].join(' · '))}</p>` : ''}
       <p class="panel-hint" style="margin-top:6px">D/C = resistencia (flexión/corte/axial/interacción) ≤ 1. <b>|δ|</b> = desplazamiento máx. de los nodos del elemento en el caso/combo mostrado. Las flechas de servicio y derivas se documentan en <b>Análisis → Memoria</b>.</p>`;
     body.querySelectorAll('.dis-row').forEach(tr => tr.addEventListener('click', () => {
       const id = +tr.dataset.elem;

@@ -131,6 +131,7 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
       const nNo = f.filter(x => x.ratioMax > 1).length, nAj = f.filter(x => x.ratioMax > 0.9 && x.ratioMax <= 1).length;
       const shown = f.length > 60 ? `${i18n.t('Se muestran los 60 elementos más solicitados de')} ${f.length}. ` : '';
       d.paragraph(`${shown}${i18n.t('Resumen:')} ${f.length - nNo - nAj} ${i18n.t('cumplen')} · ${nAj} ${i18n.t('ajustados')} · ${nNo} ${i18n.t('no cumplen')}.`);
+      if (diseno.excluidos?.length) d.paragraph([{ text: `${diseno.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}: ${[...new Set(diseno.excluidos.map(x => x.why))].join(' ')} (${diseno.excluidos.slice(0, 30).map(x => '#' + x.id).join(', ')}${diseno.excluidos.length > 30 ? ' …' : ''})`, bold: true, color: 'B45309' }]);
     } else {
       d.paragraph([{ text: i18n.t('No hay resultados de análisis para verificar. Ejecute el análisis estático (F5) con sus combinaciones de carga antes de generar la memoria.'), italic: true, color: '5C6A7D' }]);
     }
@@ -397,6 +398,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
           <th>${i18n.t('Elem')}</th><th>${i18n.t('Sección')}</th><th>${i18n.t('Material')}</th><th>${i18n.t('Combo')}</th><th>N (kN)</th><th>M (kN·m)</th><th>V (kN)</th>
           <th>${i18n.t('flex.')}</th><th>${i18n.t('corte')}</th><th>${i18n.t('axial')}</th><th>${i18n.t('interac.')}</th><th>${i18n.t('Gobierna')}</th><th>${i18n.t('D/C máx')}</th><th>${i18n.t('Estado')}</th>
         </tr></thead><tbody>${rows}</tbody></table>
+        ${diseno.excluidos?.length ? `<p class="r-warn"><b>${diseno.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}</b>: ${esc([...new Set(diseno.excluidos.map(x => x.why))].join(' '))} (${diseno.excluidos.slice(0, 30).map(x => '#' + x.id).join(', ')}${diseno.excluidos.length > 30 ? ' …' : ''})</p>` : ''}
         <p class="muted">${shown}
         ${i18n.t('Resumen:')} <b class="r-ok">${nOk} ${i18n.t('cumplen')}</b> · <b class="r-warn">${nAj} ${i18n.t('ajustados')}</b> · <b class="r-bad">${nNo} ${i18n.t('no cumplen')}</b>.
         ${i18n.t('D/C: flexión/corte/axial e interacción flexo-axial. Colores: verde ≤ 0.90 · ámbar 0.90–1.00 · rojo > 1.00.')}</p>`;

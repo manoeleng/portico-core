@@ -1940,6 +1940,12 @@ export function generateWarehouse(spec, libs) {
     if (bays.length) addWarning('info', `Contraventamento em X (barra redonda φ${Math.round(dRod * 1000)}, só tração) ${modoContrav === 'todos' ? 'em todos os vãos' : modoContrav === 'escolhidos' ? `nos vãos ${bays.map(b => b + 1).join(', ')} (de ${nBays})` : 'nos vãos extremos'} — telhado e paredes laterais; diagonais da treliça e terças rotuladas (Manual CBCA de galpões 2.14/2.15). Na análise LINEAR as duas diagonais do X trabalham (força ≈ metade em cada); a hipótese "só a tracionada" vale na análise não linear simplificada (barras cable).`);
   }
 
+  // purlins and sag rods: the roofing loads the truss chords and the purlin web is vertical (no section roll yet), so
+  // their analysis forces are not design forces — excluded from the strength check (listed as not verified)
+  for (const e of elements) {
+    if (e.secId === 7) e.designExcluded = 'Corrente: força não sai da análise (alma da terça vertical, telha nos banzos) — calcular pelo Manual CBCA de galpões 2.11.';
+    else if (e.secId === 5) e.designExcluded = 'Terça: a telha carrega os banzos no modelo — verificar a terça à parte (NBR 14762, flexão oblíqua, Lx = vão, Ly = Lb pelas correntes).';
+  }
   // material of each member by its function
   const matOfSec = new Map([[secCol.id, idMatCol], [secCord.id, idMatChord], [secDiag.id, idMatWeb], [4, idMatRod], [5, idMatPurl], [6, idMatCol], [7, idMatRod]]);
   for (const e of elements) e.matId = matOfSec.get(e.secId) ?? 1;

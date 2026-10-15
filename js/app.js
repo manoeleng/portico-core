@@ -8821,11 +8821,14 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
       // The DEFLECTION verification is done separately (service): table of beam
       // deflections under unfactored live load (_computeBeamDeflections) and
       // story drifts (_computeDrift). Here only strength (D/C).
-      const filas = [];
+      const filas = [], excluidos = [];
       for (const el of this.model.elements.values()) {
         const sec = this.model.sections.get(el.secId);
         const mat = this.model.materials.get(el.matId);
         if (!sec || !mat) continue;
+        // members whose analysis forces are not design forces (e.g. generated purlins/sag rods: the roofing loads the
+        // truss chords) are listed, never "approved"
+        if (el.designExcluded) { excluidos.push({ id: el.id, sec: sec.name, why: el.designExcluded }); continue; }
         let peor = null, peorNom = null, peorFuerzas = null;
         for (const { nombre, res } of disResults) {
           const f = res.getElemForces(el.id); if (!f) continue;
@@ -8842,7 +8845,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
         filas.push({ id: el.id, mat: mat.name, sec: sec.name, forces: peorFuerzas, combo: peorNom, ...peor });
       }
       filas.sort((a, b) => b.ratioMax - a.ratioMax);
-      return { filas, params, caso: disResults.length > 1 ? `${i18n.t('envolvente de')} ${disResults.length} ${i18n.t('estados')}` : disResults[0].name, envolvente: disResults.length > 1 };
+      return { filas, excluidos, params, caso: disResults.length > 1 ? `${i18n.t('envolvente de')} ${disResults.length} ${i18n.t('estados')}` : disResults[0].name, envolvente: disResults.length > 1 };
     } catch (e) { console.error('Diseño falló:', e); return { filas: [], params, caso: null }; }
   }
 
