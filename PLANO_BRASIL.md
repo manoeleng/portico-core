@@ -1,5 +1,27 @@
 # PLANO_BRASIL.md — Adaptação do PORTICO para o Brasil
 
+## Estado em 15/10/2026 — resumo de fechamento
+
+**Implementado:** as 8 fases (i18n pt-BR; combinações NBR 8681 e ELS; NBR 8800:2024; perfis e materiais; NBR
+6118:2026 com torção; preset Brasil NBR 6120/6123/15421; NBR 7190-1:2022; NBR 14762:2010). Bateria: 106 testes,
+todos verdes. Publicado no fork `github.com/manoeleng/portico-core`, branch `feat/i18n-pt-br` (sem PR no original).
+Revisão de especialista FECHADA nas fases 5, 6, 7, 8 e nos itens cantoneira (8800) e torção (6118).
+
+**Falta para "concluído" (definition of done, seção 10):**
+1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
+2. Ratificação dos oráculos por cálculo manual: BR-8681-01, BR-15421-01, BR-6123-01..04, BR-8800-05f/g e 07, torção.
+3. Comparação com software comercial (SAP2000 / CYPE 3D / TQS-Eberick, tolerância 3 %) — não feita.
+4. Revisão humana da tradução (`Desktop\REVISAO_TRADUCAO_PT.csv`).
+
+**Pendências técnicas abertas** (detalhes nas notas de cada fase): combinação direcional do sismo (NBR 15421
+8.5); ligar o limite H/1 700 / H/400 à interface; alma esbelta (Anexo H) e ruptura da seção líquida na 8800;
+cantoneira de abas desiguais ligada pela aba menor; seção não retangular e torção de perfis abertos (17.5.2) na
+6118; ELS de madeira; Ca de edifícios (NBR 6123 Fig. 4/5); textos com número embutido fora de `t()` e título da
+aba; campos `type="number"` com vírgula (decisão de produto). Fora do plano: o caminho AISC 360 tem a mesma
+limitação da cantoneira que foi corrigida na NBR 8800.
+
+---
+
 > Instruções de trabalho para o Claude Code neste repositório (`portico-core`).
 > Leia este arquivo inteiro antes de começar qualquer tarefa da adaptação brasileira.
 > Levantamento feito no commit `7468071` (main, out/2026).
@@ -187,12 +209,12 @@ inalterados.
 > a ficha sem essa correção.
 
 - [x] **3.3** `serviceability.js`: adicionar entradas `NBR6118:2026` e `NBR8800:2024`
-      (`NBR7190` só depois de obter a norma — [LACUNA]):
+      (`NBR7190`: os limites de ELS de madeira continuam pendentes — escolha de projeto, ver fase 7):
 
 | Verificação | NBR 6118:2026 Tab. 13.3 | NBR 8800:2024 Tab. B.1 |
 | --- | --- | --- |
 | Flecha total de vigas | L/250 (aceitabilidade visual) | L/350 (piso), L/250 (cobertura e terças) |
-| Balanços | **[CONFIRMAR]** regra do balanço na Tab. 13.3 | L = dobro do balanço (nota a) → L/350 ⇒ balanço/175 |
+| Balanços | vão efetivo 2·L, regra atual do código (decisão do usuário, 14/10/2026) | L = dobro do balanço (nota a) → L/350 ⇒ balanço/175 |
 | Deslocamento horizontal do topo | H/1 700 (comb. frequente, ψ1 = 0,3) | H/400 (2+ pavimentos); H/300 (galpões, 1 pavimento) |
 | Deslocamento entre pavimentos | Hi/850 | h/500 |
 
@@ -236,8 +258,8 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
   `C:\projetos\StructPro-Pro\docs\fichas\C1-flexao-viga-I.md`).
 - Cortante conforme a norma.
 - Interação N+M: duas expressões (NSd/NRd ≥ 0,2 e < 0,2).
-- **[CONFIRMAR]** equivalência 2008↔2024 dos itens fora da flexão (compressão com Q, cortante,
-  interação) antes de usar oráculo da literatura, que é toda base 2008.
+- Equivalência 2008↔2024 fora da flexão: conferida nos itens cobertos pelos casos BR-8800 (a 2024 não tem fator Q;
+  compressão por Aef) — ver "Achados da NBR 8800:2024" abaixo.
 - Testes: `tests/test_nbr8800.mjs` com casos BR-8800-01..03 (seção 10). Os valores esperados do
   Pfeil 9ª ed. já estão transcritos nas fixtures JSON de `C:\projetos\StructPro-Pro\tests\`.
 
@@ -279,12 +301,11 @@ padrões globais (`setDefaultCode`) no core — isso é feito pelo preset Brasil
 > Pendências: ~~torção (17.5)~~ (15/10/2026: `torsionCheck` — seção vazada equivalente 17.5.1.4.1, TRd2/TRd3/TRd4 17.5.1.5, interação V+T 17.7.2.2, estribos somados 17.7.2.3; As,l de torção só verificada se informada em `rebar.Asl_torcao_cm2`, senão NÃO verificado com a área necessária; opção `torcaoCompatibilidade` (17.5.1.2). Oráculo: cálculo manual — **sem exemplo de literatura no acervo** (IBRACON = LACUNA). Revisão (rodada 1): números conferidos; corrigidos taxas mínimas ρsl = ρsw ≥ 0,2·fct,m/fywk (17.5.1.2), aviso VSd ≤ 0,7·VRd2 na torção de compatibilidade, guarda b/h ≤ 2c1, Vz somado na interação (conservador), aviso de estribo inclinado; testes de taxa mínima, 4 ramos, he ≥ 2c1. Rodada 2: **FECHADO** (15/10/2026). Desejáveis: 0,7·VRd2 da compatibilidade só com Vy; armadura mínima de torção na compatibilidade só como aviso (decisão do RT). Não feito: torção em perfis abertos 17.5.2, redução de As,l no banzo comprimido 17.7.1.3, ρ mínimo de torção específico) e seções não retangulares → "não verificado"; sentido do momento não verificado (aviso); pilar exige papel "pilar" na seção ou ν ≥ 0,10 (critério adotado, sinalizado).
 
 ### 7.3 NBR 7190 — madeira (`js/design/codes/nbr7190.js`)
-- ~~**[LACUNA]** a NBR 7190 não está no acervo.~~ Resolvido: NBR 7190-1:2022 obtida em
-  14/10/2026; os itens [CONFIRMAR] abaixo foram conferidos na fase 7 (ver nota de conclusão).
-- id `NBR7190:2022` **[CONFIRMAR edição e partes]**, family `timber`.
+- NBR 7190-1:2022 obtida em 14/10/2026 (acervo `Madeira\`).
+- id `NBR7190:2022` (Parte 1 — critérios de dimensionamento), family `timber`.
 - kmod = kmod1·kmod2 (·kmod3 se aplicável); γw = 1,4 (compressão), 1,8 (tração e
-  cisalhamento) — valores da edição 1997, **[CONFIRMAR na 2022]**.
-- Classes de resistência da norma (coníferas C…, folhosas D20–D60) **[CONFIRMAR]**.
+  cisalhamento) — conferidos na 2022 (fase 7).
+- Classes de resistência da 2022 (Tab. 2/3) — conferidas na fase 7.
 - Testes: `tests/test_nbr7190.mjs` com BR-7190-01.
 
 > **Fase 7 (NBR 7190-1:2022) concluída em 15/10/2026** — `js/design/codes/nbr7190.js` (kmod1·kmod2, γw 1,4/1,8, Tab. 2/3, tração, compressão com kc da 2022, flexão oblíqua kM = 0,7, flexo-tração/compressão, cisalhamento resultante, estabilidade lateral βM, limites 9.3). Testes: Dias, Calil Jr, Lahr, Martins (2019) Ex. 1–4. Revisão do especialista: FECHADO.
@@ -502,6 +523,8 @@ Acrescentados em 14/10/2026 (de `D:\Livros`): NBR 7190-1:2022; Calil Jr. e Lahr 
 
 NBR 5884:2005 (com as Tab. B.1-B.4 de CS/CVS/VS/VSM, escaneadas) e NBR 7190-1 a 7:2022 acrescentadas; o CVS 400×87 do Pfeil 7.6.5 saiu da Tab. B.2.
 
-Faltam no acervo **[LACUNA]**: IBRACON *Comentários e Exemplos de Aplicação da NBR 6118*
+Faltam no acervo **[LACUNA]**: IBRACON *Comentários e Exemplos de Aplicação da NBR 6118* (seria o oráculo de literatura da torção 17.5).
+
+Acrescentados em 15/10/2026: `Aco/EN-10219-2-2019.pdf` (tubos retangulares), `Aco/BR-Catalogo-de-Acos-Estruturais.pdf` (Vallourec), `Aco/aisc-shapes-database-v160-2.xlsx` (Z, J, Cw dos U).
 
 Código-fonte: https://github.com/jpreyes/portico-core (commit `7468071`)
