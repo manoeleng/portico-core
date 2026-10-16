@@ -2793,6 +2793,13 @@ export const PT = {
   "Rotación β por defecto (°)": "Rotação β padrão (°)",
   "Rotación por defecto (β) de las barras con esta sección; una barra con β propio no cambia.": "Rotação padrão (β) das barras com esta seção; barra com β próprio não muda.",
   "Rotación aplicada a las barras de la sección sin β propio — recalcule el análisis (F5)": "Rotação aplicada às barras da seção sem β próprio — recalcule a análise (F5)",
+  "Tren-tipo NBR 7188:2024 (TB-450/TB-240)": "Trem-tipo NBR 7188:2024 (TB-450/TB-240)",
+  "Vehículo": "Veículo",
+  "Ancho cargado b (m)": "Largura carregada b (m)",
+  "1,25 (hormigón/mixta, junta)": "1,25 (concreto/mista, junta)",
+  "1,15 (acero, junta)": "1,15 (aço, junta)",
+  "+10 % (anillo vial / puerto)": "+10 % (anel rodoviário / porto)",
+  "LI transversal de la viga «y,η» por línea (vacío = tablero entero de ancho b; pista de y = 0 a b)": "LI transversal da viga «y,η» por linha (vazio = tabuleiro inteiro de largura b; pista de y = 0 a b)",
 };
 
 export default PT;

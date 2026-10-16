@@ -180,6 +180,7 @@ limitação da cantoneira que foi corrigida na NBR 8800.
 | NBR 7190-1 | **2022** (Parte 1 — critérios de dimensionamento) | Madeira (7.3) |
 | NBR 15421 | **2023** (2ª ed.) | Sismo (5.6) e combinação excepcional (3.2) |
 | NBR 5884 | 2005 (2ª ed.) | Perfis soldados VS/CVS/CS (8.1) |
+| NBR 7188 | **2024** (3ª ed., 17/01/2024) | Carga móvel rodoviária TB-450/TB-240 (seção 13) |
 
 ## 1. Objetivo
 
@@ -631,6 +632,65 @@ revisão de um engenheiro registrada.
    terceiros obriga a oferecer o código-fonte (AGPL §13).
 3. **Módulos NBR de dimensionamento**: o projeto vende "advanced multi-code design" na
    edição Pro — conversar com o mantenedor antes de decidir onde esses módulos vivem.
+
+## 13. Pontes e viadutos — carga móvel NBR 7188:2024 (1ª entrega, 16/10/2026)
+
+### Levantamento (apps do Manoel em `C:\projetos`, somente leitura)
+
+| App | Onde | O que tem | Edição 7188 | Observação |
+| --- | --- | --- | --- | --- |
+| oae-kit (Python) | `src\oaekit\normas\nbr7188_2024.py`, `calc\trem_tipo.py`, `calc\fauchart.py`, `calc\grelha.py`, `calc\protensao.py` | CIV/CNF/CIA, TB-450, multidão e passeio, trem da longarina por LI transversal (Fauchart 1º harmônico), envoltórias Mq/Vq, grelha, protensão e perdas | 2024 (cita o txt) | Fonte do formato do trem (Paxle, qExt, qInt) portado aqui |
+| StructPro (C#) | `src\StructPro.Core\Bridges\BridgeCoefficients.cs`, `BR_NBR7188.cs`, `InfluenceLine.cs`, `MovingLoadEnvelope.cs`; `Design\Bridges\FauchartSolver.cs`, `HamblyGrillageSolver.cs` | Coeficientes, TB-450/240, LI e envoltória 3D, Courbon, Fauchart, grelha Hambly | 2024 | CIA sempre 1,25 (ignora aço); **TB-240 com p = 5 kN/m² — a norma dá 4,0** (5.1.1) |
+| StructPro-Pro (C#) | `src\StructPro.Analysis\TremTipoGenerator.cs`, `LinhaInfluencia.cs`, `MultidaoArranjos.cs`, `PonteCombinacoes.cs`; `src\StructPro.Prestress\` | Reusa o Core; gerador só de rodas (sem multidão); grelha; protensão | 2024 | Testes só de existência |
+| MPonte (C# + protótipo Python) | `src\Fplus.Bridges\ImpactCoefficients.cs`, `LoadTrain.cs`, `MovingLoadEnvelope.cs`, `Courbon.cs`; `solver-analise\*.py` | CIV/CNF/CIA, TB-450, LI, Courbon; Python: Fauchart, grelha | 2024 (C#) / 2013 (Py) | **`combinations.py:136` usa √L no CIV (errado)**; `laje.py:94` CIV de laje sem base normativa; C# usa `Liv <= 10 → 1,35` (norma: `< 10`) |
+| Tabuleiro (C#) | `Tabuleiro.Core\Modelo.cs` (`Criterios`), `LajePonte.cs`, `RuschMomentos.cs` | Coeficientes, TB-450/240 (p = 4,0 correto), lajes por Rüsch | 2024 | Oráculo Rüsch de laje |
+| cqp-oae, ficha-nbr9452, ponte-poti-levantamento, GrelhaCAD, psc-i-girder-section, protende, Fplus, structpro-calc-wpf | — | Sem trem-tipo (CQP, inspeção, levantamento, protensão isolada, planilhas SP-127 com TB-45) | — | — |
+| Curso INBEC Mód. 23–24 (Gayoso) | `D:\...\Modulo 23 ...\PontesMistas_INBEC.pdf`, `Material Alunos\Bibliografia\Exemplo_Memorial-Ponte-Draft-Norma-2017.pdf` | Slides da 7188:**2013**; memorial-exemplo (L ≈ 30 m, M_q = 6591,7 kN·m) | 2013 | Não serve de oráculo: o número do memorial não se reproduz à mão com os dados impressos |
+
+Nenhum app tem etapas construtivas de ponte. No PORTICO já existiam: cargas móveis/LI (`js/solver/moving_load.js`, `runMovingLoad` em `js/app.js`), etapas construtivas (`js/solver/staged.js`), protensão por cargas equivalentes (`js/solver/tendon.js`).
+
+### Feito
+
+- `js/design/nbr7188.js`: TB-450 (P = 75 kN, p = 5 kN/m²) e TB-240 (P = 40 kN, p = 4,0 kN/m²) — 5.1.1;
+  geometria da Figura 1 (eixos a 1,5 m, área 3,0 × 6,0 m, bitola 2,00 m, roda a 0,50 m da borda);
+  CIV (5.1.3.1, inclusive LIV de contínua/balanço e redução por cobertura de estrutura enterrada),
+  CNF (5.1.3.2, n = int(b/3,5), 0,9 ≤ CNF ≤ 1,0, transversais = 1,0), CIA (5.1.3.3 da 2024: só laje e
+  transversina a < 5 m da junta; 1,25 concreto/mista, 1,15 aço), +10 % (anel rodoviário/porto, 5.1.1),
+  passeio 3 kN/m² sem coeficientes (5.1.2). Trem longitudinal da viga: tabuleiro inteiro
+  (`trainWholeDeck`: eixo 2Q, qExt = q·b, qInt = q·(b − 3)) ou por LI transversal fornecida
+  (`trainFromTransverseIL`, método do oae-kit `calc/trem_tipo.py`).
+- `js/solver/moving_load.js`: `influenceLineNodes` (carga unitária só nos nós → resposta exata nos nós,
+  sem o momento equivalente de Hermite) e `trainEnvelopeFromIL` (eixos + multidão só onde agrava, máx e
+  mín; varre as posições críticas com eixo ou borda do veículo sobre nó da LI). `computeMovingLoad`
+  ganhou o modo `'bridge'` (também pela API `portico.movingLoad`).
+- `js/app.js`: diálogo de cargas móveis com o modo «Trem-tipo NBR 7188:2024» (veículo, LIV, b, CIA,
+  +10 %, LI transversal opcional); gráfico mostra as séries de máximo e mínimo e a linha dos coeficientes.
+- Teste `tests/test_tb450_nbr7188.mjs` — oráculo de cálculo manual (biapoiada 20 m, b = 7 m:
+  M = 4419,94 kN·m, R = 920,27 kN; TB-240: 2832,41 kN·m) e varredura independente em Python sobre LI
+  analítica (contínua 2 × 20 m: M_B = −3171,25 kN·m; MEF com 0,5 m: −3169,90, 0,04 %).
+
+### Decisões tomadas sozinho (ratificar)
+
+- Multidão: o veículo é rígido (eixos sempre atuam se estiverem na pista); a carga distribuída entra só no
+  trecho da LI de mesmo sinal do efeito; o veículo pode sair parcialmente da pista (as rodas fora caem) —
+  mesma varredura do oae-kit (`mq_env1`).
+- Trem por LI transversal: escolhe a posição transversal de maior Σ η das rodas (o oae-kit escolhe pelo
+  momento no meio de uma biapoiada).
+- CIV em LIV = 10 m: a fórmula dá 1,3533 (> 1,35); aplicado como está no texto (`< 10` → 1,35).
+
+### LACUNAs e pendências
+
+- LI entre nós é linear: exata em isostática; em contínua o erro cai com h² (subdividir a pista). Seção de
+  esforço deve estar num nó; cortante numa seção interna tem o salto da LI espalhado por um elemento.
+- `responseSection` dentro do elemento carregado (modos 'il'/'env' antigos) não soma o efeito local da
+  carga entre nós (momento de engastamento perfeito) — limitação pré-existente, documentada no próprio
+  `test_moving.mjs`; não corrigida (mínimo diff).
+- Grelha/tabuleiro 2D: a pista é 1D (uma viga); carga de roda em superfície (LI de superfície) não feita.
+- Não implementados da 7188:2024: frenagem/aceleração (5.2.1), centrífuga (5.2.2), guarda-corpo, colisão
+  (5.3), passarelas (6), veículo especial (Anexo A — Figura A.1 não transcrita), distribuição a 45°/30° da
+  roda (5.1.1, 5.1.3.1), homogeneização (vãos ≥ 30 m, opcional pela norma).
+- Combinações de ponte (NBR 8681:2025 / NBR 7187) com a carga móvel: não ligadas ao gerador NBR.
+- Revisão do especialista (`revisor-calculo-nbr`) ainda não registrada para esta etapa.
 
 ## Fontes (acervo local `C:\projetos\_referencias`)
 

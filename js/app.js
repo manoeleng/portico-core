@@ -32,6 +32,7 @@ import { ModalResults }                    from './solver/modal_results.js?v=7';
 import { parseAccelerogram, accStats, scaleToPGA, DEMO_PRESETS, G as GACC } from './solver/accelerograms.js?v=7';
 import { tendonEquivalentLoads, applyTendon, tendonEcc } from './solver/tendon.js?v=7';
 import { computeMovingLoad } from './solver/moving_load.js?v=7';
+import { loads7188, trainWholeDeck, trainFromTransverseIL, NBR7188_EDITION } from './design/nbr7188.js?v=7';
 import { buildShearStories, runShearHistory, shearFreqs } from './solver/shear_building.js?v=7';
 import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
@@ -4295,7 +4296,7 @@ class App {
         carga unitaria ↓; la <b>envolvente</b> barre un tren multi-eje. Respuesta = reacción de un apoyo o esfuerzo
         en una sección.</p>
       <div class="prop-row">
-        <div class="prop-field"><label>Modo</label><select id="ml-mode"><option value="il">Línea de influencia (carga unitaria)</option><option value="env">Envolvente (tren de cargas)</option></select></div>
+        <div class="prop-field"><label>Modo</label><select id="ml-mode"><option value="il">Línea de influencia (carga unitaria)</option><option value="env">Envolvente (tren de cargas)</option><option value="bridge">Tren-tipo NBR 7188:2024 (TB-450/TB-240)</option></select></div>
         <div class="prop-field"><label>Posiciones de barrido</label><input type="number" id="ml-npos" value="41" min="9" max="201" step="2" style="width:80px"></div>
       </div>
       <div class="prop-row">
@@ -4310,6 +4311,21 @@ class App {
         <div class="prop-field"><label>Posición ξ (0–1)</label><input type="number" id="ml-xi" value="0.5" min="0" max="1" step="0.05" style="width:70px"></div>
         <div class="prop-field"><label>Esfuerzo</label><select id="ml-key"><option value="Mz">Mz</option><option value="My">My</option><option value="Vy">Vy</option><option value="Vz">Vz</option><option value="N">N</option></select></div>
       </div>
+      <div id="ml-bridge" style="display:none">
+        <div class="prop-row">
+          <div class="prop-field"><label>Vehículo</label><select id="ml-veh"><option value="TB-450">TB-450</option><option value="TB-240">TB-240</option></select></div>
+          <div class="prop-field"><label>LIV (m)</label><input type="number" id="ml-liv" value="${this._laneLength(sel).toFixed(2)}" min="0.1" step="0.5" style="width:80px"></div>
+          <div class="prop-field"><label>Ancho cargado b (m)</label><input type="number" id="ml-b" value="7" min="3" step="0.5" style="width:70px"></div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-field"><label>CIA</label><select id="ml-cia"><option value="1">1,00</option><option value="1.25">1,25 (hormigón/mixta, junta)</option><option value="1.15">1,15 (acero, junta)</option></select></div>
+          <div class="prop-field"><label><input type="checkbox" id="ml-plus10"> +10 % (anillo vial / puerto)</label></div>
+        </div>
+        <div class="prop-row cols1">
+          <div class="prop-field"><label>LI transversal de la viga «y,η» por línea (vacío = tablero entero de ancho b; pista de y = 0 a b)</label>
+            <textarea id="ml-tril" rows="2" style="width:100%;font-family:var(--font-mono);font-size:11px"></textarea></div>
+        </div>
+      </div>
       <div class="prop-row cols1" id="ml-train" style="display:none">
         <div class="prop-field"><label>${_uT('Tren «offset,P» por línea (offset m respecto al eje de referencia, P en kN ↓)', 'F')}</label>
           <textarea id="ml-trainpts" rows="3" style="width:100%;font-family:var(--font-mono);font-size:11px">${trainDisp}</textarea></div>
@@ -4321,6 +4337,7 @@ class App {
       document.getElementById('ml-reaction').style.display = isReac ? '' : 'none';
       document.getElementById('ml-section').style.display = isReac ? 'none' : '';
       document.getElementById('ml-train').style.display = document.getElementById('ml-mode').value === 'env' ? '' : 'none';
+      document.getElementById('ml-bridge').style.display = document.getElementById('ml-mode').value === 'bridge' ? '' : 'none';
     };
     document.getElementById('ml-resp').addEventListener('change', sync);
     document.getElementById('ml-mode').addEventListener('change', sync);
@@ -4351,12 +4368,31 @@ class App {
         .map(l => { const [offset, P] = l.split(/[,\s]+/).map(Number); return { offset, P: untouched ? P : fromDisp(P, 'F') }; }).filter(a => Number.isFinite(a.offset) && Number.isFinite(a.P));
       if (!cfg.train.length) { this.toast('Define al menos un eje del tren', 'warn'); return null; }
     }
+    if (mode === 'bridge') {   // NBR 7188:2024 — js/design/nbr7188.js (kN, m)
+      const b = +document.getElementById('ml-b').value, LIV = +document.getElementById('ml-liv').value;
+      try {
+        const L = loads7188({ vehicle: document.getElementById('ml-veh').value, LIV, b,
+          CIA: +document.getElementById('ml-cia').value || 1, plus10: document.getElementById('ml-plus10').checked });
+        const pts = document.getElementById('ml-tril').value.split(/\n/).map(l => l.trim()).filter(Boolean)
+          .map(l => l.split(/[,;\s]+/).map(Number)).filter(p => p.length >= 2 && p.every(Number.isFinite)).sort((p, q) => p[0] - q[0]);
+        cfg.bridgeTrain = pts.length >= 2
+          ? trainFromTransverseIL({ Q: L.Q, q: L.q, ys: pts.map(p => p[0]), eta: pts.map(p => p[1]), lane: [0, b] })
+          : trainWholeDeck({ Q: L.Q, q: L.q, b });
+        const t = cfg.bridgeTrain;
+        cfg.info = `${NBR7188_EDITION} · ${L.vehicle} · CIV ${L.CIV.toFixed(4)} · CNF ${L.CNF.toFixed(2)} · CIA ${L.CIA.toFixed(2)}${L.k10 > 1 ? ' · +10 %' : ''} · Q ${L.Q.toFixed(2)} kN · q ${L.q.toFixed(3)} kN/m² → ${t.axles.length} × ${t.axles[0].P.toFixed(2)} kN, qExt ${t.qExt.toFixed(2)} kN/m, qInt ${t.qInt.toFixed(2)} kN/m`;
+      } catch (err) { this.toast(err.message, 'warn'); return null; }
+    }
     return cfg;
   }
 
   // Display value of a moving-load response: the envelope (train in kN) is converted; the influence line is the
   // response to a UNIT load, the same number in kN/kN and tf/tf (or m), so it is shown unchanged.
-  _mlDisp(R, v) { return R.mode === 'env' && R.kind ? toDisp(v, R.kind) : v; }
+  _mlDisp(R, v) { return (R.mode === 'env' || R.mode === 'bridge') && R.kind ? toDisp(v, R.kind) : v; }
+  _laneLength(ids) {
+    let L = 0;
+    for (const id of ids) { const e = this.model.elements.get(id), a = e && this.model.nodes.get(e.n1), b = e && this.model.nodes.get(e.n2); if (a && b) L += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
+    return L;
+  }
   _mlUnit(R) { return R.kind ? ulbl(R.kind) : R.unit; }
 
   // #90: Moving loads → «Moving loads» tab in Results.
@@ -4383,6 +4419,7 @@ class App {
     const sx = x => ml + (W - ml - mr) * (x - xmin) / (xmax - xmin || 1);
     const sy = y => mt + (H - mt - mb) * (1 - (y - ymin) / (ymax - ymin || 1));
     let poly = ''; for (let i = 0; i < n; i++) poly += `${sx(R.xs[i]).toFixed(1)},${sy(this._mlDisp(R, R.ys[i])).toFixed(1)} `;
+    let poly2 = ''; if (R.ys2) for (let i = 0; i < n; i++) poly2 += `${sx(R.xs[i]).toFixed(1)},${sy(this._mlDisp(R, R.ys2[i])).toFixed(1)} `;
     const y0 = sy(0).toFixed(1);
     const mk = (x, y, col) => `<circle cx="${sx(x).toFixed(1)}" cy="${sy(y).toFixed(1)}" r="3.5" fill="${col}"/>`;
     const title = R.mode === 'il' ? i18n.t('Línea de influencia (carga unitaria ↓)') : `${i18n.t('Envolvente del tren (largo')} ${R.trainLen?.toFixed(1)} m)`;
@@ -4393,6 +4430,7 @@ class App {
         <line x1="${ml}" y1="${y0}" x2="${W - mr}" y2="${y0}" stroke="var(--border,#26324d)" stroke-width="1"/>
         <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${H - mb}" stroke="var(--border,#26324d)" stroke-width="1"/>
         <polyline points="${poly}" fill="none" stroke="var(--accent,#38bdf8)" stroke-width="1.6"/>
+        ${poly2 ? `<polyline points="${poly2}" fill="none" stroke="#22c55e" stroke-width="1.2" stroke-dasharray="4 3"/>` : ''}
         ${mk(R.sMax, this._mlDisp(R, R.max), '#ef4444')}${mk(R.sMin, this._mlDisp(R, R.min), '#22c55e')}
         <text x="${ml}" y="${H - 8}" fill="var(--text-muted,#9aa)" font-size="10">${i18n.t('pos.')} ${xmin.toFixed(1)} m</text>
         <text x="${W - mr}" y="${H - 8}" fill="var(--text-muted,#9aa)" font-size="10" text-anchor="end">${xmax.toFixed(1)} m</text>
@@ -4401,6 +4439,7 @@ class App {
         <span style="color:#ef4444">●</span> ${i18n.t('máx')} = <b>${this._mlDisp(R, R.max).toExponential(3)} ${this._mlUnit(R)}</b> ${i18n.t('en pos.')} ${R.sMax.toFixed(2)} m<br>
         <span style="color:#22c55e">●</span> ${i18n.t('mín')} = <b>${this._mlDisp(R, R.min).toExponential(3)} ${this._mlUnit(R)}</b> ${i18n.t('en pos.')} ${R.sMin.toFixed(2)} m<br>
         <span style="color:var(--text-muted)">${i18n.t('Pista L =')} ${R.lane.L.toFixed(2)} m · ${n} ${i18n.t('posiciones')}</span>
+        ${R.info ? `<br><span style="color:var(--text-muted)">${R.info}</span>` : ''}
       </div>
       <div style="margin-top:8px"><button class="ml-csv btn-secondary" style="font-size:11px;padding:4px 10px">⬇ CSV</button></div>`;
     el.querySelector('.ml-csv').addEventListener('click', () => this._movingExportCSV(R));

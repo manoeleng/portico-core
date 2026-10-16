@@ -3055,6 +3055,13 @@ export const EN = {
   "Rotación β por defecto (°)": "Default rotation β (°)",
   "Rotación por defecto (β) de las barras con esta sección; una barra con β propio no cambia.": "Default rotation (β) of the members with this section; a member with its own β does not change.",
   "Rotación aplicada a las barras de la sección sin β propio — recalcule el análisis (F5)": "Rotation applied to the section's members without their own β — re-run the analysis (F5)",
+  "Tren-tipo NBR 7188:2024 (TB-450/TB-240)": "NBR 7188:2024 design train (TB-450/TB-240)",
+  "Vehículo": "Vehicle",
+  "Ancho cargado b (m)": "Loaded width b (m)",
+  "1,25 (hormigón/mixta, junta)": "1.25 (concrete/composite, joint)",
+  "1,15 (acero, junta)": "1.15 (steel, joint)",
+  "+10 % (anillo vial / puerto)": "+10 % (ring road / port access)",
+  "LI transversal de la viga «y,η» por línea (vacío = tablero entero de ancho b; pista de y = 0 a b)": "Transverse IL of the girder «y,η» per line (empty = whole deck of width b; lane from y = 0 to b)",
 };
 
 export default EN;

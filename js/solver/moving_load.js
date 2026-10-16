@@ -167,6 +167,92 @@ export function movingLoadEnvelope(model, lane, train, responses, opts = {}) {
   return { positions, series, env, trainLen };
 }
 
+// ── Influence line sampled at the lane NODES + envelope of a train with distributed load ──
+// (bridge trains, e.g. TB-450 of NBR 7188:2024 — see js/design/nbr7188.js)
+//
+// The unit load is placed only ON the lane nodes, so it enters as a pure nodal force (no
+// Hermite equivalent moment) and every response (reaction, end force at a node, displacement)
+// is exact at the sample points. Between nodes the IL is taken as LINEAR: exact for statically
+// determinate structures; for continuous beams the error falls with h² — subdivide the lane.
+// Sections must sit at nodes (ξ = 0 or 1) for the IL kink to be a sample point.
+/**
+ * @returns { s:[…], value:[…] }  s = lane abscissa of each node (lane.accum + L)
+ */
+export function influenceLineNodes(model, lane, response) {
+  const prep = prepare(model);
+  const s = [...lane.accum, lane.L], value = [];
+  for (const x of s) {
+    const loads = laneLoadAt(model, lane, x, 1);
+    value.push(loads.length ? response(solveLoads(prep, model, loads)) : 0);
+  }
+  return { s, value };
+}
+
+// ∫ over [a,b] of the part of a piecewise-linear IL with the given sign (sign=+1: η>0 part,
+// sign=−1: η<0 part, returned with its sign). Exact (zero crossings included).
+function ilSignedIntegral(s, v, a, b, sign) {
+  let acc = 0;
+  for (let i = 0; i < s.length - 1; i++) {
+    const x0 = Math.max(s[i], a), x1 = Math.min(s[i + 1], b);
+    if (x1 <= x0) continue;
+    const ds = s[i + 1] - s[i];
+    const e0 = sign * (v[i] + (v[i + 1] - v[i]) * (x0 - s[i]) / ds);
+    const e1 = sign * (v[i] + (v[i + 1] - v[i]) * (x1 - s[i]) / ds);
+    if (e0 >= 0 && e1 >= 0) acc += 0.5 * (e0 + e1) * (x1 - x0);
+    else if (e0 > 0 || e1 > 0) { const xc = x0 + (x1 - x0) * e0 / (e0 - e1); acc += e0 > 0 ? 0.5 * e0 * (xc - x0) : 0.5 * e1 * (x1 - xc); }
+  }
+  return sign * acc;
+}
+function ilAt(s, v, x) {
+  if (x < s[0] - 1e-9 || x > s[s.length - 1] + 1e-9) return 0;
+  let i = 0; while (i < s.length - 2 && x > s[i + 1]) i++;
+  const ds = s[i + 1] - s[i];
+  return ds > 0 ? v[i] + (v[i + 1] - v[i]) * (x - s[i]) / ds : v[i];
+}
+
+/**
+ * Envelope (max and min) of a response under a bridge train over its influence line.
+ * Train (vehicle area of length `length`, positioned by its rear edge `ref`):
+ *   axles  [{offset, P}]  concentrated loads ↓ at ref + offset (dropped when off the lane);
+ *   qInt   distributed load ↓ (kN/m) inside the vehicle area [ref, ref + length];
+ *   qExt   distributed load ↓ (kN/m) elsewhere on the lane.
+ * The distributed load is applied only where it worsens the effect (NBR 7188:2024 5.1.1:
+ * "na posição mais desfavorável"): η>0 part for the max, η<0 part for the min; the vehicle
+ * is a rigid set (all its axles act wherever they are on the lane).
+ * Positions swept: nPos uniform from ref = s0 − length to sN, plus every position that puts
+ * an axle or an edge of the vehicle area on an IL node (the extremes of a piecewise-linear IL
+ * under this train lie there when the IL is concave over the vehicle area).
+ * @param {{s:number[], value:number[]}} il
+ * @param {{length:number, axles:{offset:number,P:number}[], qExt:number, qInt:number}} train
+ * @returns { max, min, atMax, atMin, positions, seriesMax, seriesMin }
+ */
+export function trainEnvelopeFromIL(il, train, opts = {}) {
+  const { s, value: v } = il;
+  const s0 = s[0], sN = s[s.length - 1], Lv = train.length || 0;
+  const nPos = opts.nPos || 201;
+  const cand = new Set();
+  for (let i = 0; i < nPos; i++) cand.add(s0 - Lv + (sN - s0 + Lv) * i / (nPos - 1));
+  for (const x of s) {
+    for (const ax of train.axles) cand.add(x - ax.offset);
+    cand.add(x); cand.add(x - Lv);
+  }
+  const positions = [...cand].filter(r => r >= s0 - Lv - 1e-9 && r <= sN + 1e-9).sort((a, b) => a - b);
+  const seriesMax = [], seriesMin = [];
+  let max = -Infinity, min = Infinity, atMax = 0, atMin = 0;
+  const totPos = ilSignedIntegral(s, v, s0, sN, +1), totNeg = ilSignedIntegral(s, v, s0, sN, -1);
+  for (const ref of positions) {
+    let conc = 0;
+    for (const ax of train.axles) { const x = ref + ax.offset; if (x >= s0 - 1e-9 && x <= sN + 1e-9) conc += ax.P * ilAt(s, v, x); }
+    const inPos = ilSignedIntegral(s, v, ref, ref + Lv, +1), inNeg = ilSignedIntegral(s, v, ref, ref + Lv, -1);
+    const eMax = conc + train.qExt * (totPos - inPos) + train.qInt * inPos;
+    const eMin = conc + train.qExt * (totNeg - inNeg) + train.qInt * inNeg;
+    seriesMax.push(eMax); seriesMin.push(eMin);
+    if (eMax > max) { max = eMax; atMax = ref; }
+    if (eMin < min) { min = eMin; atMin = ref; }
+  }
+  return { max, min, atMax, atMin, positions, seriesMax, seriesMin };
+}
+
 // ── Response evaluators (helpers) ────────────────────────────────────────────────
 const COMP = { Fx: 0, Fy: 1, Fz: 2, Mx: 3, My: 4, Mz: 5 };
 // Reaction at a support (component Fx..Mz).
@@ -205,6 +291,12 @@ export function computeMovingLoad(model, cfg) {
   const resp = cfg.respType === 'reaction'
     ? responseReaction(cfg.nodeId, cfg.comp)
     : responseSection(cfg.elemId, cfg.xi, cfg.key);
+  if (cfg.mode === 'bridge') {   // bridge train over the nodal IL (e.g. TB-450, NBR 7188:2024)
+    const il = influenceLineNodes(model, lane, resp);
+    const e = trainEnvelopeFromIL(il, cfg.bridgeTrain, { nPos: cfg.nPos });
+    return { mode: 'bridge', lane, label: cfg.label, unit: cfg.unit, xs: e.positions, ys: e.seriesMax, ys2: e.seriesMin,
+             max: e.max, min: e.min, sMax: e.atMax, sMin: e.atMin, trainLen: cfg.bridgeTrain.length, il, info: cfg.info };
+  }
   if (cfg.mode === 'il') {
     const il = influenceLine(model, lane, resp, { nPos: cfg.nPos, P: 1 });
     return { mode: 'il', lane, label: cfg.label, unit: cfg.unit, xs: il.s, ys: il.value, max: il.max, min: il.min, sMax: il.sMax, sMin: il.sMin };
