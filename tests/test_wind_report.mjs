@@ -9,6 +9,7 @@
 // y = mín(h; 0,15b) = 2,25 m; faixa do cpe médio das paredes = mín(0,2b; h) = 3,0 m.
 import fs from 'node:fs';
 import { windStudy, svgParedes, svgTelhado, svgPerfil, s2At } from '../js/design/wind_report.js';
+import * as WF from '../js/design/wind_figs.js';
 const w = JSON.parse(fs.readFileSync(new URL('../presets/brasil/rules.json', import.meta.url), 'utf8')).loads.wind;
 let fails = 0, n = 0;
 const ok = (name, got, exp, tol) => { n++; const d = Math.abs(got - exp); if (!(d <= tol)) { fails++; console.log(`FAIL ${name}: ${got} ≠ ${exp}`); } else console.log(`ok   ${name}: ${got}`); };
@@ -30,5 +31,13 @@ ok('W11. perfil: S2 no topo = S2 do cálculo', st.perfil[st.perfil.length - 1].S
 ok('W12. s2At(5 m) = s2At(3 m) (constante abaixo de 5 m, Tab. 3)', s2At(w, 'III', 'C', 3), s2At(w, 'III', 'C', 5), 1e-12);
 yes('W13. figuras SVG geradas (paredes 0°/90°, telhado 0°/90°, perfil)', [svgParedes(st, 0), svgParedes(st, 90), svgTelhado(st, 0), svgTelhado(st, 90), svgPerfil(st)].every((s) => /^<svg[\s\S]*<\/svg>$/.test(s)));
 yes('W14. cpe médio do telhado lido da Tab. 7 (faixa de θ)', st.cpeMedioTelhado.length > 0 && st.cpeMedioTelhado.some((c) => c.cpe === -1.4));
+// figuras (blocos de carga): SVG válido, sem NaN, e os valores do CBCA nas figuras
+{ const figs = [WF.figIsometrica(st), WF.figVistas(st), WF.figParedes(st, 90), WF.figParedes(st, 0), WF.figTelhado(st, 90), WF.figTelhado(st, 0),
+    WF.figCorte(st, 90, 0.2, 'cp'), WF.figCorte(st, 0, -0.3, 'cp', { r: 1 }), WF.figCorte(st, 90, 0.2, 'q', { spacing: 6 }), WF.figCorte(st, 90, 0.2, 'cpi'), WF.figCpeMedio(st), WF.figPerfil(st)];
+  yes('W15. 12 figuras SVG (isométrica, vistas, paredes, telhado, cortes Cp/q/Cpi, Cpe médio, perfil)', figs.every((f) => /^<svg[\s\S]*<\/svg>$/.test(f) && !/NaN|undefined/.test(f)));
+  yes('W16. paredes 90°: Cpe A 0,7, C1 0,9 e C2 0,5 nos blocos [CB pp.24–25]', />0,7</.test(figs[2]) && />0,9</.test(figs[2]) && />0,5</.test(figs[2]));
+  yes('W17. corte 90° com Cpi +0,2: EFI 1,4 e A 0,5 (Cp) [CB Fig.41]', />1,4</.test(figs[6]) && />0,5</.test(figs[6]));
+  const qEFI = Math.abs(st.res.q_Nm2 / 1000 * -1.4 * 6);
+  yes('W18. força no pórtico (6 m): EFI = q·1,4·6 kN/m [CB p.27 Tab.01: 5,38]', figs[8].includes(qEFI.toLocaleString('pt-BR', { maximumFractionDigits: 3 })) && Math.abs(qEFI - 5.38) < 0.03); }
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

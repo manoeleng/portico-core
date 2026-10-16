@@ -2,8 +2,10 @@
 // vertical profile, Cpe/Cpi tables, pressures per zone and the zone figures, plus a printable report (new window,
 // print → PDF). The calculation is the validated one of assistant/loads.js (tests/test_lit_acoes.mjs,
 // tests/test_wind_report.mjs). Brazil-only module: texts in Portuguese.
-import { windStudy, svgParedes, svgTelhado, svgPerfil } from '../design/wind_report.js?v=7';
+import { windStudy } from '../design/wind_report.js?v=7';
+import { figIsometrica, figVistas, figParedes, figTelhado, figCorte, figCpeMedio, figPerfil } from '../design/wind_figs.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
+import { mountWind3D } from './wind_3d.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const sg = (v) => (v > 0 ? '+' : '') + nf(v, 2);
@@ -30,36 +32,47 @@ function tables(st) {
   return { P, sec, cm };
 }
 
-function bodyHTML(st) {
+function bodyHTML(st, spacing, view3d = null) {
   const r = st.res, g = st.geo, { P, sec, cm } = tables(st);
+  const row = (...figs) => `<div class="row">${figs.map((f) => `<div>${f}</div>`).join('')}</div>`;
+  const cortesCp = st.cpis.map((c) => row(figCorte(st, 90, c, 'cp'), figCorte(st, 0, c, 'cp', { r: 1 }))).join('');
+  const forcas = spacing > 0 ? st.cpis.map((c) => row(figCorte(st, 90, c, 'q', { spacing }), figCorte(st, 0, c, 'q', { r: 1, spacing }))).join('') : '';
   return `
-  <h3>1. Velocidade característica e pressão dinâmica (NBR 6123:2023, 5)</h3>
+  <h3>1. Geometria</h3>
+  ${view3d === 'live' ? `<div class="row" style="align-items:center;gap:8px"><label>Vista 3D: <select id="wd-3dmode">${[['geo', 'Geometria'], ['cpe90', 'Cpe — α = 90°'], ['cpe0', 'Cpe — α = 0°'], ...st.cpis.flatMap((c) => [[`cp90_${c}`, `Cp — α = 90°, Cpi ${sg(c)}`], [`cp0_${c}`, `Cp — α = 0°, Cpi ${sg(c)}`]])].map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select></label><span class="note">arraste para girar · roda do mouse para aproximar</span></div><div id="wd-3d" style="width:600px;height:380px;border:1px solid #e2e8f0;border-radius:6px"></div>` : view3d ? `<img src="${view3d}" width="600" alt="vista 3D">` : figIsometrica(st)}${row(figVistas(st))}
+  <table class="wt">
+    <tr><td>a × b (planta)</td><td>${nf(st.inp.a)} × ${nf(st.inp.b)} m</td><td>H (beiral, Detalhe I) / topo</td><td>${nf(st.inp.hBeiral)} / ${nf(st.hTop)} m</td></tr>
+    <tr><td>θ (inclinação do telhado)</td><td>${nf(st.inp.theta, 1)}°</td><td>h/b · a/b</td><td>${nf(g.hb, 3)} · ${nf(g.ab, 3)}</td></tr>
+    <tr><td>A1,B1 = x0 = máx(b/3; a/4) ≤ 2h</td><td>${nf(g.x0, 3)} m</td><td>C1,D1 = mín(2h; b/2)</td><td>${nf(g.xC1, 3)} m</td></tr>
+    <tr><td>y = mín(h; 0,15b) (telhado)</td><td>${nf(g.y, 3)} m</td><td>faixa do cpe médio das paredes = mín(0,2b; h)</td><td>${nf(g.faixaParede, 3)} m</td></tr>
+  </table>
+  <h3>2. Velocidade característica e pressão dinâmica (NBR 6123:2023, 5)</h3>
   <table class="wt">
     <tr><td>V0 (isopletas, Fig. 1)</td><td>${nf(r.V0)} m/s</td><td>S1 (fator topográfico, 5.2)</td><td>${nf(r.S1, 2)}</td></tr>
     <tr><td>Categoria de rugosidade (5.3.1)</td><td>${esc(r.categoria)}</td><td>Classe (5.3.2) — α = 90° / 0°</td><td>${esc(r.classe)} / ${esc(r.classe_empena)}</td></tr>
     <tr><td>S2 no topo (z = ${nf(st.hTop)} m)</td><td>${nf(r.S2, 3)} / ${nf(r.S2_empena, 3)}</td><td>S3 (Tab. 4, grupo ${esc(String(st.inp.grupoS3))})</td><td>${nf(r.S3, 2)}</td></tr>
     <tr><td>Vk = V0·S1·S2·S3 (α = 90°)</td><td>${nf(r.Vk)} m/s</td><td>q = 0,613·Vk² (α = 90° / 0°)</td><td><b>${nf(r.q_Nm2, 1)} / ${nf(r.q_empena_Nm2, 1)} N/m²</b></td></tr>
   </table>
-  <div class="row"><div>${svgPerfil(st)}</div><div><h4>Perfil vertical (classe ${esc(r.classe)})</h4><table class="wt"><tr><th>z [m]</th><th>S2</th><th>Vk [m/s]</th><th>q [N/m²]</th></tr>${P}</table></div></div>
-  <h3>2. Geometria (Tab. 6 e 7)</h3>
-  <table class="wt">
-    <tr><td>a × b (planta)</td><td>${nf(st.inp.a)} × ${nf(st.inp.b)} m</td><td>h (beiral, Detalhe I) / topo</td><td>${nf(st.inp.hBeiral)} / ${nf(st.hTop)} m</td></tr>
-    <tr><td>θ (inclinação do telhado)</td><td>${nf(st.inp.theta, 1)}°</td><td>h/b · a/b</td><td>${nf(g.hb, 3)} · ${nf(g.ab, 3)}</td></tr>
-    <tr><td>x0 = máx(b/3; a/4) ≤ 2h</td><td>${nf(g.x0, 3)} m</td><td>C1/D1 = mín(2h; b/2)</td><td>${nf(g.xC1, 3)} m</td></tr>
-    <tr><td>y = mín(h; 0,15b) (telhado)</td><td>${nf(g.y, 3)} m</td><td>faixa do cpe médio das paredes = mín(0,2b; h)</td><td>${nf(g.faixaParede, 3)} m</td></tr>
-  </table>
-  <h3>3. Coeficientes de pressão e pressões (Cp = Cpe − Cpi; p = q·Cp)</h3>
-  <div class="row"><div>${svgParedes(st, 0)}</div><div>${svgParedes(st, 90)}</div></div>
-  ${sec('Paredes — vento a 0° (q de α = 0°)', 0, false)}
-  ${sec('Paredes — vento a 90° (q de α = 90°)', 90, false)}
-  <div class="row"><div>${svgTelhado(st, 0)}</div><div>${svgTelhado(st, 90)}</div></div>
-  ${sec('Telhado — vento a 0°', 0, true)}
-  ${sec('Telhado — vento a 90°', 90, true)}
+  <div class="row"><div>${figPerfil(st)}</div><div><h4>Perfil vertical (classe ${esc(r.classe)})</h4><table class="wt"><tr><th>z [m]</th><th>S2</th><th>Vk [m/s]</th><th>q [N/m²]</th></tr>${P}</table></div></div>
+  <h3>3. Coeficientes de pressão externa — paredes (Tab. 6)</h3>
+  ${row(figParedes(st, 90), figParedes(st, 0))}
+  <h3>4. Coeficientes de pressão externa — telhado (Tab. 7)</h3>
+  ${row(figTelhado(st, 90), figTelhado(st, 0))}${row(figCorte(st, 90, null, 'cpe'), figCorte(st, 0, null, 'cpe', { r: 1 }))}
+  ${row(figCpeMedio(st))}
   <h4>Cpe médio (sucções locais, para telhas, terças e fixações)</h4>
   <table class="wt"><tr><td>Paredes (faixa de ${nf(g.faixaParede, 3)} m a barlavento)</td><td>${sg(st.cpeMedioParede)}</td></tr>${cm}</table>
   <p class="note">Telhado: faixa de θ = ${nf(st.thetaRows[0])}°–${nf(st.thetaRows[1])}° da Tab. 7; adotado o valor mais negativo da faixa (a tabela não prescreve interpolação).</p>
+  <h3>5. Coeficientes de pressão interna (6.3)</h3>
+  ${row(...st.cpis.map((c) => figCorte(st, 90, c, 'cpi')))}
+  <h3>6. Combinações Cp = Cpe − Cpi e pressões p = q·Cp</h3>
+  ${cortesCp}
+  ${sec('Paredes — vento a 0° (q de α = 0°)', 0, false)}
+  ${sec('Paredes — vento a 90° (q de α = 90°)', 90, false)}
+  ${sec('Telhado — vento a 0°', 0, true)}
+  ${sec('Telhado — vento a 90°', 90, true)}
+  ${spacing > 0 ? `<h3>7. Forças atuantes no pórtico (faixa de ${nf(spacing)} m)</h3>${forcas}` : '<p class="note">Informe a distância entre pórticos para as forças atuantes no pórtico (kN/m).</p>'}
   ${st.notas.length ? `<h3>Observações</h3><ul>${st.notas.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-  <p class="note">ABNT NBR 6123:2023 — Forças devidas ao vento em edificações: 5 (Vk, S1, S2 Tab. 1/3, S3 Tab. 4), 6.3 (Cpi), Tab. 6 (paredes), Tab. 7 (telhados de duas águas). Cálculo do PORTICO validado contra Gonçalves et al. (EESC/USP) e CBCA Galpões (2010). Responsabilidade técnica: o engenheiro que assina o projeto.</p>`;
+  <p class="note">ABNT NBR 6123:2023 — Forças devidas ao vento em edificações: 5 (Vk, S1, S2 Tab. 1/3, S3 Tab. 4), 6.3 (Cpi), Tab. 6 (paredes), Tab. 7 (telhados de duas águas). S2 tomado no topo da edificação (a favor da segurança). Cálculo do PORTICO validado contra Gonçalves et al. (EESC/USP) e CBCA Galpões (2010). Responsabilidade técnica: o engenheiro que assina o projeto.</p>`;
 }
 
 const CSS = `body{font:12px/1.4 system-ui,sans-serif;color:#0f172a;margin:16px}h2{margin:0 0 4px}h3{margin:16px 0 6px;color:#0369a1;font-size:13px}h4{margin:10px 0 4px;font-size:12px}
@@ -87,6 +100,7 @@ export async function openWindDialog(app) {
       <p class="panel-hint" id="wd-s3txt" style="margin:2px 0 6px"></p>
       <div class="prop-row cols2">${num('wd-a', 'a — comprimento (m)', 30, 0.5)}${num('wd-b', 'b — largura (m)', 15, 0.5)}</div>
       <div class="prop-row cols2">${num('wd-h', 'h — altura do beiral (m)', 6, 0.1)}${num('wd-th', 'θ — inclinação (°)', 10, 0.5)}</div>
+      <div class="prop-row cols1">${num('wd-sp', 'Distância entre pórticos (m) — forças no pórtico', 5, 0.5)}</div>
       ${sel('wd-cpi', 'Pressão interna Cpi (6.3)', Object.entries(CPI).map(([k, o]) => `<option value="${k}">${esc(o.txt)}</option>`).join(''))}
       <div class="prop-field" id="wd-cpiman-w" style="display:none"><label>Cpi (separados por ;)</label><input type="text" id="wd-cpiman" value="0,8; -0,5"></div>
       <div style="display:flex;gap:6px;margin-top:10px">
@@ -110,7 +124,7 @@ export async function openWindDialog(app) {
     return { obra: $('wd-obra').value, V0: n('wd-v0'), S1: n('wd-s1'), categoria: $('wd-cat').value, grupoS3: +$('wd-s3').value,
       a: n('wd-a'), b: n('wd-b'), hBeiral: n('wd-h'), theta: n('wd-th'), cpi: cpi.length ? cpi : [-0.3, 0] };
   };
-  let last = null;
+  let last = null, lastSp = 0, view3d = null;
   const update = () => {
     $('wd-cpiman-w').style.display = $('wd-cpi').value === 'manual' ? '' : 'none';
     $('wd-s3txt').textContent = S3TXT[+$('wd-s3').value];
@@ -119,8 +133,15 @@ export async function openWindDialog(app) {
     try {
       const st = windStudy(inp, w);
       if (st.erro) { $('wd-out').innerHTML = `<p class="panel-hint">${esc(st.erro)}</p>`; return; }
-      last = st;
-      $('wd-out').innerHTML = `<h2>${esc(inp.obra)}</h2>` + bodyHTML(st);
+      last = st; lastSp = n('wd-sp');
+      const keep = $('wd-out').querySelector('#wd-3dmode')?.value || 'geo';
+      $('wd-out').innerHTML = `<h2>${esc(inp.obra)}</h2>` + bodyHTML(st, n('wd-sp'), 'live');
+      const sel3 = $('wd-out').querySelector('#wd-3dmode'); if ([...sel3.options].some((o) => o.value === keep)) sel3.value = keep;
+      const mount = () => {
+        const m = sel3.value, mm = /^(cpe|cp)(90|0)(?:_(.+))?$/.exec(m);
+        view3d = mountWind3D($('wd-out').querySelector('#wd-3d'), st, mm ? { mode: 'cp', alpha: +mm[2], cpi: mm[1] === 'cp' ? +mm[3] : null, width: 600, height: 380 } : { mode: 'geo', width: 600, height: 380 });
+      };
+      sel3.addEventListener('change', mount); mount();
     } catch (e) { $('wd-out').innerHTML = `<p class="panel-hint">Erro: ${esc(e.message)}</p>`; }
   };
   el.querySelectorAll('input,select').forEach((i) => i.addEventListener('input', update));
@@ -129,7 +150,7 @@ export async function openWindDialog(app) {
     if (!last) return;
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Vento NBR 6123 — ${esc(last.inp.obra)}</title><style>${CSS}</style></head><body>
       <button class="noprint" onclick="window.print()">🖨 Imprimir / salvar PDF</button>
-      <h2>Ação do vento — ${esc(last.inp.obra)}</h2><p class="note">ABNT NBR 6123:2023 · PORTICO · ${new Date().toLocaleDateString('pt-BR')}</p>${bodyHTML(last)}</body></html>`;
+      <h2>Ação do vento — ${esc(last.inp.obra)}</h2><p class="note">ABNT NBR 6123:2023 · PORTICO · ${new Date().toLocaleDateString('pt-BR')}</p>${bodyHTML(last, lastSp, view3d?.toPNG?.() || null)}</body></html>`;
     const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
     window.open(url, '_blank');
   };
