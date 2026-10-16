@@ -676,8 +676,9 @@
         <!-- CARGAS (separadas del modelo, como el menú «Carga» del CYPE 3D) -->
         <div id="vpanel-loads" class="vpanel-content">
           <div id="loads-hdr" class="loads-hdr">
-            <label for="loads-hdr-lc">Caso activo</label>
-            <select id="loads-hdr-lc"></select>
+            <!-- the active case is chosen in the toolbar selector «Caso» (over the 3D): here it is only shown -->
+            <label>Caso activo</label>
+            <span id="loads-hdr-lc" class="loads-hdr-name"></span>
           </div>
           <div id="loads-tabs">
             <button class="ptab ltab active" data-ltab="nos">Nodos</button>

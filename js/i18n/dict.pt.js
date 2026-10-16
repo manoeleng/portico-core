@@ -2546,6 +2546,7 @@ export const PT = {
   "Activa": "Ativa",
   "Referencia": "Referência",
   "Visible": "Visível",
+  "Cambie el caso en el selector «Caso» de la barra sobre la vista": "Troque o caso no seletor «Caso» da barra sobre a vista",
   "Visible — clic: mostrar u ocultar todas las capas": "Visível — clique: mostrar ou ocultar todas as camadas",
   "Bloqueada (no seleccionable)": "Travada (não selecionável)",
   "Eliminar capa (sus elementos pasan a la capa padrão)": "Excluir camada (as barras vão para a camada padrão)",

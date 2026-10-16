@@ -2804,6 +2804,7 @@ export const EN = {
   "Activa": "Active",
   "Referencia": "Reference",
   "Visible": "Visible",
+  "Cambie el caso en el selector «Caso» de la barra sobre la vista": "Change the case in the «Case» selector of the bar over the view",
   "Visible — clic: mostrar u ocultar todas las capas": "Visible — click: show or hide all layers",
   "Bloqueada (no seleccionable)": "Locked (not selectable)",
   "Eliminar capa (sus elementos pasan a la capa padrão)": "Delete layer (its members go to the default layer)",

@@ -6390,6 +6390,7 @@ class App {
       } else {
         this._activeLcId = +v;
         this._activeResultKey = +v;
+        this.panel?.renderLoadsHeader?.();   // the Cargas panel shows the case that receives the loads
         if (this._resultsByCase?.has(+v)) {
           // Already solved in the full analysis — instant switch
           this._results = this._resultsByCase.get(+v);

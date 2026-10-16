@@ -550,6 +550,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .loads-hdr { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .loads-hdr label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .loads-hdr select { flex: 1; min-width: 0; }
+.loads-hdr-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ltab.active { color: var(--warn); border-bottom-color: var(--warn); }
 /* collapsible groups of the node form (internal node: support group folded) */
 details.prop-fold { margin-top: 8px; border-top: 1px solid var(--border); }

@@ -95,12 +95,6 @@ export class PropertiesPanel {
     this._ltabBtns.forEach(btn =>
       btn.addEventListener('click', () => this._switchLTab(btn.dataset.ltab))
     );
-    document.getElementById('loads-hdr-lc')?.addEventListener('change', e => {
-      this.app._activeLcId = +e.target.value;
-      this.app._renderLcSelector();
-      this.app.refreshLoads();
-      this._reshow();
-    });
 
     document.getElementById('btn-add-mat')?.addEventListener('click',    () => this._addMaterial());
     document.getElementById('btn-add-sec')?.addEventListener('click',    () => this._addSection());
@@ -418,12 +412,13 @@ export class PropertiesPanel {
     });
   }
 
-  // active-case selector of the Cargas panel (same list as the toolbar selector, analysis cases only)
+  // Cargas panel header: shows the case that receives the loads — chosen in the toolbar selector «Caso» (one selector only)
   renderLoadsHeader() {
-    const sel = document.getElementById('loads-hdr-lc');
-    if (!sel) return;
-    sel.innerHTML = [...this.app.model.loadCases.values()].map(lc =>
-      `<option value="${lc.id}" ${lc.id === this.app._activeLcId ? 'selected' : ''}>${lc.type === 'spectrum' ? '〜 ' : ''}${esc(lc.name)}${lc.selfWeight ? ' ⊕PP' : ''}</option>`).join('');
+    const el = document.getElementById('loads-hdr-lc');
+    if (!el) return;
+    const lc = this.app.model.loadCases.get(this.app._activeLcId);
+    el.textContent = lc ? `${lc.type === 'spectrum' ? '〜 ' : ''}${lc.name}${lc.selfWeight ? ' ⊕PP' : ''}` : '—';
+    el.title = i18n.t('Cambie el caso en el selector «Caso» de la barra sobre la vista');
   }
 
   _switchVTab(vtab) {
