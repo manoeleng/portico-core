@@ -395,12 +395,24 @@ export class Viewport {
     // support and spring symbols: unit geometry → SUPP_PX on screen (perspective: × depth of the node)
     cam.updateMatrixWorld();
     const tmp = this._suppTmp || (this._suppTmp = new THREE.Vector3()), k = SUPP_PX * this._nodePxFactor;
+    // supports close to each other (e.g. the two chords of a lattice column, 0,8 m apart): cap the world scale so
+    // that half the glyph width stays below 48 % of the distance to the nearest other support (no overlap)
+    if (this._suppGroups && (this._suppCapDirty || this._suppCapN !== this._suppGroups.size)) {
+      this._suppCapN = this._suppGroups.size;
+      const gs = [...this._suppGroups.values()];
+      for (const g of gs) {
+        let dmin = Infinity;
+        for (const o of gs) if (o !== g) dmin = Math.min(dmin, g.position.distanceTo(o.position));
+        g.userData.maxScale = isFinite(dmin) ? 0.48 * dmin / (g.userData.halfW || 0.6) : Infinity;
+      }
+      this._suppCapDirty = false;
+    }
     for (const map of [this._suppGroups, this._springSymbols]) {
       if (!map) continue;
       for (const g of map.values()) {
         if (!g.visible) continue;
         const depth = cam.isOrthographicCamera ? 1 : Math.max(1e-6, -tmp.copy(g.position).applyMatrix4(cam.matrixWorldInverse).z);
-        g.scale.setScalar(k * depth);
+        g.scale.setScalar(Math.min(k * depth, g.userData.maxScale ?? Infinity));
       }
     }
   }
@@ -1168,8 +1180,11 @@ export class Viewport {
     grp.userData = { type: 'support', nodeId: node.id, dofLabel, kind };
 
     grp.position.copy(this.m2t(node.x, node.y, node.z));
+    // half-width of the glyph at unit size (plan extent), used to keep neighbouring supports from overlapping
+    { const bb = new THREE.Box3().setFromObject(grp); grp.userData.halfW = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2 || 0.6; }
     this._scene.add(grp);
     this._suppGroups.set(node.id, grp);
+    this._suppCapDirty = true;
   }
 
   // ── Pointer helpers ────────────────────────────────────────────────────────
