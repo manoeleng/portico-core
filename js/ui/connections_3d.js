@@ -2,8 +2,12 @@
 // (green = atende, red = não atende, letter = type), placed on the bar near the node for member-end connections and at the
 // node for node connections; click → callback with the row (detail of the connection); floating legend with a filter by
 // type. Works with the live result rows of the "Ligações do modelo" window and with the rows saved in the model
-// (model.connectionDesign). Pure presentation: no calculation here.
+// (model.connectionDesign). Pure presentation: no calculation here. Optional simplified geometry of the pieces (plates,
+// bolts, anchor rods, welds) from js/design/connections_geom.js, merged into one mesh per material.
 import * as THREE from 'three';
+import { connectionPrimitives, makeContext } from '../design/connections_geom.js?v=7';
+import { topology } from '../design/connections_model.js?v=7';
+import { modelTopology } from './connections_model_dialog.js?v=7';
 
 export const TYPE_INFO = {
   base: ['B', 'Base de pilar (6.7)'], basePerna: ['P', 'Base de perna de pilar treliçado'], baseUnica: ['P', 'Base de pilar treliçado (placa única)'],
@@ -12,6 +16,41 @@ export const TYPE_INFO = {
 };
 const END_TYPES = new Set(['trelica', 'flexivel', 'lmss']);
 const PX = 22;                                           // marker size on screen (px)
+const COLORS = { plate: 0x94a3b8, bolt: 0x1e293b, anchor: 0x78716c, weld: 0xf97316 };
+
+/** triangles (model coords) of the primitives, mapped to Three by vp.m2t; one merged BufferGeometry per material */
+function meshesOf(vp, prims) {
+  const pos = { plate: [], bolt: [], anchor: [], weld: [] };
+  const T = (p) => vp.m2t(p[0], p[1], p[2]);
+  const quad = (arr, a, b, c, d) => { for (const v of [a, b, c, a, c, d]) arr.push(v.x, v.y, v.z); };
+  for (const q of prims) {
+    const arr = pos[q.m] || pos.plate;
+    if (q.k === 'box') {
+      const [u, v, w] = q.a, [hu, hv, hw] = q.h;
+      const P = (su, sv, sw) => T([0, 1, 2].map((i) => q.c[i] + su * hu * u[i] + sv * hv * v[i] + sw * hw * w[i]));
+      const c = [P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)];
+      for (const [a, b, cc, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) quad(arr, c[a], c[b], c[cc], c[d]);
+    } else {
+      const ax = q.ax, ref = Math.abs(ax[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+      let e1 = [ax[1] * ref[2] - ax[2] * ref[1], ax[2] * ref[0] - ax[0] * ref[2], ax[0] * ref[1] - ax[1] * ref[0]];
+      const l = Math.hypot(...e1); e1 = e1.map((x) => x / l);
+      const e2 = [ax[1] * e1[2] - ax[2] * e1[1], ax[2] * e1[0] - ax[0] * e1[2], ax[0] * e1[1] - ax[1] * e1[0]];
+      const N = 8, ring = (s) => Array.from({ length: N }, (_, k) => { const t = 2 * Math.PI * k / N, cs = Math.cos(t) * q.r, sn = Math.sin(t) * q.r;
+        return T([0, 1, 2].map((i) => q.c[i] + s * q.h * ax[i] + cs * e1[i] + sn * e2[i])); });
+      const A = ring(-1), B = ring(1), cA = T(q.c.map((x, i) => x - q.h * ax[i])), cB = T(q.c.map((x, i) => x + q.h * ax[i]));
+      for (let k = 0; k < N; k++) { const k2 = (k + 1) % N; quad(arr, A[k], A[k2], B[k2], B[k]);
+        for (const v of [cA, A[k2], A[k], cB, B[k], B[k2]]) arr.push(v.x, v.y, v.z); }
+    }
+  }
+  const out = [];
+  for (const [m, arr] of Object.entries(pos)) {
+    if (!arr.length) continue;
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.computeVertexNormals();
+    const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: COLORS[m], side: THREE.DoubleSide }));
+    mesh.renderOrder = 5; mesh.userData.connGeom = m; out.push(mesh);
+  }
+  return out;
+}
 
 function glyph(letter, ok, cache) {
   const key = letter + (ok ? '1' : '0');
@@ -41,9 +80,21 @@ function positionOf(vp, model, q, stackIndex) {
 }
 
 export class ConnectionMarkers {
-  constructor(vp, { onPick = null, onTable = null } = {}) { this.vp = vp; this.onPick = onPick; this.onTable = onTable; this.sprites = []; this.cache = new Map(); this.hidden = new Set(); }
+  constructor(vp, { onPick = null, onTable = null } = {}) { this.vp = vp; this.onPick = onPick; this.onTable = onTable; this.sprites = []; this.meshes = []; this.cache = new Map(); this.hidden = new Set(); this.geomOn = true; }
+  /** simplified pieces of the visible types; rebuilt when the type filter changes */
+  _geometry() {
+    for (const m of this.meshes) { this.vp._scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+    this.meshes = [];
+    if (!this.geomOn || !this._rows) return;
+    if (!this._ctx) { const { topo } = modelTopology({ model: this._model }); this._ctx = makeContext(this._model, topology(topo)); }
+    const rows = this._rows.filter((r) => !this.hidden.has((r.c || r).tipo));
+    const prims = connectionPrimitives(rows, this._ctx).flatMap((x) => x.prims);
+    for (const m of meshesOf(this.vp, prims)) { this.vp._scene.add(m); this.meshes.push(m); }
+    this.nPrims = prims.length;
+  }
   show(rows, model) {
     this.clear(false);
+    this._rows = rows; this._model = model; this._ctx = null;
     const scene = this.vp._scene, perNode = new Map();
     this.items = rows.map(norm);
     for (const q of this.items) {
@@ -57,6 +108,7 @@ export class ConnectionMarkers {
       s.visible = !this.hidden.has(q.tipo);
       scene.add(s); this.sprites.push(s);
     }
+    this._geometry();
     this._listen(); this._legend();
     this.vp._needsRender = true;
   }
@@ -81,20 +133,25 @@ export class ConnectionMarkers {
     const tot = this.items.length, nao = this.items.filter((q) => !q.ok).length;
     box.innerHTML = `<div style="font-weight:600;margin-bottom:4px">Ligações no 3D — ${tot} (<span style="color:#16a34a">${tot - nao} OK</span>${nao ? ` · <span style="color:#dc2626">${nao} NÃO</span>` : ''})</div>
       ${Object.entries(by).map(([k, v]) => `<label style="display:flex;gap:6px;align-items:center;margin:2px 0"><input type="checkbox" data-t="${k}" ${this.hidden.has(k) ? '' : 'checked'}><b style="display:inline-block;width:16px;text-align:center">${(TYPE_INFO[k] || ['?'])[0]}</b> ${(TYPE_INFO[k] || [, k])[1]}: ${v.n}${v.nao ? ` <span style="color:#dc2626">(${v.nao} NÃO)</span>` : ''}</label>`).join('')}
+      <label style="display:flex;gap:6px;align-items:center;margin:6px 0 2px;border-top:1px solid var(--border,#334);padding-top:6px"><input type="checkbox" id="conn3d-geom" ${this.geomOn ? 'checked' : ''}> Peças (geometria simplificada)</label>
       <div style="display:flex;gap:6px;margin-top:6px">${this.onTable ? '<button id="conn3d-tab" style="flex:1">Tabela</button>' : ''}<button id="conn3d-off" style="flex:1">Ocultar</button></div>
-      <div style="opacity:.7;margin-top:4px;font-size:11px">clique num marcador para ver a ligação</div>`;
+      <div style="opacity:.7;margin-top:4px;font-size:11px">clique num marcador para ver a ligação · peças só para visualização (sem enrijecedores, recortes e arruelas)</div>`;
     (this.vp.container || this.vp._renderer.domElement.parentElement).appendChild(box);
     box.querySelectorAll('[data-t]').forEach((cb) => cb.addEventListener('change', () => {
       if (cb.checked) this.hidden.delete(cb.dataset.t); else this.hidden.add(cb.dataset.t);
       for (const s of this.sprites) s.visible = !this.hidden.has(s.userData.conn.tipo);
+      this._geometry();
       this.vp._needsRender = true;
     }));
+    box.querySelector('#conn3d-geom').addEventListener('change', (ev) => { this.geomOn = ev.target.checked; this._geometry(); this.vp._needsRender = true; });
     box.querySelector('#conn3d-off').onclick = () => this.clear();
     box.querySelector('#conn3d-tab')?.addEventListener('click', () => this.onTable?.());
   }
   clear(removeLegend = true) {
     for (const s of this.sprites) { this.vp._scene.remove(s); s.material.dispose(); }
     this.sprites = [];
+    for (const m of this.meshes) { this.vp._scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+    this.meshes = [];
     if (removeLegend) {
       document.getElementById('conn3d-legend')?.remove();
       const el = this.vp._renderer?.domElement;
