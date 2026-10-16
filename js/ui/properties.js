@@ -3022,6 +3022,7 @@ export class PropertiesPanel {
         ${(() => { const u = this.app.model.sectionUsage(sec.id);
           return `<p class="panel-hint" style="margin:6px 0 0">${u.count ? `${i18n.t('En uso')}: ${u.count} ${i18n.t('barra(s)')} · L = ${u.length.toFixed(2).replace('.', ',')} m · ${i18n.t('masa')} = ${u.mass.toFixed(1).replace('.', ',')} kg` : i18n.t('Sin uso en el modelo.')}</p>`; })()}
         <div class="card-actions">
+          ${this.app.model.sectionUsage(sec.id).count ? `<button class="btn-secondary btn-sel-sec" style="flex:1;" title="${esc(i18n.t('Selecciona en la vista todas las barras con esta sección (para cambiar sección, material, capa o β en lote)'))}">${i18n.t('Seleccionar barras')}</button>` : ''}
           <button class="btn-danger btn-del-sec" style="flex:1;" ${this.app.model.sectionUsage(sec.id).count ? `disabled title="${esc(i18n.t('Sección en uso: cambie la sección de esas barras antes de eliminarla'))}"` : ''}>Eliminar</button>
         </div>
       </div>
@@ -3069,6 +3070,11 @@ export class PropertiesPanel {
         this.app.markDirty();
         this.app.toast(i18n.t('Modificador de sección aplicado — recalcule el análisis (F5)'), 'ok');
       });
+    });
+    card.querySelector('.btn-sel-sec')?.addEventListener('click', () => {
+      const ids = [...this.app.model.elements.values()].filter(e => e.secId === sec.id).map(e => e.id);
+      this.app._reselect(ids);
+      this.app.toast(`${ids.length} ${i18n.t('barra(s) seleccionada(s)')} — ${i18n.t('acciones en lote en la pestaña Barras')}`, 'ok');
     });
     card.querySelector('.btn-del-sec').addEventListener('click', () => {
       const res = this.app.model.removeSection(sec.id);

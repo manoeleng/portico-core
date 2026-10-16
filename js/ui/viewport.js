@@ -1761,7 +1761,8 @@ export class Viewport {
   }
 
   _pickNodes() {
-    const pool = this._nodePickList();
+    // node markers hidden by the solid 3D view (material.visible = false) are not pickable: there the click goes to the members
+    const pool = this._nodePickList().filter(m => !(m.isSprite && m.material?.visible === false));
     const hits = this._raycaster.intersectObjects(pool);
     if (hits.length) return hits;
     const rect = this._renderer.domElement.getBoundingClientRect();
@@ -1784,7 +1785,7 @@ export class Viewport {
   _hoverUpdate(e = null) {
     const prev = this._hovered;
     const nodeHits = this._pickNodes();
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
+    const elemHits = this._raycaster.intersectObjects(this._elemPickTargets(), false);
     const diaPlanes = [...this._diaGroups.values()]
       .map(g => g.children.find(c => c.userData.type === 'diaphragm')).filter(Boolean);
     const cmSpheres = [...this._diaGroups.values()]
@@ -1912,7 +1913,7 @@ export class Viewport {
 
   _clickSelect(ctrlHeld = false) {
     const nodeHits = this._pickNodes();
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
+    const elemHits = this._raycaster.intersectObjects(this._elemPickTargets(), false);
     const diaPlanes = [...this._diaGroups.values()]
       .map(g => g.children.find(c => c.userData.type === 'diaphragm')).filter(Boolean);
     const cmSpheres = [...this._diaGroups.values()]
@@ -2431,14 +2432,15 @@ export class Viewport {
     }
     // Elements: both endpoints inside the box.
     for (const [id, line] of this._elemLines) {
-      if (!line.visible || line.userData.locked) continue;
+      if ((!line.visible && !(this._showExtruded && this._extrudedByElem?.has(id))) || line.userData.locked) continue;
       const el = this.app.model.elements.get(id); if (!el) continue;
+      if (this._hiddenElems.has(id) || !elemShown(this.app.model, el)) continue;
       const n1 = this.app.model.nodes.get(el.n1), n2 = this.app.model.nodes.get(el.n2);
       if (!n1 || !n2) continue;
       const [a, b1] = toScreen(this.m2t(n1.x, n1.y, n1.z));
       const [c, d]  = toScreen(this.m2t(n2.x, n2.y, n2.z));
       if (inBox(a, b1) && inBox(c, d) && !this._selected.has(`elem:${id}`)) {
-        this._selected.add(`elem:${id}`); this._elemLines.get(id).material.color.set(COL.ELEM_SEL);
+        this._selected.add(`elem:${id}`); this._setColor('elem', id, null, COL.ELEM_SEL);
       }
     }
     const n = this._selected.size;
@@ -2552,6 +2554,21 @@ export class Viewport {
   }
 
   // ── Color helpers ──────────────────────────────────────────────────────────
+  // Members that can be picked: the wire lines, or — in the solid 3D view, where the lines are hidden — the extruded
+  // profiles (userData { type:'elem', id }), skipping hidden / locked / filtered-out members.
+  _elemPickTargets() {
+    const out = [...this._elemLines.values()].filter(l => l.visible && !l.userData.locked);
+    if (this._showExtruded && this._extrudedByElem) {
+      const model = this.app.model;
+      for (const [id, mesh] of this._extrudedByElem) {
+        const el = model.elements.get(id), line = this._elemLines.get(id);
+        if (!el || !mesh.visible || line?.userData.locked || this._hiddenElems.has(id) || !elemShown(model, el)) continue;
+        out.push(mesh);
+      }
+    }
+    return out;
+  }
+
   _setColor(type, id, nc, ec) {
     if (type === 'area') { this._setAreaHL(id, ec ?? COL.AREA_SEL); return; }
     if (type === 'node') {
@@ -2560,6 +2577,8 @@ export class Viewport {
     } else {
       const l = this._elemLines.get(id);
       if (l && ec != null) l.material.color.set(ec);
+      const m = this._extrudedByElem?.get(id);                 // solid 3D view: tint the profile
+      if (m && ec != null) m.material.emissive?.set(ec).multiplyScalar(0.6);
     }
   }
 
@@ -2571,6 +2590,7 @@ export class Viewport {
     } else {
       const el = this.app.model.elements.get(id);
       this._setColor('elem', id, null, el ? this._elemBaseColor(el) : COL.ELEM);
+      this._extrudedByElem?.get(id)?.material.emissive?.set(0x000000);
     }
   }
 
@@ -3450,7 +3470,7 @@ export class Viewport {
 
   _clickResults(e) {
     const nodeHits = this._pickNodes();   // magnet, includes the deformed markers (#38)
-    const elemHits = this._raycaster.intersectObjects([...this._elemLines.values()].filter(l => l.visible && !l.userData.locked));
+    const elemHits = this._raycaster.intersectObjects(this._elemPickTargets(), false);
     const areaHits = this._raycaster.intersectObjects(this._areaFills());
 
     const showNode = () => { if (this._results) this._showNodeInspector(nodeHits[0].object.userData.id, e.clientX, e.clientY); };
@@ -3944,6 +3964,7 @@ export class Viewport {
     // Remove previous extrusions
     for (const obj of (this._extrudedObjects || [])) this._scene.remove(obj);
     this._extrudedObjects = [];
+    this._extrudedByElem = new Map();      // elem id → extruded mesh (picking and highlight in the solid view)
 
     // Restore line visibility
     for (const [, line] of this._elemLines) line.visible = true;
@@ -4006,8 +4027,11 @@ export class Viewport {
       const oy = +elem.offset?.y || 0, oz = +elem.offset?.z || 0;
       mesh.position.copy(this.m2t(n1.x + oy * la.ey[0] + oz * la.ez[0], n1.y + oy * la.ey[1] + oz * la.ez[1], n1.z + oy * la.ey[2] + oz * la.ez[2]));
 
+      mesh.userData = { type: 'elem', id: elem.id };
+      if (this._selected.has(`elem:${elem.id}`)) mat.emissive.set(COL.ELEM_SEL).multiplyScalar(0.6);
       this._scene.add(mesh);
       this._extrudedObjects.push(mesh);
+      this._extrudedByElem.set(elem.id, mesh);
 
       // Dim the wire
       const line = this._elemLines.get(elem.id);
