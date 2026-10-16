@@ -94,6 +94,25 @@ const W = Math.max(...P.nodes.map((n) => n.x));
 const girts = [];
 for (const x of [0, W]) for (const z of [3.2, 4.8, 6.4, 8.0]) { const id = byXZ(x, z); if (!id) throw new Error(`sem nó em x=${x} z=${z}`); girts.push(id); }
 for (const id of girts) for (let k = 0; k < NP - 1; k++) add({ n1: nid(k, id), n2: nid(k + 1, id), matId: MAT2, secId: SEC_UE, releases: [...PIN], layer: 3, beta: 90, designExcluded: EXCL });
+// MÃOS-FRANCESAS DAS PERNAS INTERNAS (Manoel, 16/10/2026): the inner legs had no out-of-plane restraint over the full
+// height (Lx = 9,58 m; the girts hold only the outer legs and the hinged lacing does not restrain out of plane) → knee
+// braces from the inner-leg panel point at 5,6 m (the lacing has no inner node at 4,8 m: 4,0 / 5,6 m) to the 4,8 m girt,
+// DLEG = 0,8 m from the frame (45° in plan with the 0,8 m column width), both sides of every frame → inner-leg Lx 5,6 /
+// 3,98 m; L 40x2,25 hinged, like the roof ones; the girt is continuous between them
+{
+  const DLEG = 0.8, xLeg = Math.min(...P.nodes.filter((n) => n.x > 1e-6).map((n) => n.x));
+  for (const [xo, xi] of [[0, xLeg], [W, W - xLeg]]) {
+    const gid = byXZ(xo, 4.8), lid = byXZ(xi, 5.6); if (!gid || !lid) throw new Error('nó da perna/longarina a 4,8 m');
+    for (let k = 0; k < NP - 1; k++) {
+      const e = out.elements.find((x) => x.layer === 3 && x.n1 === nid(k, gid) && x.n2 === nid(k + 1, gid));
+      const A = newNode(xo, k * DY + DLEG, 4.8), B = newNode(xo, (k + 1) * DY - DLEG, 4.8);
+      add({ ...e, n1: A, n2: B, releases: Array(12).fill(0) }); add({ ...e, n1: B, n2: nid(k + 1, gid), releases: [...PIN_J] });
+      e.n2 = A; e.releases = [...PIN_I];
+      add({ n1: nid(k, lid), n2: A, matId: MAT2, secId: SEC_MF, releases: [...PIN], layer: 5, beta: 0, designExcluded: EXCL });
+      add({ n1: nid(k + 1, lid), n2: B, matId: MAT2, secId: SEC_MF, releases: [...PIN], layer: 5, beta: 0, designExcluded: EXCL });
+    }
+  }
+}
 // bracing (tension-only rods) in alternate bays 1, 3, 5, 7 (Manoel, 16/10/2026: "geralmente alternado, para manter os
 // banzos travados") — roof and walls
 const rod = (a, b) => add({ n1: a, n2: b, matId: MAT_ROD, secId: SEC_ROD, releases: [...PIN], layer: 4, beta: 0, cable: true, designExcluded: EXCL });

@@ -37,7 +37,8 @@ const sec = [...m3.elements.values()].filter((e) => e.layer > 1);
 const atFrame = (e, o) => (o ? e.n2 : e.n1) < 100000;
 ok(sec.every((e) => e.designExcluded && [0, 6].every((o) => !atFrame(e, o) || (e.releases[o + 4] && e.releases[o + 5]))), 'secundárias rotuladas nos pórticos e fora do dimensionamento');
 const mf = sec.filter((e) => e.layer === 5);
-ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && e.releases[10] && e.releases[11]), `mãos-francesas: 7 linhas × 7 vãos × 2 (V) = ${mf.length}, rotuladas`);
+// roof: 7 purlin lines × 7 bays × 2 (V); inner legs (Manoel, 16/10/2026): 2 columns × 7 bays × 2 ends, panel point 5,6 m → 4,8 m girt
+ok(mf.length === 2 * 7 * 7 + 2 * 7 * 2 && mf.every((e) => e.releases[4] && e.releases[5] && e.releases[10] && e.releases[11]), `mãos-francesas: 98 da cobertura + 28 das pernas internas = ${mf.length}, rotuladas`);
 { // 45°: from the bottom chord to the purlin 1,5 m away from the frame (truss depth 1,5 m)
   const e = mf[0], a = m3.nodes.get(e.n1), b = m3.nodes.get(e.n2);
   near(Math.abs(b.y - a.y), 1.5, 1e-9, 'mão-francesa encontra a terça a 1,5 m do pórtico'); near(Math.abs(b.z - a.z), 1.5, 0.01, 'altura 1,5 m (45°)');
@@ -51,6 +52,10 @@ ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && 
   const topc = [...m2.elements.values()].filter((e) => [e.n1, e.n2].every((n) => n % 2 === 1 && n >= 31 && n <= 59)).map((e) => ub.get(3 * E0 + e.id).Lx);
   ok(bot.length && Math.max(...bot) <= 3.4476 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo inferior (maior vão entre MF 9,55–13,0 m, medido no banzo inclinado): Lx fora do plano máx ${Math.max(...bot).toFixed(2)} m (MF)`);
   ok(topc.length && Math.max(...topc) <= 1.8556 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo superior (maior vão entre terças, junto à cumeeira): Lx fora do plano máx ${Math.max(...topc).toFixed(2)} m (terças)`);
+  // inner legs: out of plane held at 5,6 m by the knee braces → 5,6 (base) and 3,98 m (to the top chord, 9,58 m)
+  const xIn = [...m2.nodes.values()].filter((n) => n.x > 1e-6).reduce((a, n) => Math.min(a, n.x), Infinity);
+  const legIn = [...m2.elements.values()].filter((e) => /pernas/.test(m2.sections.get(e.secId).name) && [e.n1, e.n2].every((n) => Math.abs(m2.nodes.get(n).x - xIn) < 1e-6)).map((e) => ub.get(3 * E0 + e.id).Lx);
+  ok(legIn.length && Math.max(...legIn) <= 5.6 + 1e-3, `perna interna: Lx fora do plano máx ${Math.max(...legIn).toFixed(2)} m (antes 9,58 m)`);
 }
 // PP × CP (Wanderson Mód. 5 p.61: PP estimado 7 kg/m² + telhas e acessórios 5 kg/m² = 0,12 kN/m²): CP = 5/12 das cargas
 // nodais dele (p.186: 1,15 / 6,33 kN no pórtico plano); PP = peso próprio das barras (secundárias com ρ = 7,85; tirantes
