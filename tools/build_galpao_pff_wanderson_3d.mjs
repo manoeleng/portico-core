@@ -1,7 +1,7 @@
 // build_galpao_pff_wanderson_3d.mjs — node tools/build_galpao_pff_wanderson_3d.mjs
 // Galpão PFF do Wanderson completo em 3D a partir do pórtico plano examples/galpao_pff_wanderson.s3d.
 // 8 pórticos a 6 m (y = 0..42), terças em cada nó carregado do banzo superior, longarinas nas pernas externas a 3,2/4,8/6,4/8,0 m,
-// contraventamento em X (φ12,5, tirante) nos tramos extremos — cobertura (plano do banzo superior) e paredes laterais.
+// contraventamento em X (φ12,5, tirante) em todos os vãos — cobertura (plano do banzo superior) e paredes laterais.
 import fs from 'node:fs';
 const R = new URL('../', import.meta.url).href;
 globalThis.window = globalThis;
@@ -17,7 +17,8 @@ out.planar = false;
 out.nodes = []; out.elements = [];
 out.layers = [{ id: 1, name: 'Pórticos', color: '#64748b', visible: true, locked: false }, { id: 2, name: 'Terças', color: '#0ea5e9', visible: true, locked: false },
   { id: 3, name: 'Longarinas', color: '#22c55e', visible: true, locked: false }, { id: 4, name: 'Contraventamento', color: '#f97316', visible: true, locked: false },
-  { id: 5, name: 'Mãos-francesas', color: '#a855f7', visible: true, locked: false }];
+  { id: 5, name: 'Mãos-francesas', color: '#a855f7', visible: true, locked: false }, { id: 6, name: 'Correntes', color: '#eab308', visible: true, locked: false },
+  { id: 7, name: 'Barras rígidas', color: '#ef4444', visible: true, locked: false }];
 let eid = 0;
 const add = (e) => { out.elements.push({ ...e, id: ++eid }); return eid; };
 for (let k = 0; k < NP; k++) {
@@ -39,10 +40,14 @@ for (const e of out.elements) delete e.frame;
 // p.195/198: (KL)z = 1 600 mm (the panel) for chords and legs → "contenções também impedem a torção" (Lb = Lz = Ly, the
 // in-plane restraint spacing); the program's default (Lb = Lz between the chain ends) would be 13 m on the chords
 for (const e of out.elements) if (e.layer === 1 && /banzos|pernas/.test(P.sections.find((x) => x.id === e.secId)?.name || '')) e.design = { ...(e.design || {}), contencaoTorcao: true };
-// materials: secondary members without self-weight (their weight is already in the nodal CP loads of the frame)
+// materials: secondary members with their own self-weight (PP); in the plane frame their weight is a nodal PP load
 const mat0 = P.materials[0];
 const MAT2 = 3;
-out.materials.push({ ...mat0, id: MAT2, name: 'MR250 (secundárias — peso já nas cargas nodais)', rho: 0 });
+out.materials.push({ ...mat0, id: MAT2, name: 'MR250 (secundárias)' });
+// tension-only rods: self-weight as nodal PP loads (½ at each end, added below) — a distributed load on a pinned rod makes
+// the tension-only iteration of a slightly compressed diagonal flip between slack and active
+const MAT_ROD = 4;
+out.materials.push({ ...mat0, id: MAT_ROD, name: 'MR250 (tirantes — peso próprio como carga nodal no PP)', rho: 0 });
 // sections
 const ue = profileToSection('Ue 150x60x20x2,00');
 const SEC_UE = 7, SEC_ROD = 8;
@@ -51,8 +56,10 @@ const mf = profileToSection('L 40x2,25');
 out.sections.push({ id: 9, name: 'L 40x2,25 (mãos-francesas)', kappay: 0.833, kappaz: 0.833, mod: { A: 1, Iy: 1, Iz: 1, J: 1 }, ...mf, Avy: 0.04 * 0.00225, Avz: 0.04 * 0.00225 });
 const d = 0.0125, A = Math.PI * d * d / 4, I = Math.PI * d ** 4 / 64;
 out.sections.push({ id: SEC_ROD, name: 'Barra redonda φ12,5 (contraventamento)', A, Iz: I, Iy: I, J: 2 * I, Avy: 0.9 * A, Avz: 0.9 * A, kappay: 0.9, kappaz: 0.9, mod: { A: 1, Iy: 1, Iz: 1, J: 1 } });
+const dc = 0.0095, Ac = Math.PI * dc * dc / 4, Ic = Math.PI * dc ** 4 / 64, SEC_COR = 10;
+out.sections.push({ id: SEC_COR, name: 'Barra redonda φ9,5 (correntes)', A: Ac, Iz: Ic, Iy: Ic, J: 2 * Ic, Avy: 0.9 * Ac, Avz: 0.9 * Ac, kappay: 0.9, kappaz: 0.9, mod: { A: 1, Iy: 1, Iz: 1, J: 1 } });
 const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];
-const EXCL = 'barra secundária gerada (terça/longarina/contraventamento): esforços de análise global não são os de dimensionamento — dimensionar à parte (Wanderson não dimensiona neste exemplo)';
+const EXCL = 'barra secundária gerada (terça/longarina/contraventamento/corrente/barra rígida): esforços de análise global não são os de dimensionamento — dimensionar à parte (Wanderson não dimensiona neste exemplo)';
 // purlins: every top-chord node loaded in CP (13, 31..59, 28)
 const cp = P.loadCases.find((l) => l.name === 'CP');
 const purlinNodes = [...new Set(cp.loads.map((l) => l.nodeId))];
@@ -85,23 +92,57 @@ const W = Math.max(...P.nodes.map((n) => n.x));
 const girts = [];
 for (const x of [0, W]) for (const z of [3.2, 4.8, 6.4, 8.0]) { const id = byXZ(x, z); if (!id) throw new Error(`sem nó em x=${x} z=${z}`); girts.push(id); }
 for (const id of girts) for (let k = 0; k < NP - 1; k++) add({ n1: nid(k, id), n2: nid(k + 1, id), matId: MAT2, secId: SEC_UE, releases: [...PIN], layer: 3, beta: 90, designExcluded: EXCL });
-// bracing (tension-only rods) in the end bays (k = 0 and k = NP-2)
-const rod = (a, b) => add({ n1: a, n2: b, matId: MAT2, secId: SEC_ROD, releases: [...PIN], layer: 4, beta: 0, cable: true, designExcluded: EXCL });
+// bracing (tension-only rods) in every bay (Manoel, 16/10/2026: X also in the intermediate bays — roof and walls)
+const rod = (a, b) => add({ n1: a, n2: b, matId: MAT_ROD, secId: SEC_ROD, releases: [...PIN], layer: 4, beta: 0, cable: true, designExcluded: EXCL });
 const topSorted = purlinNodes.map((id) => P.nodes.find((n) => n.id === id)).sort((a, b) => a.x - b.x);
 const half = topSorted.filter((n) => n.x <= W / 2 + 1e-6), mid = half.length - 1;
 // panel limits: every second purlin from each eave to the ridge (ridge always a limit)
 const limsL = []; for (let i = 0; i <= mid; i += 2) limsL.push(i); if (limsL.at(-1) !== mid) limsL.push(mid);
 const lims = [...limsL.map((i) => topSorted[i].id), ...limsL.slice(0, -1).reverse().map((i) => topSorted[topSorted.length - 1 - i].id)];
-for (const k of [0, NP - 2]) {
+for (let k = 0; k < NP - 1; k++) {
   for (let i = 0; i + 1 < lims.length; i++) { rod(nid(k, lims[i]), nid(k + 1, lims[i + 1])); rod(nid(k, lims[i + 1]), nid(k + 1, lims[i])); }
   // walls: up to the EAVE node (9,5 m), where the roof bracing and the eave purlin arrive — stopping at the 8,0 m girt left
   // the 8,0–9,5 m panel without a diagonal (the roof bracing then reached the foundation only through leg bending)
   for (const x of [0, W]) { const b = byXZ(x, 0), t = byXZ(x, 9.5); rod(nid(k, b), nid(k + 1, t)); rod(nid(k, t), nid(k + 1, b)); }
 }
+// CORRENTES and BARRAS RÍGIDAS — Wanderson, Mód. 5: p.34–35 (linha de corrente no meio do vão das terças, do beiral à
+// cumeeira, "reduz o vão à flexão oblíqua"; barra rígida entre as duas terças de cima e tirantes inclinados até a terça
+// de cima nos pórticos), p.37 (longarinas: corrente vertical no meio do vão, barra rígida entre as duas longarinas de cima
+// e tirantes inclinados até os pilares) and p.57/59 (one line per bay, typical). Sections: correntes φ9,5 (Mód. 6 p.70,
+// lista de materiais), tension-only; barra rígida "em cantoneira ou outro perfil leve" (p.37) → L 40x2,25 adopted.
+// Two slopes: the ridge purlin takes a barra rígida from each neighbouring purlin and the inclined rods run from those
+// purlins to the ridge purlin at the frames. Walls: the eave purlin (9,5 m) is the top member, the 8,0 m girt the second.
+// Purlins and girts are split at mid-span (continuous there, still hinged at the frames).
+const SEC_L = 9, nodeAt = new Map(out.nodes.map((n) => [n.id, n]));
+const midNode = (line, k) => {
+  const y = k * DY + DY / 2, e = out.elements.find((x) => (x.layer === 2 || x.layer === 3) && [x.n1, x.n2].every((n) => n === nid(k, line) || n === nid(k + 1, line) || n > 100000 && Math.abs(nodeAt.get(n).x - top(line).x) < 1e-9 && Math.abs(nodeAt.get(n).z - top(line).z) < 1e-9)
+    && Math.min(nodeAt.get(x.n1).y, nodeAt.get(x.n2).y) < y - 1e-9 && Math.max(nodeAt.get(x.n1).y, nodeAt.get(x.n2).y) > y + 1e-9);
+  if (!e) throw new Error(`sem terça/longarina na linha ${line}, vão ${k}`);
+  const a = nodeAt.get(e.n1), b = nodeAt.get(e.n2), t = (y - a.y) / (b.y - a.y), M = newNode(a.x + (b.x - a.x) * t, y, a.z + (b.z - a.z) * t);
+  nodeAt.set(M, out.nodes.at(-1));
+  const r = e.releases || Array(12).fill(0);
+  add({ ...e, n1: M, releases: [0, 0, 0, 0, 0, 0, ...r.slice(6)] });
+  e.n2 = M; e.releases = [...r.slice(0, 6), 0, 0, 0, 0, 0, 0];
+  return M;
+};
+const corr = (a, b) => add({ n1: a, n2: b, matId: MAT_ROD, secId: SEC_COR, releases: [...PIN], layer: 6, beta: 0, cable: true, designExcluded: EXCL });
+const rigid = (a, b) => add({ n1: a, n2: b, matId: MAT2, secId: SEC_L, releases: [...PIN], layer: 7, beta: 0, designExcluded: EXCL });
+for (let k = 0; k < NP - 1; k++) {
+  const roofMid = topSorted.map((n) => midNode(n.id, k)), r = mid;                     // r = ridge purlin index
+  for (let i = 0; i + 1 < roofMid.length; i++) (i === r - 1 || i === r ? rigid : corr)(roofMid[i], roofMid[i + 1]);
+  for (const i of [r - 1, r + 1]) { corr(roofMid[i], nid(k, topSorted[r].id)); corr(roofMid[i], nid(k + 1, topSorted[r].id)); }
+  for (const x of [0, W]) {
+    const eave = byXZ(x, 9.5), g = [3.2, 4.8, 6.4, 8.0].map((z) => midNode(byXZ(x, z), k)), top9 = roofMid[x === 0 ? 0 : roofMid.length - 1];
+    if (!purlinNodes.includes(eave)) throw new Error('terça de beiral ausente');
+    for (let i = 0; i + 1 < g.length; i++) corr(g[i], g[i + 1]);
+    rigid(g[3], top9); corr(g[3], nid(k, eave)); corr(g[3], nid(k + 1, eave));
+  }
+}
 // loads: per frame, end frames half
 for (const lc of out.loadCases) {
   const src = P.loadCases.find((l) => l.id === lc.id);
   lc.loads = [];
+  if (lc.name === 'PP') { delete lc.nota; continue; }     // plane PP nodal loads = weight of the purlins/girts, modelled here
   for (let k = 0; k < NP; k++) { const f = (k === 0 || k === NP - 1) ? 0.5 : 1; for (const ld of src.loads) lc.loads.push({ ...ld, nodeId: nid(k, ld.nodeId), F: ld.F.map((v) => v * f) }); }
 }
 // ── WIND: our NBR 6123:2023 engine (assistant/loads.js windLoad, the one of the shed generator) instead of the plane
@@ -200,23 +241,35 @@ for (const { cpi, presiones: Pz } of vi.presiones_por_cpi) {
     }
   }
 }
+// self-weight of the tension-only rods (ρ = 0 in MAT_ROD) as nodal PP loads, ½ at each end
+{
+  const pp = out.loadCases.find((l) => l.name === 'PP'), gk = mat0.rho * 9.80665;
+  for (const e of out.elements) if (e.matId === MAT_ROD) {
+    const a = nodeAt.get(e.n1) || out.nodes.find((n) => n.id === e.n1), b = nodeAt.get(e.n2) || out.nodes.find((n) => n.id === e.n2);
+    const w = gk * out.sections.find((x) => x.id === e.secId).A * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / 2;
+    for (const n of [e.n1, e.n2]) pp.loads.push({ type: 'nodal', nodeId: n, F: [0, 0, -w, 0, 0, 0] });
+  }
+}
 // the plane frame's wind cases (V1–V3) and their combinations are replaced
 const windIds = new Set(P.loadCases.filter((l) => /^V\d/.test(l.name)).map((l) => l.id));
 out.loadCases = [...out.loadCases.filter((l) => !windIds.has(l.id)), ...windCases];
-const cpId = P.loadCases.find((l) => l.name === 'CP').id, scId = P.loadCases.find((l) => l.name === 'SC').id;
-// ELU of the example (pág. 192) per wind case: 1,25CP + 1,5SC; 1,0CP + 1,4V; 1,25CP + 1,5SC + 0,84V; 1,25CP + 1,4V + 1,2SC
-out.combinations = [{ id: 1, name: 'C1 – 1,25CP + 1,5SC', factors: [{ lcId: cpId, factor: 1.25 }, { lcId: scId, factor: 1.5 }] }];
+const id = (nm) => P.loadCases.find((l) => l.name === nm).id, ppId = id('PP'), cpId = id('CP'), scId = id('SC');
+// ELU of the example (pág. 192) per wind case, with PP and CP separate (NBR 8681:2025 Tab. 1, normal: steel self-weight
+// 1,25, industrialized building elements — roof sheeting — 1,30, favourable 1,0): 1,25PP + 1,30CP + 1,5SC;
+// 1,0PP + 1,0CP + 1,4V; 1,25PP + 1,30CP + 1,5SC + 0,84V; 1,25PP + 1,30CP + 1,4V + 1,2SC
+const G = (f1, f2) => [[ppId, f1], [cpId, f2]];
+out.combinations = [{ id: 1, name: 'C1 – 1,25PP + 1,30CP + 1,5SC', factors: [...G(1.25, 1.3), [scId, 1.5]].map(([lcId, factor]) => ({ lcId, factor })) }];
 for (const V of windCases) {
   const v = V.name.replace('Vento ', 'V').replace(/ \(.*Cpi /, '(').replace(')', ')');
-  for (const [nm, f] of [[`1,0CP + 1,4${v}`, [[cpId, 1], [V.id, 1.4]]], [`1,25CP + 1,5SC + 0,84${v}`, [[cpId, 1.25], [scId, 1.5], [V.id, 0.84]]], [`1,25CP + 1,4${v} + 1,2SC`, [[cpId, 1.25], [V.id, 1.4], [scId, 1.2]]]])
+  for (const [nm, f] of [[`1,0PP + 1,0CP + 1,4${v}`, [...G(1, 1), [V.id, 1.4]]], [`1,25PP + 1,30CP + 1,5SC + 0,84${v}`, [...G(1.25, 1.3), [scId, 1.5], [V.id, 0.84]]], [`1,25PP + 1,30CP + 1,4${v} + 1,2SC`, [...G(1.25, 1.3), [V.id, 1.4], [scId, 1.2]]]])
     out.combinations.push({ id: out.combinations.length + 1, name: `C${out.combinations.length + 1} – ${nm}`, factors: f.map(([lcId, factor]) => ({ lcId, factor })) });
 }
 out.windNBR6123 = { ...WIND, q_Nm2: vi.q_Nm2, q_empena_Nm2: vi.q_empena_Nm2, S2: vi.S2, S2_empena: vi.S2_empena, S3: vi.S3, classe: vi.classe, classe_empena: vi.classe_empena,
   x0_m: vi.x0_m, xC1_m: xC1, ea_m: 0.075 * L, eb_m: 0.075 * W, atrito: { Ct: CT, h_m: hFr, l2_menos_4h_m: Lfr },
-  gammaG: 'γg = 1,25 do exemplo (peso próprio de aço, NBR 8681 Tab. 1); com telhas e instalações no CP, 1,35 agrupado (Tab. 2) para o projeto real', cpe_paredes: vi.cpe_paredes, cpe_telhado: vi.cpe_telhado, presiones_por_cpi: vi.presiones_por_cpi, notas: vi._notas,
+  gammaG: 'PP e CP separados (NBR 8681:2025 Tab. 1, normal): peso próprio de aço 1,25; telhas e acessórios (elementos construtivos industrializados) 1,30; favorável 1,0', cpe_paredes: vi.cpe_paredes, cpe_telhado: vi.cpe_telhado, presiones_por_cpi: vi.presiones_por_cpi, notas: vi._notas,
   fonte: 'motor NBR 6123:2023 do PORTICO (assistant/loads.js windLoad); V0 do Wanderson (Mód. 6 p.183), categoria IV / grupo 3 inferidos do q = 0,35 kN/m² do exemplo (NBR 6123:1988)' };
-// self-weight: CP keeps selfWeight (frame members MR250, secondary members rho = 0)
-out._counters = { ...out._counters, nodes: Math.max(...out.nodes.map((n) => n.id)), elements: eid, materials: MAT2, sections: 9, layers: 5 };
+// self-weight: PP (frame and secondary members, ρ = 7,85 t/m³); CP = roof sheeting + accessories (nodal)
+out._counters = { ...out._counters, nodes: Math.max(...out.nodes.map((n) => n.id)), elements: eid, materials: MAT_ROD, sections: SEC_COR, layers: 7 };
 out.activeLayer = 1;
 out.layerView = null;
 fs.writeFileSync(new URL('examples/galpao_pff_wanderson_3d.s3d', R), JSON.stringify(out));

@@ -15,7 +15,10 @@ const m2 = rd('galpao_pff_wanderson.s3d'), m3 = rd('galpao_pff_wanderson_3d.s3d'
 const nFr = [...m3.nodes.keys()].filter((id) => id < 100000).length;
 ok(nFr === 8 * m2.nodes.size && !m3.planar, `oito pórticos, modelo espacial (${nFr} nós dos pórticos + ${m3.nodes.size - nFr} nós das mãos-francesas nas terças)`);
 const E0 = m2.elements.size, SC = [...m2.loadCases.values()].find((l) => l.name === 'SC').id;
-const r2 = new StaticSolver().solve(m2, SC, false), r3 = new StaticSolver().solve(m3, SC, false);
+// X in every bay (Manoel, 16/10/2026) ties the frames longitudinally (ΔN ≈ 3 % in the interior frame): the plane-frame
+// equivalence is checked on a copy without the X (layer 4) — the premise of this oracle
+const m3x = rd('galpao_pff_wanderson_3d.s3d'); for (const e of [...m3x.elements.values()]) if (e.layer === 4) m3x.elements.delete(e.id);
+const r2 = new StaticSolver().solve(m2, SC, false), r3 = new StaticSolver().solve(m3x, SC, false);
 let worst = 0, Nmax = 0;
 for (const e of m2.elements.values()) {
   const a = r2.getElemForces(e.id).N, b = r3.getElemForces(3 * E0 + e.id).N;   // pórtico 4 (interno)
@@ -49,9 +52,32 @@ ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && 
   ok(bot.length && Math.max(...bot) <= 3.4476 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo inferior (maior vão entre MF 9,55–13,0 m, medido no banzo inclinado): Lx fora do plano máx ${Math.max(...bot).toFixed(2)} m (MF)`);
   ok(topc.length && Math.max(...topc) <= 1.8556 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo superior (maior vão entre terças, junto à cumeeira): Lx fora do plano máx ${Math.max(...topc).toFixed(2)} m (terças)`);
 }
-ok(sec.every((e) => m3.materials.get(e.matId).rho === 0), 'secundárias sem peso próprio (já nas cargas nodais do pórtico)');
-ok(sec.filter((e) => e.cable).length === 2 * (2 * 8 + 2 * 2), 'X na cobertura (8 painéis) e nas duas paredes, nos dois tramos extremos');
-ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 28].includes(n % 1000)) && [e.n1, e.n2].some((n) => [1, 16].includes(n % 1000))).length === 8, 'X das paredes da base ao beiral (9,5 m)');
+// PP × CP (Wanderson Mód. 5 p.61: PP estimado 7 kg/m² + telhas e acessórios 5 kg/m² = 0,12 kN/m²): CP = 5/12 das cargas
+// nodais dele (p.186: 1,15 / 6,33 kN no pórtico plano); PP = peso próprio das barras (secundárias com ρ = 7,85; tirantes
+// com ρ = 0 e o peso ρ·A·g·L como cargas nodais, ½ em cada nó)
+{
+  const lc = (nm) => [...m3.loadCases.values()].find((l) => l.name === nm), cp2 = [...m2.loadCases.values()].find((l) => l.name === 'CP');
+  near(cp2.loads[0].F[2], -6.33 * 5 / 12, 1e-6, 'CP do pórtico plano no beiral = 5/12 × 6,33'); near(cp2.loads[1].F[2], -1.15 * 5 / 12, 1e-6, 'CP nó intermediário = 5/12 × 1,15');
+  ok(!cp2.selfWeight && lc('PP').selfWeight && !lc('CP').selfWeight, 'peso próprio só no caso PP');
+  ok(sec.every((e) => m3.materials.get(e.matId).rho === (e.cable ? 0 : 7.85)), 'secundárias com peso próprio; tirantes com ρ = 0 (peso nodal no PP)');
+  let wr = 0; for (const e of sec.filter((x) => x.cable)) { const a = m3.nodes.get(e.n1), b = m3.nodes.get(e.n2); wr += 7.85 * 9.80665 * m3.sections.get(e.secId).A * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
+  near(lc('PP').loads.reduce((a, l) => a + l.F[2], 0), -wr, 1e-9, `peso dos tirantes no PP (${wr.toFixed(3)} kN)`);
+  const c1 = m3.combinations.get(1), fct = (c, id) => c.factors.find((x) => x.lcId === id)?.factor;
+  ok(fct(c1, lc('PP').id) === 1.25 && fct(c1, lc('CP').id) === 1.3, 'NBR 8681:2025 Tab. 1: 1,25 PP (aço) e 1,30 CP (industrializados)');
+  ok([...m3.combinations.values()].every((c) => c.factors.find((x) => x.lcId === lc('SC').id) || (fct(c, lc('PP').id) === 1 && fct(c, lc('CP').id) === 1 && c.factors.length === 3 && c.factors.some((x) => x.factor === 1.4 && /^Vento/.test(m3.loadCases.get(x.lcId).name)))), 'sem SC (vento de sucção): PP e CP favoráveis 1,0 e vento 1,4');
+}
+ok(sec.filter((e) => e.layer === 4).length === 7 * (2 * 8 + 2 * 2) && sec.filter((e) => e.layer === 4).every((e) => e.cable), 'X na cobertura (8 painéis) e nas duas paredes, em todos os 7 vãos');
+// correntes φ9,5 (tirantes) no meio de cada vão e barras rígidas (Mód. 5 p.34/37): telhado 14 trechos + 4 inclinados à
+// cumeeira, cada parede 3 trechos + 2 inclinados ao beiral; barras rígidas: 2 junto à cumeeira + 1 em cada parede, por vão
+{
+  const cor = sec.filter((e) => e.layer === 6), rig = sec.filter((e) => e.layer === 7);
+  ok(cor.length === 7 * (14 + 4 + 2 * 5) && cor.every((e) => e.cable && /φ9,5/.test(m3.sections.get(e.secId).name)), `correntes: ${cor.length} tirantes φ9,5`);
+  ok(rig.length === 7 * 4 && rig.every((e) => !e.cable && /L 40x2,25/.test(m3.sections.get(e.secId).name)), `barras rígidas: ${rig.length} L 40x2,25`);
+  ok(cor.concat(rig).every((e) => [e.n1, e.n2].some((n) => n > 100000 && Math.abs(m3.nodes.get(n).y % 6 - 3) < 1e-9)), 'correntes e barras rígidas partem do meio do vão');
+  const midP = [...m3.nodes.values()].filter((n) => n.id > 100000 && Math.abs(n.y % 6 - 3) < 1e-9);
+  ok(midP.length === 7 * 25 && midP.every((n) => sec.filter((e) => (e.layer === 2 || e.layer === 3) && (e.n1 === n.id || e.n2 === n.id)).every((e) => !e.releases[e.n1 === n.id ? 4 : 10])), 'terças e longarinas contínuas no meio do vão (17 + 8 linhas × 7 vãos)');
+}
+ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 28].includes(n % 1000)) && [e.n1, e.n2].some((n) => [1, 16].includes(n % 1000))).length === 7 * 2 * 2, 'X das paredes da base ao beiral (9,5 m), 7 vãos × 2 paredes');
 // wind of our NBR 6123:2023 engine (windNBR6123): resultants by hand — walls 3,0–9,5 m (h = 6,5 m) × L = 42 m, roof
 // horizontal projection 13 m per slope, rise 1,3 m, gables 26 × 6,5 + 26 × 1,3 / 2 m²; p = q·(Cpe − Cpi), N/m² → kN
 {
