@@ -2193,7 +2193,7 @@ export class PropertiesPanel {
         ${(() => {
           // built-up member (2L / 2U / 2Ue costas): spacing of the presilhas, NBR 14762:2010 9.7.5 (js/design/codes/nbr14762.js)
           const cfp = model.sections.get(elem.secId)?.design?.cfProps;
-          if (!(/^2(L|U|Ue)$/.test(cfp?.shape || '') && cfp?.arr === 'costas')) return '';
+          if (!(/^2(L|U|Ue)$/.test(cfp?.shape || '') && (cfp?.arr === 'costas' || (cfp?.shape === '2L' && cfp?.arr === 'U')))) return '';
           const ps = dsg.presilhas || {}, tp = ps.tipo || 'presilha';
           const opt = (v, l) => `<option value="${v}" ${tp === v ? 'selected' : ''}>${l}</option>`;
           return `<div class="prop-row cols2" title="${esc(i18n.t('Barra composta (NBR 14762:2010 9.7.5): cada perfil entre presilhas deve ter λ1 = l1/r1 < 0,5·λmáx do conjunto (presilhas) ou < λmáx (travejamento em treliça). Sem l1, a compressão usa só o perfil isolado (2 × resistência de um perfil).'))}">
@@ -3137,7 +3137,7 @@ export class PropertiesPanel {
             <datalist id="sdc-base-list"></datalist>
           </div>
           <div class="prop-row" style="gap:4px;align-items:flex-end">
-            <div class="prop-field"><label>${i18n.t('Disposición')}</label><select class="sdc-arr"><option value="costas">${i18n.t('espalda con espalda')}</option><option value="caixa">${i18n.t('cajón')}</option></select></div>
+            <div class="prop-field"><label>${i18n.t('Disposición')}</label><select class="sdc-arr"><option value="costas">${i18n.t('espalda con espalda')} (2L: T)</option><option value="U">${i18n.t('2L en U (alas hacia adentro)')}</option><option value="caixa">${i18n.t('cajón')} (2U/2Ue)</option></select></div>
             <div class="prop-field"><label>${i18n.t('Separación g (mm)')}</label><input type="number" class="sdc-gap" value="8" min="0" step="1"></div>
             <button class="btn-secondary sdc-go" type="button" style="font-size:11px">${i18n.t('Aplicar')}</button>
           </div>
@@ -3205,7 +3205,8 @@ export class PropertiesPanel {
       kind.addEventListener('change', fillBase); fillBase();
       card.querySelector('.sdc-go').addEventListener('click', () => {
         const k = kind.value, b = base.value.trim(), arr = card.querySelector('.sdc-arr').value, g = Math.max(0, parseFloat(card.querySelector('.sdc-gap').value) || 0);
-        if (k === '2L' && arr === 'caixa') { this.app.toast(i18n.t('2L: solo espalda con espalda'), 'warn'); return; }
+        if (k === '2L' && arr === 'caixa') { this.app.toast(i18n.t('2L: espalda con espalda (T) o en U'), 'warn'); return; }
+        if (k !== '2L' && arr === 'U') { this.app.toast(i18n.t('En U: solo para 2L (2U/2Ue: espalda con espalda o cajón)'), 'warn'); return; }
         const tail = b.replace(/^(Ue|U|L)\s*/i, '');
         apply(`${k} ${tail} ${arr}${g ? ' g' + String(g).replace('.', ',') : ''}`);
       });

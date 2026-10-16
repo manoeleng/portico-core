@@ -766,7 +766,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
 
 export const nbr14762 = {
   id: 'NBR14762:2010', family: 'steel', label: 'ABNT NBR 14762:2010 (formados a frio)',
-  check: (input) => (/^2(L|U|Ue)$/.test(input?.sec?.shape) && input.sec.arr === 'costas' ? checkComposite14762(input) : checkNBR14762(input)),
+  check: (input) => (/^2(L|U|Ue)$/.test(input?.sec?.shape) && (input.sec.arr === 'costas' || (input.sec.shape === '2L' && input.sec.arr === 'U'))
+    ? checkComposite14762(input) : checkNBR14762(input)),
 };
 
 // ── BUILT-UP members "costas" (composite_cf.js: 2L, 2U, 2Ue) — 9.7.5, 9.6.3, 9.8.6 ──────────────────────────────────
@@ -780,6 +781,7 @@ export const nbr14762 = {
 //    J = 2·J1 (AISC 360-16 E4 a, double angles: Fez = GJ/(Ag·r0²)). The apostila keeps only the flexural mode about x
 //    (no Steiner); the flexural-torsional mode is required by 9.7.2.2 for a monosymmetric section and governs short
 //    members. Nc,Rd = max(2 × isolated; composite). Talas: not covered by the NBR 14762 (EN 1993-1-1) → isolated only.
+//  • 2L "U" (legs pointing inward): 2 × isolated only (E4 a covers back-to-back angles), 9.7.5 still applies.
 //  • 2U / 2Ue: the composite I needs its Cw (flexural-torsional, FLT): LACUNA → 2 × isolated only. My (about the
 //    vertical axis): each profile about its own weak axis with My/2, both senses (no composite action).
 //    9.8.6 connection spacing smax = 2·g·FRd/(m·q) ≤ L/6, checked only with member.conexao = { s, g [m], FRd [kN], q [kN/m] };
@@ -827,7 +829,8 @@ function checkComposite14762(input) {
   } else if (N > 0 && l1 != null && l1 / r1 > 300) av.push(`Tração: l1/r1 = ${f2(l1 / r1, 0)} > 300 — recomenda-se ≤ 300 para cada perfil componente (9.6.3).`);
 
   // 2L composite section in compression
-  if (kind === '2L' && N < 0 && ok975 && !semLc && r.axial && r.axial.verificado !== false && base.I1 > 0) {
+  if (kind === '2L' && sec.arr === 'U' && N < 0) av.push('2L em U: seção composta NÃO considerada (a flexo-torção com Cw = 0 do AISC 360-16 E4 é para cantoneiras de costas) — vale 2 × perfil isolado.');
+  if (kind === '2L' && sec.arr === 'costas' && N < 0 && ok975 && !semLc && r.axial && r.axial.verificado !== false && base.I1 > 0) {
     const t = base.dims.t * 100, ri = (base.dims.ri ?? base.dims.t) * 100, b = base.dims.b * 100 - (t + ri);
     const A = sec.A * 1e4, Iz = sec.Iz * 1e8, Iy = sec.Iy * 1e8, J = sec.J * 1e8;
     const y0 = base.xg * 100 - t / 2, r0 = Math.sqrt(rz * rz + ry * ry + y0 * y0);

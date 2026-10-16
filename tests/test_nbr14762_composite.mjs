@@ -91,5 +91,14 @@ yes('C4c. s = 0,25 > smax → flexão não verificada', r.flexaoX.verificado ===
 // caixa → LACUNA na compressão
 r = nbr14762.check({ demands: { N: -10 }, mat: mat24, sec: compositeSection('2Ue', 'Ue 100x50x17x2,00', 'caixa', 0), member: { L: 1, Lx: 1, Ly: 1, Lz: 1 } });
 yes('C5. caixa: compressão NÃO verificada (LACUNA)', r.axial.verificado === false && /caixa/.test(r.axial.motivo));
+// U — 2L em U (abas horizontais para dentro, g = 10 mm entre as pontas): Steiner d = b − xg + g/2 = 4,0 − 1,10 + 0,5 = 3,40 cm
+//     Iy = 2·(2,71 + 1,72·3,40²) = 45,186 cm⁴; Iz = 2·2,71 = 5,42; J = 2·J1 (aberta); compressão = 2 × isolada (KL 122: 19,97)
+const s2LU = compositeSection('2L', 'L 40x2,25', 'U', 10);
+ok('U1. 2L em U: Iy = 45,186 cm⁴', s2LU.Iy * 1e8, 2 * (2.71 + 1.72 * 3.40 ** 2), 1e-9);
+ok('U1b. Iz = 5,42 cm⁴', s2LU.Iz * 1e8, 5.42, 1e-9);
+yes('U1c. aberta (J = 2·J1, sem Bredt)', !s2LU.closed && Math.abs(s2LU.J - 2 * L40.J) < 1e-15);
+r = nbr14762.check({ demands: { N: -29.6 }, mat: mat28, sec: s2LU, member: { L: 1.22, Lx: 1.22, Ly: 1.22, Lz: 1.22, presilhas: { l1: 0.25 } } });
+ok('U2. 2L em U, KL 122, l1 ok: Nc,Rd = 2 × isolada = 19,97 kN', r.axial.capacity, 19.966, 2e-3);
+yes('U2b. aviso: composta não considerada em U', r.avisos.some(a => /2L em U/.test(a)));
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

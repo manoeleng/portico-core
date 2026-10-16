@@ -4141,9 +4141,12 @@ export class Viewport {
           : shape === 'cf-2ue' ? [[b, -h / 2 + c], [b, -h / 2], [0, -h / 2], [0, h / 2], [b, h / 2], [b, h / 2 - c]]
           : [[d.bf - t / 2, -h / 2], [0, -h / 2], [0, h / 2], [d.bf - t / 2, h / 2]];
         const w = shape === 'cf-2l' ? d.b - t / 2 : shape === 'cf-2ue' ? b : d.bf - t / 2;   // web-to-tip (mid-line)
-        const sh = d.arr === 'caixa' ? (x) => -(w + t / 2 + g / 2) + x : (x) => g / 2 + t / 2 + x;
+        // caixa (2U/2Ue) and 2L "U": tips facing → the same mirrored placement
+        const tips = d.arr === 'caixa' || d.arr === 'U';
+        // (the lip/flange of a 2U/2Ue has its outer face t/2 beyond the mid-line; the leg tip of an L ends at the mid-line end)
+        const sh = tips ? (x) => -(w + (shape === 'cf-2l' ? 0 : t / 2) + g / 2) + x : (x) => g / 2 + t / 2 + x;
         const right = one.map(([x, y]) => [sh(x), y]), left = right.map(([x, y]) => [-x, y]);
-        if (d.arr === 'caixa') return { outlines: [this._thickenPath(right.map(([x, y]) => [-x, y]), t), this._thickenPath(right, t)] };
+        if (tips) return { outlines: [this._thickenPath(right.map(([x, y]) => [-x, y]), t), this._thickenPath(right, t)] };
         return { outlines: [this._thickenPath(right, t), this._thickenPath(left, t)] };
       }
       if (!mid || !(t > 0)) return null;

@@ -229,6 +229,7 @@ CATALOG['U simples (NBR 6355)'] = Object.fromEntries(cfNames('U').map(n => [n, {
 // Built-up sections from NBR 6355 profiles (composite_cf.js): dupla cantoneira, duplo Ue (costas / caixa), duplo U
 const famComp = (kind, arr, g) => Object.fromEntries(compositeNames(kind, arr, g).map(n => [n, { shape: kind, cf: true, composite: true }]));
 CATALOG['2L costas (NBR 6355, g = 8 mm)'] = famComp('2L', 'costas', 8);
+CATALOG['2L em U (NBR 6355, g = 8 mm)'] = famComp('2L', 'U', 8);
 CATALOG['2Ue costas (NBR 6355)'] = famComp('2Ue', 'costas', 0);
 CATALOG['2Ue caixa (NBR 6355)'] = famComp('2Ue', 'caixa', 0);
 CATALOG['2U costas (NBR 6355)'] = famComp('2U', 'costas', 0);

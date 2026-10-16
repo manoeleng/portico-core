@@ -1,7 +1,9 @@
 // composite_cf.js — BUILT-UP cold-formed sections from the NBR 6355:2012 catalogue (profiles_cf.js): two equal profiles
 // connected along their length (presilhas / continuous weld).
 //
-//   2L costas  — two equal-leg angles back to back (vertical legs facing, gap g = presilha thickness): ⅃L
+//   2L costas  — two equal-leg angles back to back (vertical legs facing, gap g = presilha thickness): ⅃L — "T"
+//   2L U       — two equal-leg angles with the horizontal legs pointing to each other (gap g between the leg tips,
+//                vertical legs at the outer edges): L⅃ — "U". Same Steiner as caixa: d = (b − xg) + g/2; always open.
 //   2Ue costas — two Ue back to back (webs facing, gap g): I-shaped
 //   2Ue caixa  — two Ue with the lips facing (gap g between the lip tips; g = 0 → lips touching): box
 //   2U costas / 2U caixa — the same with the plain channel (when the U simples catalogue is loaded)
@@ -17,7 +19,7 @@
 import { cfProfile, cfNames } from './profiles_cf.js?v=7';
 
 export const ARRANGEMENTS = {
-  '2L': ['costas'],
+  '2L': ['costas', 'U'],
   '2Ue': ['costas', 'caixa'],
   '2U': ['costas', 'caixa'],
 };
@@ -28,7 +30,7 @@ export function compositeName(kind, baseName, arr, gapMm = 0) {
   return `${kind} ${tail} ${arr}${gapMm ? ` g${String(gapMm).replace('.', ',')}` : ''}`;
 }
 export function parseCompositeName(name) {
-  const m = /^(2L|2Ue|2U)\s+(\S+)\s+(costas|caixa)(?:\s+g([\d,.]+))?$/.exec(String(name || '').trim());
+  const m = /^(2L|2Ue|2U)\s+(\S+)\s+(costas|caixa|U)(?:\s+g([\d,.]+))?$/.exec(String(name || '').trim());
   if (!m) return null;
   const prefix = m[1] === '2L' ? 'L' : m[1] === '2Ue' ? 'Ue' : 'U';
   return { kind: m[1], base: `${prefix} ${m[2]}`, arr: m[3], gapMm: m[4] ? parseFloat(m[4].replace(',', '.')) : 0 };
