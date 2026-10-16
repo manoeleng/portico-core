@@ -2190,6 +2190,19 @@ export class PropertiesPanel {
           <input type="checkbox" id="e-fl-tors" ${tors ? 'checked' : ''}> ${i18n.t('Contenções também impedem a torção (Lb = Lz = Ly)')}
         </label>
         <p class="panel-hint" style="margin:4px 0 0">${ub ? `${i18n.t('Automático')}: Lx ${f2(ub.Lx)} · Ly ${f2(ub.Ly)} · Lb ${f2(auto.Lb)} m — ${i18n.t('barra física de')} ${ub.chain.length} ${i18n.t('trecho(s)')}, ${f2(ub.chainL)} m${ub.freeEnd ? ` · ⚠ ${i18n.t('extremidade livre (balanço): informe Lx/Ly')}` : ''}` : ''}</p>
+        ${(() => {
+          // built-up member (2L / 2U / 2Ue costas): spacing of the presilhas, NBR 14762:2010 9.7.5 (js/design/codes/nbr14762.js)
+          const cfp = model.sections.get(elem.secId)?.design?.cfProps;
+          if (!(/^2(L|U|Ue)$/.test(cfp?.shape || '') && cfp?.arr === 'costas')) return '';
+          const ps = dsg.presilhas || {}, tp = ps.tipo || 'presilha';
+          const opt = (v, l) => `<option value="${v}" ${tp === v ? 'selected' : ''}>${l}</option>`;
+          return `<div class="prop-row cols2" title="${esc(i18n.t('Barra composta (NBR 14762:2010 9.7.5): cada perfil entre presilhas deve ter λ1 = l1/r1 < 0,5·λmáx do conjunto (presilhas) ou < λmáx (travejamento em treliça). Sem l1, a compressão usa só o perfil isolado (2 × resistência de um perfil).'))}">
+          <div class="prop-field"><label>${i18n.t('Presilhas: espaçamento l1 (m)')}</label>
+            <input type="number" id="e-pres-l1" value="${ps.l1 ?? ''}" step="0.05" min="0" placeholder="${i18n.t('não informado')}"></div>
+          <div class="prop-field"><label>${i18n.t('Ligação dos perfis')}</label>
+            <select id="e-pres-tipo">${opt('presilha', i18n.t('Presilhas (chapas separadoras)'))}${opt('trelica', i18n.t('Travejamento em treliça'))}${opt('tala', i18n.t('Talas (quadro) — não prevista'))}</select></div>
+        </div>`;
+        })()}
       </div>`;
       })()}
 
@@ -2328,6 +2341,11 @@ export class PropertiesPanel {
           if (raw === '' || !(v > 0)) delete dsg[k]; else dsg[k] = v;
         }
         if (sel.querySelector('#e-fl-tors')?.checked) dsg.contencaoTorcao = true; else delete dsg.contencaoTorcao;
+        if (sel.querySelector('#e-pres-l1')) {                              // built-up member: presilhas (9.7.5)
+          const l1 = parseFloat(String(sel.querySelector('#e-pres-l1').value).trim().replace(',', '.'));
+          const tipo = sel.querySelector('#e-pres-tipo')?.value || 'presilha';
+          if (l1 > 0 || tipo !== 'presilha') dsg.presilhas = { ...(l1 > 0 ? { l1 } : {}), tipo }; else delete dsg.presilhas;
+        }
         if (Object.keys(dsg).length) el2.design = dsg; else delete el2.design;
       }
       this.app.renderLayers?.();

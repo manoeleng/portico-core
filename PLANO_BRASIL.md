@@ -65,8 +65,18 @@ limitação da cantoneira que foi corrigida na NBR 8800.
     anteriores. DMF de My desenhado do lado tracionado. Revisão FECHADA; tests/test_my_diagram.mjs.
     (8) NBR 14762 sentido de My pelo diagrama (`ee5e3d6`) e extensão declarada da Tab. 6 para AL com ψ < −1 (k = 23,8,
     bc = b/2) FEITOS 15/10/2026, revisão FECHADA. LACUNA mantida: cortante Vz nas mesas de U/Ue (9.8.3 só trata a alma).
-    Fila do /loop: (9) compostas: esbeltez entre presilhas e verificação.  [antigo: (8) NBR 14762
-    sentido de My do U/Ue pelo diagrama; (9) compostas: esbeltez entre presilhas e verificação.
+    (9) Compostas 2L/2U/2Ue costas pela NBR 14762 FEITO 15/10/2026, revisão FECHADA: perfil isolado com metade dos
+    esforços × 2 (Manual CBCA 2014 Anexo D; apostila Wanderson/INBEC Mód. 05 p.117-137); 2L comprimida também como
+    seção composta (9.7.2.2 com flexo-torção, Cw = 0 e J = 2·J1 do AISC E4) quando o 9.7.5 é atendido com l1 — a
+    apostila omite a flexo-torção (44,3 → 42,6 kN em KL = 122); 9.7.5 (presilha/treliça; talas LACUNA), 9.6.3, 9.8.6
+    (member.conexao); eixos principais das 65 cantoneiras transcritos da NBR 6355 Tab. A.1; cantoneira isolada em força
+    axial centrada (excentricidade da ligação: verificar à parte). Campo "Presilhas: espaçamento l1" na barra.
+    LACUNAS: caixa; Cw/FLT do I composto; flexão de cantoneira (as 53 barras 2L do exemplo do Wanderson ficam não
+    verificadas porque o peso próprio dá Mz nas diagonais).
+    Vista 3D livre em perspectiva ou ortográfica (menu Vista, tecla P) FEITO 15/10/2026.
+    Pedidos do Manoel 15/10/2026 (aguardando confirmação): 2L em U (abas horizontais para dentro, afastamento g) além
+    do T (costas); terça de cumeeira dupla no gerador (uma por água, β = ±θ), afastamento definido no lançamento
+    (usual 10 a 15 cm entre as terças).
 
 ---
 

@@ -58,6 +58,7 @@
 
 import { finalize } from './aisc360.js?v=7';
 import { criticalLoadsChannel } from '../fsm.js?v=7';
+import { cfSection } from '../profiles_cf.js?v=7';
 
 const PI2 = Math.PI * Math.PI;
 const fix = (x) => +(+x).toPrecision(8);
@@ -404,8 +405,26 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     avisos.push('K = 1,0 adotado (comprimento destravado = L); informe Lx/Ly/Lz com K da NBR 8800 se aplicável (14762:2010 8.2).');
 
   // geometry (cm) ----------------------------------------------------------------
-  let g = null, geomWhy = null, limComp = null, limFlex = null;
-  if (!isCh) geomWhy = `seção "${shape}" fora do escopo da v1 (Ue e U simples): NÃO verificada (LACUNA).`;
+  let g = null, gL = null, geomWhy = null, limComp = null, limFlex = null;
+  const isL = shape === 'L';
+  if (isL) {
+    // single equal-leg angle (NBR 6355 Tab. A.1): axial force only. Axis 1 (I1, major) = axis of symmetry, x0 on it.
+    const miss = ['I1', 'I2', 'J', 'x0', 'r0'].filter(k => !(sec[k] > 0));
+    if (!(d0.b > 0 && d0.t > 0)) miss.push('dims.b', 'dims.t');
+    if (d0.b2 > 0 && Math.abs(d0.b2 - d0.b) > 1e-9) geomWhy = 'cantoneira de abas desiguais: seção assimétrica (9.7.2.3) — fora do escopo da v1, NÃO verificada.';
+    else if (miss.length) geomWhy = `cantoneira sem ${miss.join(', ')} (eixos principais da NBR 6355 Tab. A.1): fora do escopo da verificação — NÃO verificada. Escolha uma cantoneira do catálogo NBR 6355 ou informe I1, I2, J, x0 e r0.`;
+    else {
+      const t = d0.t * 100, ri = (d0.ri ?? d0.t) * 100;
+      gL = { B: d0.b * 100, t, ri, I1: sec.I1 * 1e8, I2: sec.I2 * 1e8, J: sec.J * 1e8, x0: sec.x0 * 100, r0: sec.r0 * 100 };
+      gL.b = gL.B - (t + ri);                                                  // flat width of each leg (AL)
+      gL.r2 = sec.r2 > 0 ? sec.r2 * 100 : Math.sqrt(gL.I2 / A);
+      if (gL.b / t > 60) limComp = `Tab. 4 (9.1.2) excedida: aba (AL) b/t = ${(gL.b / t).toFixed(1)} > 60.`;
+      limFlex = 'flexão e cortante de cantoneira isolada fora do escopo da v1 (LACUNA).';
+    }
+  } else if (/^2(L|U|Ue)$/.test(shape)) geomWhy = sec.arr === 'caixa'
+    ? `composta em caixa "${sec.designacao || shape}": LACUNA na v1 — a NBR 14762:2010 só trata o tubo de 2 U com solda de costura contínua (Tab. 9 d / Tab. 12 c) e não dá Cw nem FLT da seção composta. Tração: só escoamento da seção bruta.`
+    : `composta "${sec.designacao || shape}": use nbr14762.check (verificação por perfil isolado): NÃO verificada.`;
+  else if (!isCh) geomWhy = `seção "${shape}" fora do escopo da v1 (Ue e U simples): NÃO verificada (LACUNA).`;
   else {
     const need = ['bw', 'bf', 't'].filter(k => !(d0[k] > 0));
     const props = { Iz: sec.Iz, Iy: sec.Iy, J: sec.J, Cw: sec.Cw, x0: sec.x0 };   // xg only for weak-axis bending
@@ -459,7 +478,27 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
 
   // ── 9.6 tension / 9.7 compression ───────────────────────────────────────────────
   let axial, NRd = 0;
-  const lamHard = isCh && g ? Math.max(Lx / g.rx, Ly / g.ry) : 0;
+  // 9.7.4 / 9.6.3: built-up members use the slenderness of the WHOLE member (options._lamConj, from checkComposite14762)
+  const lamHard = options._lamConj ?? (isCh && g ? Math.max(Lx / g.rx, Ly / g.ry) : isL && gL ? Math.max(Lx, Ly) / gL.r2 : 0);
+
+  // single angle in compression (9.7.2.2, monosymmetric, x = axis of symmetry = principal axis 1; Cw = 0 Tab. A.1).
+  // Principal axes are inclined to the member axes: one length Lp = max(Lx, Ly) for both flexural modes (declared).
+  const angleComp = () => {
+    const Lp = Math.max(Lx, Ly);
+    const Ne1 = PI2 * E * gL.I1 / (Lp * Lp), Ne2 = PI2 * E * gL.I2 / (Lp * Lp), Nez = G * gL.J / (gL.r0 * gL.r0);
+    const f = 1 - (gL.x0 / gL.r0) ** 2, s = Ne1 + Nez;
+    const Ne1z = (s / (2 * f)) * (1 - Math.sqrt(Math.max(0, 1 - 4 * Ne1 * Nez * f / (s * s))));
+    const Ne = Math.min(Ne2, Ne1z), lambda0 = Math.sqrt(A * fy / Ne), chi = chiComp(lambda0);
+    const e = effAL(gL.b, gL.t, chi * fy, chi * fy, E);                                // uniform: Tab. 6 a, k = 0,43
+    const Aef = A - 2 * gL.t * e.gaps.reduce((a, [p, q]) => a + q - p, 0);
+    avisos.push('Cantoneira: força axial CENTRADA — a excentricidade da ligação por uma aba não é considerada (NBR 14762 omissa); verifique-a à parte (p.ex. NBR 8800:2024 5.3.5.4 ou ensaio), pode reduzir Nc,Rd de forma significativa.');
+    if (Math.abs(Lx - Ly) > 1e-6) avisos.push(`Cantoneira: eixos principais inclinados em relação aos locais — adotado KL = max(Lx, Ly) = ${(Lp / 100).toFixed(2).replace('.', ',')} m nos dois modos de flexão.`);
+    return { Ne, lambda0, chi, Aef, NcRd: chi * Aef * fy / gamC,
+      info: { chi: +chi.toFixed(4), lambda0: +lambda0.toFixed(4), Ne: fix(Ne), Ne1: fix(Ne1), Ne2: fix(Ne2), Nez: fix(Nez), Ne1z: fix(Ne1z),
+        modoGlobal: Ne === Ne2 ? 'flexão em torno do eixo principal menor (2)' : 'flexo-torção (eixo 1 + torção)',
+        esbeltez: { principal2: +(Lp / gL.r2).toFixed(2), limite: 200 }, lambdaP: e.lp != null ? +e.lp.toFixed(4) : undefined,
+        Aef: Aef / 1e4, NcRdGlobal: fix(chi * Aef * fy / gamC) } };
+  };
   if (N >= 0) {
     NRd = A * fy / gamT;
     axial = ratObj(Nabs, NRd, { modo: 'tração', formula: 'Nt,Rd = A·fy/1,10 (9.6.2 a)' });
@@ -482,12 +521,13 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
         if (axial.ratio !== Infinity) { NRd = gov.v; axial = ratObj(Nabs, NRd, { modo: gov === cand[0] ? 'tração' : 'tração (seção líquida)', formula: gov.f, ...(gov.Ct != null ? { Ct: gov.Ct } : {}) }); }
       }
     } else if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (9.6.2 b/c, Ct) não verificada — informe member.secaoLiquida (An0 e/ou An + ligação).');
-    if (!isCh) avisos.push(`Seção "${shape}": tração só por escoamento da seção bruta.`);
+    if (!isCh && !isL) avisos.push(`Seção "${shape}": tração só por escoamento da seção bruta.`);
     if (Nabs > 0 && !semLc && lamHard > 300) avisos.push(`Tração: L/r = ${lamHard.toFixed(0)} > 300 — recomenda-se L/r ≤ 300 (NBR 14762:2010 9.6.3).`);
   } else {
     let why = whyC, det = {};
     if (!why && semLc) why = 'comprimento da barra não informado (flambagem global).';
-    if (!why) {
+    if (!why && isL) { det = angleComp(); }
+    else if (!why) {
       const gb = glob(g);
       const lambda0 = Math.sqrt(A * fy / gb.Ne), chi = chiComp(lambda0);
       const ef = solve(g, E, { axis: 'N', sigma: chi * fy });
@@ -520,7 +560,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
       }
     }
     // Anexo C (MRD): replaces 9.7 when options.metodo = 'MRD' (Nℓ, Ndist by FSM unless given)
-    if (!why && options.metodo === 'MRD' && det.Ne > 0) {
+    if (!why && options.metodo === 'MRD' && det.Ne > 0 && isCh) {
       const fsC = options.fsm === false ? null : fsmChannel(g, E);
       const Nl = options.Nl > 0 ? options.Nl : fsC?.Nl, Nd = g.ue ? (options.Ndist > 0 ? options.Ndist : fsC?.Ndist) : null;
       if (!(Nl > 0) || (g.ue && !(Nd > 0))) why = 'MRD (Anexo C): Nℓ/Ndist não disponíveis (informe options.Nl/Ndist).';
@@ -531,7 +571,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
       }
     }
     if (!why && lamHard > 200) why = `KL/r = ${lamHard.toFixed(0)} > 200 (9.7.4): os valores calculados ficam em axial.* apenas como informação.`;
-    const info = det.Ne == null ? {} : { chi: +det.chi.toFixed(4), lambda0: +det.lambda0.toFixed(4), Ne: fix(det.Ne),
+    const info = det.Ne == null ? {} : isL ? det.info : { chi: +det.chi.toFixed(4), lambda0: +det.lambda0.toFixed(4), Ne: fix(det.Ne),
       Nex: fix(det.Nex), Ney: fix(det.Ney), Nez: fix(det.Nez), Nexz: fix(det.Nexz), modoGlobal: det.modo,
       esbeltez: { x: +(Lx / g.rx).toFixed(2), y: +(Ly / g.ry).toFixed(2), limite: 200 },
       Aef: det.Aef != null ? det.Aef / 1e4 : undefined, NcRdGlobal: det.NcRdGlobal != null ? fix(det.NcRdGlobal) : undefined, distorcional: det.dist };
@@ -539,7 +579,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     else {
       NRd = det.NcRd;
       axial = ratObj(Nabs, NRd, { modo: 'compressão', ...info, ...(det.mrd ? { mrd: det.mrd } : {}),
-        formula: det.mrd ? 'Nc,Rd = min(Nc,Re; Nc,Rℓ; Nc,Rdist)/1,20 (Anexo C, MRD)' : 'Nc,Rd = min(χ·Aef·fy/1,20 (9.7.2); χdist·A·fy/1,20 (9.7.3)); λ0 = √(A·fy/Ne), A bruta' });
+        formula: isL ? 'Nc,Rd = χ·Aef·fy/1,20 (9.7.2); cantoneira: Ne = min(Ne2; Ne1z), Cw = 0; abas AL k = 0,43 (Tab. 6 a); λ0 = √(A·fy/Ne)'
+          : det.mrd ? 'Nc,Rd = min(Nc,Re; Nc,Rℓ; Nc,Rdist)/1,20 (Anexo C, MRD)' : 'Nc,Rd = min(χ·Aef·fy/1,20 (9.7.2); χdist·A·fy/1,20 (9.7.3)); λ0 = √(A·fy/Ne), A bruta' });
     }
   }
   if (N < 0) avisos.push('Esforços devem vir de análise com 2ª ordem/imperfeições (NBR 14762:2010 8.1).');
@@ -725,8 +766,112 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
 
 export const nbr14762 = {
   id: 'NBR14762:2010', family: 'steel', label: 'ABNT NBR 14762:2010 (formados a frio)',
-  check: (input) => checkNBR14762(input),
+  check: (input) => (/^2(L|U|Ue)$/.test(input?.sec?.shape) && input.sec.arr === 'costas' ? checkComposite14762(input) : checkNBR14762(input)),
 };
+
+// ── BUILT-UP members "costas" (composite_cf.js: 2L, 2U, 2Ue) — 9.7.5, 9.6.3, 9.8.6 ──────────────────────────────────
+// The NBR 14762:2010 gives no Ne, Me or Cw for a built-up section (Manual CBCA 2014, Anexo D p.158). v1 (review 15/10/2026):
+//  • every kind: each profile ISOLATED with half the forces and the member lengths, capacities × 2 (Manual CBCA 2014
+//    Anexo D §4.3/§4.7; apostila Wanderson/INBEC Mód. 05 p.117-122, 1st step). Lower bound: the connection only adds
+//    restraint. Net section (member.secaoLiquida An, An0) is given for the WHOLE member.
+//  • 2L in compression: also the COMPOSITE section (apostila Mód. 05 p.123-126, 2nd step) when 9.7.5 is met with the
+//    presilha spacing l1 (member.presilhas = { l1 [m], tipo: 'presilha' | 'trelica' | 'tala' }). 9.7.2.2 with y = axis
+//    of symmetry; shear centre at the intersection of the mid-lines of the horizontal legs (y0 = yg − t/2); Cw = 0 and
+//    J = 2·J1 (AISC 360-16 E4 a, double angles: Fez = GJ/(Ag·r0²)). The apostila keeps only the flexural mode about x
+//    (no Steiner); the flexural-torsional mode is required by 9.7.2.2 for a monosymmetric section and governs short
+//    members. Nc,Rd = max(2 × isolated; composite). Talas: not covered by the NBR 14762 (EN 1993-1-1) → isolated only.
+//  • 2U / 2Ue: the composite I needs its Cw (flexural-torsional, FLT): LACUNA → 2 × isolated only. My (about the
+//    vertical axis): each profile about its own weak axis with My/2, both senses (no composite action).
+//    9.8.6 connection spacing smax = 2·g·FRd/(m·q) ≤ L/6, checked only with member.conexao = { s, g [m], FRd [kN], q [kN/m] };
+//    q = REFERENCE load = 3 × the design distributed load (or the concentrated design load / its bearing length).
+function checkComposite14762(input) {
+  const { demands = {}, mat, sec, member = {}, options = {} } = input;
+  const kind = sec.shape, base = cfSection(sec.base);
+  if (!base) return checkNBR14762(input);
+  const E = mat.E / 1e4, fy = mat.Fy / 1e4, G = (mat.G ?? 0.385 * mat.E) / 1e4;
+  const Lx = (member.Lx ?? (member.Kz ?? member.K ?? 1) * (member.L || 1)) * 100;
+  const Ly = (member.Ly ?? (member.Ky ?? member.K ?? 1) * (member.L || 1)) * 100;
+  const semLc = (member.Ldefault || member.L == null) && member.Lx == null && member.Ly == null && member.Lz == null;
+  const rz = sec.rz * 100, ry = sec.ry * 100, lamConj = Math.max(Lx / rz, Ly / ry);
+  const r1 = (kind === '2L' ? (base.r2 ?? base.ry) : base.ry) * 100;                 // least radius of one profile (L: axis 2)
+  const f2 = (v, d = 2) => (+v).toFixed(d).replace('.', ',');
+  const half = (k) => (demands[k] || 0) / 2;
+  const sl = member.secaoLiquida;
+  const r = checkNBR14762({ demands: { ...demands, N: half('N'), Mz: half('Mz'), My: half('My'), Vy: half('Vy'), Vz: half('Vz') }, mat,
+    sec: { ...base, dims: { ...base.dims }, coldFormed: true },
+    member: { ...member, ...(sl ? { secaoLiquida: { ...sl, ...(sl.An > 0 ? { An: sl.An / 2 } : {}), ...(sl.An0 > 0 ? { An0: sl.An0 / 2 } : {}) } } : {}) },
+    options: { ...options, sentidoMy: undefined, _lamConj: lamConj } });
+  const seen = new Set();
+  for (const k of ['axial', 'flexaoX', 'flexaoY', 'corteY', 'corteZ']) {
+    const o = r[k]; if (!o || seen.has(o)) continue; seen.add(o);
+    o.demand = fix(o.demand * 2); o.capacity = fix(o.capacity * 2); o.porPerfil = '2 × perfil isolado (metade dos esforços)';
+  }
+  const av = r.avisos, N = demands.N || 0, Nabs = Math.abs(N);
+  av.unshift(`Composta ${sec.designacao || kind}: cada perfil isolado com metade dos esforços, capacidades × 2 (Manual CBCA 2014 Anexo D; apostila Wanderson/INBEC Mód. 05). 9.7.4/9.6.3 com a esbeltez do conjunto λmáx = ${f2(lamConj, 1)}.`);
+
+  // 9.7.5 (compression) / 9.6.3 (tension): slenderness of one profile between presilhas
+  const pr = member.presilhas || {}, l1 = pr.l1 > 0 ? pr.l1 * 100 : null, tipo = pr.tipo || 'presilha';
+  const lim = tipo === 'trelica' ? lamConj : 0.5 * lamConj, l1max = lim * r1;
+  let ok975 = false;
+  if (N < 0) {
+    if (tipo === 'tala') av.push('9.7.5: travejamento em quadro (talas) não é previsto pela NBR 14762:2010 (remete ao EN 1993-1-1) — LACUNA; adotado só o perfil isolado.');
+    else if (l1 == null) {
+      av.push(`9.7.5 NÃO VERIFICADO: espaçamento l1 das ${tipo === 'trelica' ? 'ligações do travejamento' : 'presilhas'} não informado. O resultado vale como DOIS PERFIS INDEPENDENTES (limite inferior); informe l1 e confira l1 ≤ l1,máx = ${f2(l1max / 100, 3)} m (λ1 = l1/r1 < ${tipo === 'trelica' ? '' : '0,5·'}λmáx,conj = ${f2(lim, 1)}, r1 = ${f2(r1)} cm).`);
+      r.condicionado = '9.7.5 não verificado (l1 não informado): resultado de dois perfis independentes';
+    }
+    else {
+      const lam1 = l1 / r1; ok975 = lam1 < lim;
+      if (!ok975) r.condicionado = '9.7.5 não atendido: resultado de dois perfis independentes';
+      av.push(`9.7.5 ${ok975 ? 'atendido' : 'NÃO atendido'}: λ1 = l1/r1 = ${f2(l1)}/${f2(r1)} = ${f2(lam1, 1)} ${ok975 ? '<' : '≥'} ${tipo === 'trelica' ? 'λmáx,conj' : '0,5·λmáx,conj'} = ${f2(lim, 1)} (l1,máx = ${f2(l1max / 100, 3)} m)${ok975 ? '' : ' — a barra NÃO pode ser tratada como composta; vale só o perfil isolado'}.${tipo === 'trelica' ? ' Barras do travejamento: λ < 140 não verificado aqui.' : ''}`);
+    }
+  } else if (N > 0 && l1 != null && l1 / r1 > 300) av.push(`Tração: l1/r1 = ${f2(l1 / r1, 0)} > 300 — recomenda-se ≤ 300 para cada perfil componente (9.6.3).`);
+
+  // 2L composite section in compression
+  if (kind === '2L' && N < 0 && ok975 && !semLc && r.axial && r.axial.verificado !== false && base.I1 > 0) {
+    const t = base.dims.t * 100, ri = (base.dims.ri ?? base.dims.t) * 100, b = base.dims.b * 100 - (t + ri);
+    const A = sec.A * 1e4, Iz = sec.Iz * 1e8, Iy = sec.Iy * 1e8, J = sec.J * 1e8;
+    const y0 = base.xg * 100 - t / 2, r0 = Math.sqrt(rz * rz + ry * ry + y0 * y0);
+    const Nzf = PI2 * E * Iz / (Lx * Lx), Ney = PI2 * E * Iy / (Ly * Ly), Nt = G * J / (r0 * r0);
+    const f = 1 - (y0 / r0) ** 2, s = Ney + Nt;
+    const Neyz = (s / (2 * f)) * (1 - Math.sqrt(Math.max(0, 1 - 4 * Ney * Nt * f / (s * s))));
+    const Ne = Math.min(Nzf, Neyz), lambda0 = Math.sqrt(A * fy / Ne), chi = chiComp(lambda0);
+    const e = effAL(b, t, chi * fy, chi * fy, E);
+    const Aef = A - 4 * t * e.gaps.reduce((a, [p, q]) => a + q - p, 0);
+    const NcRd = chi * Aef * fy / 1.20, iso = r.axial.capacity;
+    const comp = { Ne: fix(Ne), Nzf: fix(Nzf), Ney: fix(Ney), Nt: fix(Nt), Neyz: fix(Neyz), y0: y0 / 100, r0: r0 / 100,
+      lambda0: +lambda0.toFixed(4), chi: +chi.toFixed(4), Aef: Aef / 1e4, NcRd: fix(NcRd),
+      modoGlobal: Ne === Nzf ? 'flexão em torno de z (eixo sem Steiner)' : 'flexo-torção (eixo de simetria y + torção, Cw = 0)' };
+    av.push(`Dupla cantoneira como seção composta (9.7.2.2; Cw = 0 e J = 2·J1 — referência externa AISC 360-16 E4, ambos limites inferiores; válida com g constante e presilhas que garantam o trabalho conjunto): Nez = ${f2(Nzf, 1)}, Neyz = ${f2(Neyz, 1)} kN (${comp.modoGlobal}) → Nc,Rd = ${f2(NcRd)} kN; 2 × isolada = ${f2(iso)} kN → governa ${NcRd > iso ? 'a composta' : 'a isolada'}.`);
+    if (NcRd > iso) {
+      r.axial = ratObj(Nabs, NcRd, { modo: 'compressão', composta: comp, NcRdIsolado: iso, esbeltez: { conjunto: +lamConj.toFixed(2), limite: 200 },
+        formula: 'Nc,Rd = χ·Aef·fy/1,20 da seção composta (9.7.2.2, eixo de simetria y; Cw = 0) — 9.7.5 atendido; Nc,Rd = max(composta; 2 × isolada)' });
+    } else r.axial.composta = comp;
+  }
+
+  // 9.8.6 — connection of two channels forming an I
+  if (kind !== '2L' && Math.abs(demands.Mz || 0) > 1e-9) {
+    const m = (base.x0 - base.xg) * 100 + base.dims.t * 50, c = member.conexao;                // cm
+    if (c && c.s > 0 && c.g > 0 && c.FRd > 0 && c.q > 0) {
+      const sRes = 2 * c.g * c.FRd / ((m / 100) * c.q), sL = member.L > 0 ? member.L / 6 : Infinity, smax = Math.min(sRes, sL);
+      r.conexao986 = ratObj(c.s, smax, { m: m / 100, sRes: fix(sRes), sL: isFinite(sL) ? fix(sL) : null, formula: 'smax = 2·g·FRd/(m·q) ≤ L/6 (9.8.6)' });
+      if (c.s > smax + 1e-12) {
+        av.push(`9.8.6 NÃO atendido: s = ${f2(c.s, 3)} m > smax = ${f2(smax, 3)} m — MRd,conj = 2·MRd,1 não vale.`);
+        r.flexaoX.ratio = Infinity; r.flexaoX.verificado = false; r.flexaoX.motivo = '9.8.6: espaçamento da conexão acima de smax.';
+        r.bending = r.flexaoX;
+      } else av.push(`9.8.6: s = ${f2(c.s, 3)} m ≤ smax = ${f2(smax, 3)} m (m = ${f2(m)} cm).`);
+    } else av.push(`9.8.6: conexão dos perfis NÃO verificada — MRd = 2·MRd,1 pressupõe s ≤ smax = 2·g·FRd/(m·q) ≤ L/6, m = x0 − xg + t/2 = ${f2(m)} cm (informe member.conexao = { s, g, FRd, q }, q = 3 × carga distribuída de cálculo).`);
+  }
+  if (kind !== '2L') av.push('Composta 2U/2Ue: ação composta (Cw e FLT do I) — LACUNA; My em cada perfil em torno do próprio eixo fraco com My/2, nos dois sentidos.');
+
+  // interaction (9.9) with the final axial capacity
+  const i99 = r.interaction99;
+  if (i99 && i99.verificado !== false && r.axial.verificado !== false && Nabs > 0 && r.axial.capacity > 0) {
+    const p = i99.parcelas; p.N = Nabs / r.axial.capacity;
+    const H = p.N + p.Mx + p.My; i99.demand = fix(H); i99.ratio = +H.toFixed(4);
+  }
+  r.interaction = r.interaction99.ratio >= r.interactionMV.ratio ? r.interaction99 : r.interactionMV;
+  return finalize(r, options);
+}
 
 // exposed for tests / reuse
 export const _nbr14762 = { effAA, effAL, effFlangeStiff, solveEff, anexoEj, shearRd };
