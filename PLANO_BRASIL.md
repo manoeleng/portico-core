@@ -39,6 +39,16 @@ Testes `tests/test_connections_{prim,truss,shear,base,splice}.mjs` contra Fakury
 conta de mão da 6.7 (sem exemplo publicado — LACUNA de literatura). Critérios de literatura declarados (decisão B): Whitmore (Fakury 10.12.2, K = 0,65),
 Cts = 0,5 nas faixas externas. Revisão de cálculo: 3 rodadas, **FECHADO** (16/10/2026). Pendências: ligações rígidas (chapa de topo, alavanca 6.3.5), atrito (6.3.4), bases de pilares tubulares (NBR 16239), viga
 recortada, FLT de chapas, puxar esforços da barra selecionada e perfis do catálogo direto na janela.
+**Ligações do modelo (16/10/2026)** — Assistente → Ligações do modelo: mapeia as ligações do modelo analisado e PRÉ-DIMENSIONA cada uma
+para todas as combinações de ELU (decisão do Manoel: "pré-dimensiona sozinho"; escopo: treliça × chapa de nó, viga–pilar/viga–viga flexível,
+bases, emendas marcadas pelo usuário). Classificação pelas rótulas, seção e orientação; geometria = primeira que atende na ordem de custo
+(s = 3db, Tab. 16, gabaritos AISC 1-7A, viga–pilar Gerdau LCPP NBR 8800:2024, chapas comerciais, Tab. 18; parafusada → soldada na treliça;
+atrito → arruelas na base); sem solução, mostra a de menor razão e o que governa. Limites declarados por ligação: requisitos da chapa de nó
+(largura de Whitmore, Lw), eixo fraco da base (> 5 % de Zy·fy/γa1 → NÃO, fora da 6.7.1.3), N na viga flexível, torção. Tabela + memória por
+ligação + relatório. `js/design/connections_model.js`, `js/ui/connections_model_dialog.js`, teste `tests/test_connections_model.mjs` (oráculo Gerdau
+LCPP 30-B: W360 265/328/346 kN reproduzidos em ±0,5 %). Conferido no navegador: galpão PFF do Wanderson (106 ligações de treliça) e galpão W
+(14 bases, 108 flexíveis). Revisão de cálculo: 2 rodadas, **FECHADO**. Pendências: contraventamento em perfil I, recorte de viga, flexão oblíqua da base, gravar a geometria adotada no modelo,
+seção de ligações no memorial.
 
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).

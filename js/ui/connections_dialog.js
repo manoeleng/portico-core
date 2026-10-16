@@ -123,7 +123,7 @@ function visibility(root, tab, v) {
 }
 
 const badge = (ok) => ok ? '<b style="color:#15803d">OK</b>' : '<b style="color:#b91c1c">NÃO</b>';
-function resultHTML(r, figs, title) {
+export function resultHTML(r, figs, title) {
   const calc = r.checks.filter((c) => !c.info);
   const fmtV = (c) => c.det ? `${nf(c.valor, 2)} ${c.tipo === 'min' ? '≥' : '≤'} ${nf(c.lim, 2)} ${c.un}` : `${nf(c.Sd, 2)} / ${nf(c.Rd, 2)} ${c.un}`;
   const sum = `<table class="wt"><tr><th>Grupo</th><th>Verificação</th><th>Cláusula</th><th>Solicitante / resistente</th><th>Razão</th><th></th></tr>${calc.map((c) => `<tr${c.ok ? '' : ' style="background:rgba(220,38,38,.08)"'}><td>${esc(c.g)}</td><td>${esc(c.nome)}</td><td>${esc(c.ref)}</td><td>${fmtV(c)}</td><td>${isFinite(c.ratio) ? nf(c.ratio, 3) : '—'}</td><td>${badge(c.ok)}</td></tr>`).join('')}</table>`;
@@ -139,7 +139,7 @@ function resultHTML(r, figs, title) {
   <p class="note">Unidades: mm, MPa, kN, kN·m. γa1 = 1,10; γa2 = 1,35; γw2 = 1,35; γc = 1,4 (combinações normais). Critérios de literatura declarados no texto (decisão B): seção de Whitmore e Cts das faixas externas (Fakury, Silva e Caldas 2017), método elástico para grupos excêntricos. Figuras esquemáticas — não substituem o desenho de fabricação. Responsabilidade técnica: o engenheiro que assina o projeto.</p>`;
 }
 
-const CSS = `body{font:12px/1.4 system-ui,sans-serif;color:#0f172a;margin:16px}h2{margin:0 0 4px}h3{margin:16px 0 6px;color:#0369a1;font-size:13px}h4{margin:10px 0 4px;font-size:12px}
+export const CSS = `body{font:12px/1.4 system-ui,sans-serif;color:#0f172a;margin:16px}h2{margin:0 0 4px}h3{margin:16px 0 6px;color:#0369a1;font-size:13px}h4{margin:10px 0 4px;font-size:12px}
 .wt{border-collapse:collapse;width:100%;margin:2px 0}.wt td,.wt th{border:1px solid #cbd5e1;padding:2px 6px;text-align:left;vertical-align:top}.wt th{background:#f1f5f9}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.note{color:#475569;font-size:11px}.ck{margin:4px 0 8px}.eq{font-family:ui-monospace,Consolas,monospace;font-size:11px;white-space:pre-wrap;color:#1e293b;margin-left:10px}@media print{.noprint{display:none}}`;
 

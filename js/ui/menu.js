@@ -132,6 +132,7 @@ export class MenuBar {
       case 'warehouse':      a.warehouseDialog();            break;
       case 'wind':           import('./wind_dialog.js?v=7').then(m => m.openWindDialog(a)); break;
       case 'connections':    import('./connections_dialog.js?v=7').then(m => m.openConnectionsDialog(a)); break;
+      case 'connections-model': import('./connections_model_dialog.js?v=7').then(m => m.openConnectionsModelDialog(a)); break;
       case 'typology':       a.typologyWizard();             break;
       case 'materials':      a.panel.openLibrary('mat');     break;
       case 'sections':       a.panel.openLibrary('sec');     break;
