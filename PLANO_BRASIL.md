@@ -74,8 +74,9 @@ limitação da cantoneira que foi corrigida na NBR 8800.
     LACUNAS: caixa; Cw/FLT do I composto; flexão de cantoneira (as 53 barras 2L do exemplo do Wanderson ficam não
     verificadas porque o peso próprio dá Mz nas diagonais).
     Vista 3D livre em perspectiva ou ortográfica (menu Vista, tecla P) FEITO 15/10/2026.
-    Pedidos do Manoel 15/10/2026 (aguardando confirmação): 2L em U (abas horizontais para dentro, afastamento g) além
-    do T (costas); terça de cumeeira dupla no gerador (uma por água, β = ±θ), afastamento definido no lançamento
+    2L em U (abas horizontais para dentro, afastamento g entre as pontas) FEITO 15/10/2026: 2 × isolada + 9.7.5 (a composta
+    só para costas). Seleção na vista sólida 3D e "Selecionar barras" da seção FEITOS 15/10/2026.
+    Pedido do Manoel 15/10/2026: terça de cumeeira dupla no gerador (uma por água, β = ±θ), afastamento definido no lançamento
     (usual 10 a 15 cm entre as terças).
 
 ---
