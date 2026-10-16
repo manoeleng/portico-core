@@ -17,7 +17,7 @@ function mk(nodes, elems) {
   for (const e of elems) for (const [nid, o] of [[e.n1, 0], [e.n2, 6]]) { if (!ends.has(nid)) ends.set(nid, []); ends.get(nid).push({ e: { ...e, rel: e.releases }, o }); }
   return makeContext(model, { elems: elems.map((e) => ({ ...e, rel: e.releases })), ends });
 }
-const prims = (ctx, row) => connectionPrimitives([row], ctx)[0]?.prims || [];
+const prims = (ctx, row) => connectionPrimitives([row], ctx).flatMap((x) => x.prims);   // the row's pieces + the node's gusset
 
 // 1 — base de perna (Wanderson P1: U 200x100x2,65, placa 360 × 160 × 19, 4 × ¾", a1 = 40, a2 = 80)
 {
@@ -45,7 +45,21 @@ const prims = (ctx, row) => connectionPrimitives([row], ctx)[0]?.prims || [];
   const clear = 75 / s2 + 20, dist = b.map((x) => Math.hypot(...x.c) * 1000).sort((u, v) => u - v);
   near(dist[0], clear + 20, 1e-6, 'primeiro parafuso a 75/sen45° + 20 + e1 do nó'); near(dist[1] - dist[0], 40, 1e-6, 's = 40');
   ok(b.every((x) => x.c[2] * 1000 > 75 && Math.abs(x.c[1]) < 1e-12 && Math.abs(Math.abs(x.ax[1]) - 1) < 1e-12), 'parafusos acima da face do banzo, no plano da treliça, eixo ⊥ ao plano');
-  const pl = p.find((x) => x.m === 'plate'); near(pl.h[2] * 2000, 4.75, 1e-9, 'espessura da chapa de nó'); near(Math.abs(pl.a[2][1]), 1, 1e-12, 'chapa no plano x–z');
+  const pl = p.find((x) => x.k === 'poly'); near(pl.h * 2000, 4.75, 1e-9, 'espessura da chapa de nó'); near(Math.abs(pl.n[1]), 1, 1e-12, 'chapa no plano x–z');
+  // one gusset for the node: montante (vertical, 2L 40, 3 × Ø12,5) + the diagonal on the same chord node → a single plate,
+  // its edge on the chord face z = 75 mm, all bolts of both members inside it
+  const ctx2 = mk([{ id: 1, x: 0, y: 0, z: 0 }, { id: 2, x: -1, y: 0, z: 0 }, { id: 3, x: 1, y: 0, z: 0 }, { id: 4, x: 1, y: 0, z: 1 }, { id: 5, x: 0, y: 0, z: 1 }],
+    [{ id: 1, n1: 2, n2: 1, beta: 0, releases: FIX, shape: 'U', dims: { bw: 150, bf: 75, t: 2.65 } }, { id: 2, n1: 1, n2: 3, beta: 0, releases: FIX, shape: 'U', dims: { bw: 150, bf: 75, t: 2.65 } },
+      { id: 3, n1: 1, n2: 4, beta: 0, releases: PIN, shape: '2L', dims: { b: 60, t: 2.25, gap: 8 } }, { id: 4, n1: 1, n2: 5, beta: 0, releases: PIN, shape: '2L', dims: { b: 40, t: 2.25, gap: 8 } }]);
+  const g2 = { secao: { tipo: '2L', b: 40, t: 2.25 }, chapa: { t: 6.3, eBorda: 20, eLat: 46.19 }, meio: 'parafuso', par: { db: 12.5, n: 3, linhas: 1, s: 40, e1: 20 } };
+  const all = connectionPrimitives([{ id: 'T3i', tipo: 'trelica', node: 1, elem: 3, geo: g }, { id: 'T4i', tipo: 'trelica', node: 1, elem: 4, geo: g2 }], ctx2);
+  const plates = all.flatMap((x) => x.prims).filter((x) => x.m === 'plate'), bolts2 = all.flatMap((x) => x.prims).filter((x) => x.m === 'bolt');
+  ok(plates.length === 1 && plates[0].k === 'poly', `uma única chapa no nó (${plates.length})`);
+  near(plates[0].h * 2000, 6.3, 1e-9, 'espessura = a maior das barras do nó (6,3)');
+  near(Math.min(...plates[0].pts.map((q) => q[2])) * 1000, 75, 1e-6, 'borda da chapa na face do banzo (z = 75 mm)');
+  const inside = (pt, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j];
+    if ((a[2] > pt[2]) !== (b[2] > pt[2]) && pt[0] < (b[0] - a[0]) * (pt[2] - a[2]) / (b[2] - a[2]) + a[0]) c = !c; } return c; };
+  ok(bolts2.length === 6 && bolts2.every((b) => inside(b.c, plates[0].pts)), 'os 6 parafusos (diagonal + montante) dentro da chapa');
 }
 // 3 — viga–pilar flexível (cantoneira dupla): pilar I d = 250 vertical (alma ao longo de x), viga I ao longo de +x rotulada
 {
@@ -90,8 +104,12 @@ const prims = (ctx, row) => connectionPrimitives([row], ctx)[0]?.prims || [];
   for (const basePFF of ['perna', 'unica']) {
     const out = designAll(topo, combos, { basePFF });
     const g = connectionPrimitives(out.rows, makeContext(m, topology(topo)));
-    const finite = g.every((x) => x.prims.every((q) => [...q.c, ...(q.h.length ? q.h : [q.h]), ...(q.a ? q.a.flat() : q.ax)].every(Number.isFinite)));
-    ok(g.length === out.rows.length && g.every((x) => x.prims.length > 0) && finite, `${basePFF}: ${g.length}/${out.rows.length} ligações com peças finitas`);
+    const nums = (q) => q.k === 'poly' ? [...q.pts.flat(), ...q.n, q.h] : [...q.c, ...(q.h.length ? q.h : [q.h]), ...(q.a ? q.a.flat() : q.ax)];
+    const finite = g.every((x) => x.prims.every((q) => nums(q).every(Number.isFinite)));
+    const rowsG = g.filter((x) => !x.gusset), gus = g.filter((x) => x.gusset);
+    const trussNodes = new Set(out.rows.filter((r) => r.c.tipo === 'trelica').map((r) => r.c.node));
+    ok(rowsG.length === out.rows.length && rowsG.every((x) => x.prims.length > 0) && finite, `${basePFF}: ${rowsG.length}/${out.rows.length} ligações com peças finitas`);
+    ok(gus.length === trussNodes.size, `${basePFF}: uma chapa de nó por nó de treliça (${gus.length} chapas, ${trussNodes.size} nós)`);
     if (basePFF === 'unica') {
       const u = g.find((x) => x.tipo === 'baseUnica'), pl = u?.prims.find((q) => q.m === 'plate'), r = out.rows.find((x) => x.c.id === u.id);
       near(pl.h[0] * 2000, r.geo.placa.H, 1e-9, 'placa única: H na direção perna–perna');

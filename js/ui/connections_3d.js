@@ -30,6 +30,10 @@ function meshesOf(vp, prims) {
       const P = (su, sv, sw) => T([0, 1, 2].map((i) => q.c[i] + su * hu * u[i] + sv * hv * v[i] + sw * hw * w[i]));
       const c = [P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)];
       for (const [a, b, cc, d] of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]) quad(arr, c[a], c[b], c[cc], c[d]);
+    } else if (q.k === 'poly') {
+      const top = q.pts.map((p) => T(p.map((x, i) => x + q.h * q.n[i]))), bot = q.pts.map((p) => T(p.map((x, i) => x - q.h * q.n[i])));
+      for (let i = 1; i + 1 < top.length; i++) { for (const v of [top[0], top[i], top[i + 1], bot[0], bot[i + 1], bot[i]]) arr.push(v.x, v.y, v.z); }
+      for (let i = 0; i < top.length; i++) { const j = (i + 1) % top.length; quad(arr, bot[i], bot[j], top[j], top[i]); }
     } else {
       const ax = q.ax, ref = Math.abs(ax[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
       let e1 = [ax[1] * ref[2] - ax[2] * ref[1], ax[2] * ref[0] - ax[0] * ref[2], ax[0] * ref[1] - ax[1] * ref[0]];

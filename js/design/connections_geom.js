@@ -3,9 +3,12 @@
 // dimensions the designer adopted (row.geo, the same object the checks ran on) and the model geometry (node, member axes).
 // Pure: returns primitives in MODEL coordinates (m) — { k: 'box', c, a: [u, v, w], h: [hu, hv, hw], m } (oriented box,
 // half sizes along the unit axes) and { k: 'cyl', c, ax, r, h, m } (h = half length) — with m ∈ plate | bolt | anchor |
-// weld. The viewport turns them into meshes. Simplifications (declared): one gusset piece per member end (the real
-// gusset is one plate per node); bolts on the member axis; the connection centred on the node; stiffeners, copes and
-// washers not drawn; anchor length drawn as 12·db.
+// weld, plus { k: 'poly', pts, n, h, m } (flat plate: polygon in its mid-plane, normal n, half thickness h). The viewport
+// turns them into meshes. ONE gusset per truss node (and per side of the chord): the members of the same plane share a
+// plate — the convex hull of each member's bolt (or weld) strip, cut at the chord face where it is welded (chapa de nó–
+// banzo), thickness = the largest one adopted at the node (the weld design already takes it). Simplifications
+// (declared): bolts on the member axis; the connection centred on the node; stiffeners, copes and washers not drawn;
+// anchor length drawn as 12·db.
 import { localAxes } from '../solver/timoshenko.js?v=7';
 
 const MM = 1e-3;
@@ -19,6 +22,51 @@ const unit = (a) => { const l = len(a); return l > 1e-12 ? mul(a, 1 / l) : null;
 const at = (P, ...terms) => terms.reduce((p, [v, s]) => add(p, mul(v, s * MM)), P);
 const box = (c, a, hmm, m) => ({ k: 'box', c, a, h: hmm.map((v) => v * MM), m });
 const cyl = (c, ax, rmm, hmm, m) => ({ k: 'cyl', c, ax, r: rmm * MM, h: hmm * MM, m });
+
+// 2D convex hull (monotone chain) and clipping by the half-plane y ≥ y0 (Sutherland–Hodgman)
+function hull(P) {
+  const pts = [...P].sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (pts.length < 3) return pts;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function clipY(poly, y0) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], ina = a[1] >= y0 - 1e-12, inb = b[1] >= y0 - 1e-12;
+    if (ina) out.push(a);
+    if (ina !== inb) { const t = (y0 - a[1]) / (b[1] - a[1]); out.push([a[0] + t * (b[0] - a[0]), y0]); }
+  }
+  return out;
+}
+/** one gusset per node and plane side from the strips registered by the truss members (ctx._gus) */
+function gussets(ctx) {
+  const res = [];
+  for (const [nid, list] of ctx._gus) {
+    const groups = [];
+    for (const g of list) {                                         // coplanar members (same plate normal up to sign)
+      const G = groups.find((x) => Math.abs(Math.abs(dot(x.n, g.n)) - 1) < 1e-3 && x.cdir === g.cdir && Math.sign(dot(g.u, x.e2)) === x.side);
+      if (G) { G.items.push(g); continue; }
+      const e1 = g.cdir || g.u, e2 = unit(cross(g.n, e1)) || g.w, side = g.cdir ? (Math.sign(dot(g.u, e2)) || 1) : 1;
+      groups.push({ n: g.n, cdir: g.cdir, e1, e2, side, items: [g] });
+    }
+    groups.forEach((G, gi) => {
+      const P = G.items[0].P, tg = Math.max(...G.items.map((g) => g.tg)), hc = Math.max(...G.items.map((g) => g.hc));
+      const to2 = (X) => { const d = [X[0] - P[0], X[1] - P[1], X[2] - P[2]]; return [dot(d, G.e1), G.side * dot(d, G.e2)]; };
+      const pts = [];
+      for (const g of G.items) for (const a of [0, g.Lp]) for (const b of [-g.W / 2, g.W / 2]) pts.push(to2(at(P, [g.u, a], [g.w, b])));
+      let poly = hull(pts);
+      if (G.cdir) poly = clipY(poly, hc * MM);                      // the plate starts at the chord face (welded there)
+      if (poly.length < 3) return;
+      const pts3 = poly.map(([x, y]) => add(P, add(mul(G.e1, x), mul(G.e2, G.side * y))));
+      res.push({ id: `G${nid}${groups.length > 1 ? '-' + (gi + 1) : ''}`, tipo: 'trelica', node: nid, prims: [{ k: 'poly', pts: pts3, n: G.n, h: tg / 2 * MM, m: 'plate' }],
+        gusset: { tg, membros: G.items.map((g) => g.elem) } });
+    });
+  }
+  return res;
+}
 
 /** half extents (mm) of a member section along its local y and z (topology dims, mm) */
 function halfYZ(e) {
@@ -103,22 +151,26 @@ const BUILD = {
     const chord = ctx.ends(q.node).find(({ e, o }) => e.id !== q.elem && isCont(e, o) && !e.cable);
     const cdir = chord ? ctx.axes(chord.e.id)?.ex : null;
     const nrm = (cdir && unit(cross(u, cdir))) || axm.ez, w = unit(cross(nrm, u));
-    let clear = 50;
+    let clear = 50, hc = 0;
     if (chord) {
       const p = unit(cross(nrm, cdir)), sin = Math.max(Math.abs(dot(u, p)), 0.3);
-      clear = Math.min(extentAlong(chord.e, ctx.axes(chord.e.id), p) / sin + 20, 400);
+      hc = extentAlong(chord.e, ctx.axes(chord.e.id), p);
+      clear = Math.min(hc / sin + 20, 400);
     }
+    // the gusset itself is shared by the members of the node: register this member's strip (built in gussets())
+    const reg = (Lp, W) => { if (!ctx._gus) return; if (!ctx._gus.has(q.node)) ctx._gus.set(q.node, []);
+      ctx._gus.get(q.node).push({ elem: q.elem, P, u, w, n: nrm, cdir: chord ? cdir : null, Lp, W, tg, hc }); };
     const sec = g.secao || {}, legB = sec.tipo === 'U' || sec.tipo === 'I' ? (sec.bw ?? sec.d) : sec.b, tg = g.chapa.t;
     const tm = sec.tipo === '2L' ? 2 * sec.t : sec.t;
     if (g.meio === 'solda') {
       const L = g.sol.L1, Lp = clear + L + 10, W = legB + 40;
-      out.push(box(at(P, [u, Lp / 2]), [u, w, nrm], [Lp / 2, W / 2, tg / 2], 'plate'));
+      reg(Lp, W);
       for (const sw of [-1, 1]) for (const sn of [-1, 1]) out.push(box(at(P, [u, clear + L / 2], [w, sw * legB / 2], [nrm, sn * (tg / 2 + g.sol.dw / 2)]), [u, w, nrm], [L / 2, g.sol.dw / 2, g.sol.dw / 2], 'weld'));
       return;
     }
     const pr = g.par, Lc = 2 * pr.e1 + (pr.n - 1) * pr.s, Lp = clear + Lc + 10;
     const W = Math.max(2 * (g.chapa.eLat ?? pr.e1), legB) + 2 * (g.chapa.eBorda || pr.e1);
-    out.push(box(at(P, [u, Lp / 2]), [u, w, nrm], [Lp / 2, W / 2, tg / 2], 'plate'));
+    reg(Lp, W);
     const lines = pr.linhas === 2 ? [-pr.g / 2, pr.g / 2] : [0], hl = (tg + 2 * tm + 1.4 * pr.db) / 2;
     for (let i = 0; i < pr.n; i++) for (const yl of lines) out.push(cyl(at(P, [u, clear + pr.e1 + i * pr.s], [w, yl]), nrm, pr.db / 2, hl, 'bolt'));
   },
@@ -194,6 +246,7 @@ const BUILD = {
 /** rows: live ({ c, geo }) or saved ({ id, tipo, node, elem, geo }); returns [{ id, tipo, prims: [...] }] */
 export function connectionPrimitives(rows, ctx) {
   const res = [];
+  ctx._gus = new Map();
   for (const r of rows) {
     const q = r.c ? r.c : r, g = r.geo, f = BUILD[q.tipo];
     if (!g || !f) continue;
@@ -201,5 +254,7 @@ export function connectionPrimitives(rows, ctx) {
     try { f(q, g, ctx, prims); } catch { continue; }            // drawing only: a row with an unexpected geo is skipped
     res.push({ id: q.id, tipo: q.tipo, prims });
   }
+  res.push(...gussets(ctx));
+  ctx._gus = null;
   return res;
 }
