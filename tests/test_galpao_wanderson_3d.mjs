@@ -60,6 +60,8 @@ ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && 
   near(cp2.loads[0].F[2], -6.33 * 5 / 12, 1e-6, 'CP do pórtico plano no beiral = 5/12 × 6,33'); near(cp2.loads[1].F[2], -1.15 * 5 / 12, 1e-6, 'CP nó intermediário = 5/12 × 1,15');
   ok(!cp2.selfWeight && lc('PP').selfWeight && !lc('CP').selfWeight, 'peso próprio só no caso PP');
   ok(sec.every((e) => m3.materials.get(e.matId).rho === (e.cable ? 0 : 7.85)), 'secundárias com peso próprio; tirantes com ρ = 0 (peso nodal no PP)');
+  // aço: ZAR 280 nos perfis formados a frio (Mód. 5 p.51; NBR 14762 Tab. A.1: 280/380 MPa); barras redondas MR250 (Mód. 6 p.36)
+  ok([...m3.elements.values()].every((e) => { const d = m3.materials.get(e.matId).design || {}; return e.cable ? d.Fy === 250 && d.Fu === 400 : d.Fy === 280 && d.Fu === 380; }), 'aço ZAR 280 (280/380 MPa) nos perfis; MR250 (250/400) nas barras redondas');
   let wr = 0; for (const e of sec.filter((x) => x.cable)) { const a = m3.nodes.get(e.n1), b = m3.nodes.get(e.n2); wr += 7.85 * 9.80665 * m3.sections.get(e.secId).A * Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
   near(lc('PP').loads.reduce((a, l) => a + l.F[2], 0), -wr, 1e-9, `peso dos tirantes no PP (${wr.toFixed(3)} kN)`);
   const c1 = m3.combinations.get(1), fct = (c, id) => c.factors.find((x) => x.lcId === id)?.factor;

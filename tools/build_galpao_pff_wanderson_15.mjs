@@ -20,7 +20,7 @@ const outFile = process.argv.slice(2).find((a) => !a.startsWith('--')) || new UR
 
 const m = new Model(); m.materials.clear(); m.sections.clear();
 m.planar = true;
-const mat = m.addMaterial({ name: 'MR250', E: 2.0e8, G: 7.7e7, nu: 0.3, rho: 7.85 });
+const mat = m.addMaterial({ name: 'Aço ZAR 280', E: 2.0e8, G: 7.7e7, nu: 0.3, rho: 7.85, design: { family: 'steel', Fy: 280, Fu: 380, E: 200000 } });   // pág. 51; NBR 14762 Tab. A.1
 const cat = (nm, label) => { const ps = profileToSection(nm); if (!ps) throw new Error('perfil ausente: ' + nm);
   const d = ps.design.cfProps.dims, Av = ps.Avy ? {} : { Avy: d.bw * d.t, Avz: 2 * d.bf * d.t };
   return m.addSection({ name: `${nm} (${label})`, ...ps, ...Av }); };

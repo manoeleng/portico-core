@@ -4913,12 +4913,18 @@
   "materials": [
     {
       "id": 2,
-      "name": "MR250",
+      "name": "Aço ZAR 280",
       "E": 200000000,
       "G": 77000000,
       "nu": 0.3,
       "rho": 7.85,
-      "alpha": 0.00001
+      "alpha": 0.00001,
+      "design": {
+        "family": "steel",
+        "Fy": 280,
+        "Fu": 380,
+        "E": 200000
+      }
     }
   ],
   "sections": [

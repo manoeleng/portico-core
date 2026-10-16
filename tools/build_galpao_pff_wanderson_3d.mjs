@@ -43,11 +43,13 @@ for (const e of out.elements) if (e.layer === 1 && /banzos|pernas/.test(P.sectio
 // materials: secondary members with their own self-weight (PP); in the plane frame their weight is a nodal PP load
 const mat0 = P.materials[0];
 const MAT2 = 3;
-out.materials.push({ ...mat0, id: MAT2, name: 'MR250 (secundárias)' });
+out.materials.push({ ...mat0, id: MAT2, name: `${mat0.name} (secundárias)` });
 // tension-only rods: self-weight as nodal PP loads (½ at each end, added below) — a distributed load on a pinned rod makes
 // the tension-only iteration of a slightly compressed diagonal flip between slack and active
 const MAT_ROD = 4;
-out.materials.push({ ...mat0, id: MAT_ROD, name: 'MR250 (tirantes — peso próprio como carga nodal no PP)', rho: 0 });
+// round bars (rods, correntes): MR250 / A36, fy 250 / fu 400 MPa — Wanderson, Mód. 6 p.36 (verificação das barras redondas)
+out.materials.push({ ...mat0, id: MAT_ROD, name: 'Aço MR250 (barras redondas — peso próprio como carga nodal no PP)', rho: 0,
+  design: { family: 'steel', Fy: 250, Fu: 400, E: 200000, fonte: 'Wanderson Mód. 6 p.36: fy = 25 kN/cm², fu = 40 kN/cm²' } });
 // sections
 const ue = profileToSection('Ue 150x60x20x2,00');
 const SEC_UE = 7, SEC_ROD = 8;
