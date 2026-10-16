@@ -30,6 +30,15 @@ patente (aço SAE 1008/1012, sem qualificação estrutural) e barras chatas.
 **Módulo de vento (16/10/2026)** — Assistente → Vento: estudo NBR 6123:2023 com vista 3D, figuras cotadas (blocos de carga), Cpi,
 combinações, força de arrasto e forças no pórtico; relatório imprimível. Pendências: V0 pelo mapa de isopletas/município, S1 de
 talude/morro, Cpi pelas áreas de abertura, telhados de uma água, calha central, abóbada, coberturas isoladas e marquises.
+**Módulo de ligações (16/10/2026)** — Assistente → Ligações metálicas. A norma sai da parte mais fina conectada: ≤ 4,75 mm → NBR 14762:2010 §10;
+senão NBR 8800:2024 §6 (decisão do Manoel: as duas na v1). Tipos: barra de treliça (L, 2L, U, barra chata) em chapa de nó, parafusada ou soldada; viga–pilar
+flexível (chapa simples / cantoneira dupla, grupo excêntrico pelo método elástico); base de pilar 6.7 (C1–C3, T1–T3, tipos 1 e 2, Tab. 18, placa de
+cisalhamento e arruelas soldadas); emenda com talas (chapa; perfil I com mesas e alma). Relatório no formato equação → números → razão → OK/NÃO,
+figuras esquemáticas (não são desenho de fabricação — pranchas com o Detalhador). Arquivos `js/design/connections*.js`, `js/ui/connections_dialog.js`.
+Testes `tests/test_connections_{prim,truss,shear,base,splice}.mjs` contra Fakury 2017 (10.14.3/5/7/8.2), Pfeil 9ª ed. 3.5.1/3.5.2, Ex. 9.1, Wanderson mód. 6 e
+conta de mão da 6.7 (sem exemplo publicado — LACUNA de literatura). Critérios de literatura declarados (decisão B): Whitmore (Fakury 10.12.2, K = 0,65),
+Cts = 0,5 nas faixas externas. Revisão de cálculo: 3 rodadas, **FECHADO** (16/10/2026). Pendências: ligações rígidas (chapa de topo, alavanca 6.3.5), atrito (6.3.4), bases de pilares tubulares (NBR 16239), viga
+recortada, FLT de chapas, puxar esforços da barra selecionada e perfis do catálogo direto na janela.
 
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
