@@ -39,5 +39,16 @@ yes('W14. cpe médio do telhado lido da Tab. 7 (faixa de θ)', st.cpeMedioTelhad
   yes('W17. corte 90° com Cpi +0,2: EFI 1,4 e A 0,5 (Cp) [CB Fig.41]', />1,4</.test(figs[6]) && />0,5</.test(figs[6]));
   const qEFI = Math.abs(st.res.q_Nm2 / 1000 * -1.4 * 6);
   yes('W18. força no pórtico (6 m): EFI = q·1,4·6 kN/m [CB p.27 Tab.01: 5,38]', figs[8].includes(qEFI.toLocaleString('pt-BR', { maximumFractionDigits: 3 })) && Math.abs(qEFI - 5.38) < 0.03); }
+// força de arrasto: Fa = Ca·q·Ae com o Ca da tabela ratificada (Fig. 4) e Ae frontal
+{ const A90 = st.arrasto.find((r) => r.alpha === 90), A0 = st.arrasto.find((r) => r.alpha === 0);
+  // tolerância 0,05 m²: o estudo usa o topo exato; st.hTop é arredondado ao mm (× 54 m = 0,03 m²)
+  ok('W19. Ae (α = 90°) = a·topo', A90.Ae, 54 * st.hTop, 0.05);
+  ok('W20. Ae (α = 0°) = empena b·h + b·(topo − h)/2', A0.Ae, 15 * 6 + 15 * (st.hTop - 6) / 2, 0.05);
+  yes('W21. galpão baixo e longo (h/ℓ1 ≈ 0,14; ℓ1/ℓ2 = 3,6): fora das curvas da Fig. 4 → Ca não determinado, com aviso (sem extrapolar)', A90.Ca == null && A90.avisos.length > 0);
+  const stE = windStudy({ V0: 40, S1: 1, categoria: 'III', grupoS3: 3, a: 20, b: 15, hBeiral: 20, theta: 0, cpi: [-0.3, 0] }, w), E90 = stE.arrasto.find((r) => r.alpha === 90);
+  yes('W22. edifício 20 × 15 × 20 m: Ca da Fig. 4 (h/ℓ1 = 1; ℓ1/ℓ2 = 1,33) entre 1,0 e 1,4', E90.Ca > 1.0 && E90.Ca < 1.4);
+  ok('W23. Fa = Ca·q·Ae (kN)', E90.Fa, E90.Ca * stE.res.q_Nm2 * E90.Ae / 1000, 0.01);
+  const stU = windStudy({ V0: 40, S1: 1, categoria: 'III', grupoS3: 4, a: 54, b: 15, hBeiral: 6, theta: 10, cpi: [0.2, -0.3], Ca90: 1.1 }, w);
+  ok('W24. Ca informado (1,1) substitui a figura', stU.arrasto.find((r) => r.alpha === 90).Ca, 1.1, 1e-12); }
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

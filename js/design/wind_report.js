@@ -6,7 +6,7 @@
 //
 // Geometry (Tab. 6/7): a = largest plan dimension, b = smallest; h = height at the eave (Detalhe I, Tab. 7);
 // top height = h + (b/2)·tan θ. α = 0°: wind parallel to a (onto the gable C); α = 90°: wind onto the long side A.
-import { windLoad } from '../../assistant/loads.js?v=7';
+import { windLoad, caEdificio } from '../../assistant/loads.js?v=7';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 
@@ -67,8 +67,17 @@ export function windStudy(inp, w) {
     const v = [lo?.cpe_medio?.[k], hi?.cpe_medio?.[k]].filter((x) => x != null);
     return { zona: k, cpe: v.length ? Math.min(...v) : null };
   });
+  // global drag force (6.1.2): Fa = Ca·q·Ae, Ca of Fig. 4 (low turbulence) or Fig. 5 (high, 6.1.3) — table read from the
+  // figures and ratified by the engineer (rules.json ca_paralelepipedica). Fig. 4/5 are for parallelepiped buildings: the
+  // gable roof is taken by its top height (declared). Ae = frontal projected area.
+  const arr = [[90, a, b, a * hTop, res.q_Nm2], [0, b, a, b * hB + b * (hTop - hB) / 2, res.q_empena_Nm2]].map(([alpha, l1, l2, Ae, q]) => {
+    const user = alpha === 90 ? +inp.Ca90 : +inp.Ca0;
+    const c = user > 0 ? { Ca: user, fig: 'informado', avisos: [] } : caEdificio(w, { h: hTop, l1, l2, altaTurbulencia: !!inp.altaTurbulencia });
+    return { alpha, l1, l2, Ae: r3(Ae), q, Ca: c.Ca, fig: c.fig, avisos: [...(c.avisos || []), ...(c.aviso ? [c.aviso] : [])],
+      Fa: c.Ca != null ? Math.round(c.Ca * q * Ae / 10) / 100 : null };                       // kN
+  });
   return {
-    inp: { ...inp, a, b, theta: th, hBeiral: hB }, hTop: r3(hTop), res, perfil, zonas, cpis,
+    inp: { ...inp, a, b, theta: th, hBeiral: hB }, hTop: r3(hTop), res, perfil, zonas, cpis, arrasto: arr,
     geo: { x0: res.x0_m, xC1: r3(xC1), y: r3(yR), faixaParede: r3(faixaPar), hb: r3(hB / b), ab: r3(a / b) },
     cpeMedioParede: W.cpe_medio, cpeMedioTelhado, thetaRows: [lo?.theta, hi?.theta],
     notas: res._notas || [],

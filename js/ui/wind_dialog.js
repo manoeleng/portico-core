@@ -70,7 +70,12 @@ function bodyHTML(st, spacing, view3d = null) {
   ${sec('Paredes — vento a 90° (q de α = 90°)', 90, false)}
   ${sec('Telhado — vento a 0°', 0, true)}
   ${sec('Telhado — vento a 90°', 90, true)}
-  ${spacing > 0 ? `<h3>7. Forças atuantes no pórtico (faixa de ${nf(spacing)} m)</h3>${forcas}` : '<p class="note">Informe a distância entre pórticos para as forças atuantes no pórtico (kN/m).</p>'}
+  <h3>7. Força de arrasto global (6.1.2)</h3>
+  <table class="wt"><tr><th>Vento</th><th>ℓ1 × ℓ2 [m]</th><th>h/ℓ1 · ℓ1/ℓ2</th><th>Ca</th><th>Ae [m²]</th><th>q [N/m²]</th><th>Fa = Ca·q·Ae [kN]</th></tr>
+  ${st.arrasto.map((r) => `<tr><td>α = ${r.alpha}°</td><td>${nf(r.l1)} × ${nf(r.l2)}</td><td>${nf(st.hTop / r.l1, 3)} · ${nf(r.l1 / r.l2, 3)}</td><td><b>${r.Ca != null ? nf(r.Ca, 3) : '—'}</b> ${esc(r.fig || '')}</td><td>${nf(r.Ae, 2)}</td><td>${nf(r.q, 1)}</td><td><b>${r.Fa != null ? nf(r.Fa, 2) : '—'}</b></td></tr>`).join('')}</table>
+  ${st.arrasto.flatMap((r) => r.avisos).length ? `<p class="note">${st.arrasto.flatMap((r) => r.avisos.map((x) => `α = ${r.alpha}°: ${esc(x)}`)).join('<br>')}</p>` : ''}
+  <p class="note">Ca da Fig. ${st.inp.altaTurbulencia ? '5 (alta turbulência, 6.1.3)' : '4 (baixa turbulência)'}, lida das curvas da norma (tabela ratificada pelo engenheiro). As Figs. 4/5 valem para edificações paralelepipédicas: o telhado de duas águas é tomado pela altura do topo; Ae = área frontal projetada. Excentricidade de 6.1.4 não incluída.</p>
+  ${spacing > 0 ? `<h3>8. Forças atuantes no pórtico (faixa de ${nf(spacing)} m)</h3>${forcas}` : '<p class="note">Informe a distância entre pórticos para as forças atuantes no pórtico (kN/m).</p>'}
   ${st.notas.length ? `<h3>Observações</h3><ul>${st.notas.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
   <p class="note">ABNT NBR 6123:2023 — Forças devidas ao vento em edificações: 5 (Vk, S1, S2 Tab. 1/3, S3 Tab. 4), 6.3 (Cpi), Tab. 6 (paredes), Tab. 7 (telhados de duas águas). S2 tomado no topo da edificação (a favor da segurança). Cálculo do PORTICO validado contra Gonçalves et al. (EESC/USP) e CBCA Galpões (2010). Responsabilidade técnica: o engenheiro que assina o projeto.</p>`;
 }
@@ -85,7 +90,7 @@ export async function openWindDialog(app) {
   const w = libs.reglas?.loads?.wind;
   const el = document.createElement('div');
   el.id = 'wind-panel';
-  el.style.cssText = 'position:fixed;left:50%;top:60px;transform:translateX(-50%);width:min(1100px,96vw);height:calc(100vh - 80px);z-index:9000;background:var(--bg-elev,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;font-size:12px';
+  el.style.cssText = 'position:fixed;left:50%;top:60px;transform:translateX(-50%);width:min(1560px,98vw);height:calc(100vh - 70px);z-index:9000;background:var(--bg-elev,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#ccc);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;font-size:12px';
   const num = (id, lbl, v, step = 0.1) => `<div class="prop-field"><label>${lbl}</label><input type="number" id="${id}" value="${v}" step="${step}" min="0"></div>`;
   const sel = (id, lbl, opts) => `<div class="prop-field"><label>${lbl}</label><select id="${id}">${opts}</select></div>`;
   el.innerHTML = `
@@ -101,6 +106,8 @@ export async function openWindDialog(app) {
       <div class="prop-row cols2">${num('wd-a', 'a — comprimento (m)', 30, 0.5)}${num('wd-b', 'b — largura (m)', 15, 0.5)}</div>
       <div class="prop-row cols2">${num('wd-h', 'h — altura do beiral (m)', 6, 0.1)}${num('wd-th', 'θ — inclinação (°)', 10, 0.5)}</div>
       <div class="prop-row cols1">${num('wd-sp', 'Distância entre pórticos (m) — forças no pórtico', 5, 0.5)}</div>
+      <label style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="wd-alta"> Alta turbulência (6.1.3) — Ca pela Fig. 5</label>
+      <div class="prop-row cols2">${num('wd-ca90', 'Ca informado α = 90° (opcional)', '', 0.05)}${num('wd-ca0', 'Ca informado α = 0° (opcional)', '', 0.05)}</div>
       ${sel('wd-cpi', 'Pressão interna Cpi (6.3)', Object.entries(CPI).map(([k, o]) => `<option value="${k}">${esc(o.txt)}</option>`).join(''))}
       <div class="prop-field" id="wd-cpiman-w" style="display:none"><label>Cpi (separados por ;)</label><input type="text" id="wd-cpiman" value="0,8; -0,5"></div>
       <div style="display:flex;gap:6px;margin-top:10px">
@@ -115,14 +122,14 @@ export async function openWindDialog(app) {
   style.textContent = `#wd-out h2{margin:0 0 4px}#wd-out h3{margin:16px 0 6px;color:#0369a1;font-size:13px}#wd-out h4{margin:10px 0 4px;font-size:12px}
     #wd-out .wt{border-collapse:collapse;width:100%;margin:2px 0}#wd-out .wt td,#wd-out .wt th{border:1px solid #cbd5e1;padding:2px 6px;text-align:left}
     #wd-out .wt th{background:rgba(148,163,184,.18)}#wd-out .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}#wd-out .note{opacity:.75;font-size:11px}
-    #wd-out svg{background:#fff;border-radius:6px}`;
+    #wd-out svg{background:#fff;border-radius:6px;max-width:100%;height:auto}#wd-out .row>div{min-width:0;max-width:100%}#wd-out img{max-width:100%}`;
   el.appendChild(style);
   const $ = (id) => el.querySelector('#' + id), n = (id) => parseFloat(String($(id).value).replace(',', '.'));
   const inputs = () => {
     const k = $('wd-cpi').value;
     const cpi = k === 'manual' ? String($('wd-cpiman').value).split(/[;\s]+/).map((s) => parseFloat(s.replace(',', '.'))).filter(isFinite) : CPI[k].v;
     return { obra: $('wd-obra').value, V0: n('wd-v0'), S1: n('wd-s1'), categoria: $('wd-cat').value, grupoS3: +$('wd-s3').value,
-      a: n('wd-a'), b: n('wd-b'), hBeiral: n('wd-h'), theta: n('wd-th'), cpi: cpi.length ? cpi : [-0.3, 0] };
+      a: n('wd-a'), b: n('wd-b'), hBeiral: n('wd-h'), theta: n('wd-th'), cpi: cpi.length ? cpi : [-0.3, 0], altaTurbulencia: $('wd-alta').checked, Ca90: n('wd-ca90'), Ca0: n('wd-ca0') };
   };
   let last = null, lastSp = 0, view3d = null;
   const update = () => {
