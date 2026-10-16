@@ -8,7 +8,6 @@ import { angleProps } from '../design/cf_geom.js?v=7';
 import { figTruss, figShear, figBase, figSplice, figLmss, figWeldedSplice, figChapaBanzo } from '../design/connections_figs.js?v=7';
 import { resultHTML, CSS } from './connections_dialog.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
-import { ConnectionMarkers } from './connections_3d.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar / viga–viga flexível', trelica: 'Barra de treliça × chapa de nó', emenda: 'Emenda com talas',
@@ -148,10 +147,18 @@ export function openConnectionsModelDialog(app) {
   };
   // 3D markers: hide the panel, show the markers; a click on a marker (or "Tabela") brings the panel back on that connection
   app._connMarkers?.clear();
-  const markers = app.viewport ? (app._connMarkers = new ConnectionMarkers(app.viewport, {
-    onPick: (q) => { el.style.display = 'flex'; const i = out ? out.rows.indexOf(q.row) : -1; if (i >= 0) $('#cm-det').innerHTML = detail(out.rows[i]); },
-    onTable: () => { el.style.display = 'flex'; } })) : null;
-  $('#cm-3d').onclick = () => { if (!out || !markers) return; markers.show(out.rows, app.model); el.style.display = 'none'; };
+  // connections_3d (Three.js) is loaded on demand: modelTopology/modelCombos stay importable outside the browser
+  let markers = null;
+  $('#cm-3d').onclick = async () => {
+    if (!out || !app.viewport) return;
+    if (!markers) {
+      const { ConnectionMarkers } = await import('./connections_3d.js?v=7');
+      markers = app._connMarkers = new ConnectionMarkers(app.viewport, {
+        onPick: (q) => { el.style.display = 'flex'; const i = out ? out.rows.indexOf(q.row) : -1; if (i >= 0) $('#cm-det').innerHTML = detail(out.rows[i]); },
+        onTable: () => { el.style.display = 'flex'; } });
+    }
+    markers.show(out.rows, app.model); el.style.display = 'none';
+  };
   $('#cm-close').onclick = () => { markers?.clear(); el.remove(); };
   $('#cm-rep').onclick = () => {
     if (!out) return;
