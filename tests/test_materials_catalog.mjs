@@ -21,6 +21,12 @@ for (const r of catalogMaterials({ tipo: 'madeira', norma: 'NBR 7190-1:2022' }))
   ok(`M5. ${cls}: E0,m catálogo = módulo NBR 7190`, getMaterialDef(r.name).E, t.E0med, 1e-9);
 }
 n++; const br = catalogMaterials({ norma: 'NBR 7190-1:2022' }).length; if (br !== 20) { fails++; console.log('FAIL M6. 20 classes', br); } else console.log('ok   M6. 20 classes de madeira');
+// ASTM A572 para perfis laminados — NBR 8800:2024 Anexo A, Tab. A.2 (lida no PDF da norma): fy / fu (MPa)
+for (const [g, fy, fu] of [[42, 290, 415], [50, 345, 450], [55, 380, 485], [60, 415, 520], [65, 450, 550]]) {
+  const m = getMaterialDef(`Aço A572 Gr.${g}`);
+  ok(`A572-${g}. fy`, m.design.Fy, fy); ok(`A572-${g}. fu`, m.design.Fu, fu); ok(`A572-${g}. E`, m.E, 2.0e8);
+}
+n++; if (!/Tab\. A\.2/.test(getMaterialDef('Aço A572 Gr.50').catalog?.norma || '')) { fails++; console.log('FAIL A572 norma'); } else console.log('ok   A572 norma = NBR 8800 Tab. A.2');
 n++; if (!getMaterialDef('Aço MR250').catalog?.norma?.startsWith('NBR 8800')) { fails++; console.log('FAIL M7. norma'); } else console.log('ok   M7. material do catálogo leva a norma');
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

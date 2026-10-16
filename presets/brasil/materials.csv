@@ -3,6 +3,11 @@ MR250,acero,Aço estrutural NBR 7007 MR250,2.0e8,7.7e7,0.3,7.85,250,
 AR350,acero,Aço estrutural NBR 7007 AR350,2.0e8,7.7e7,0.3,7.85,350,
 AR350 COR,acero,Aço estrutural NBR 7007 AR350 COR,2.0e8,7.7e7,0.3,7.85,350,
 AR415,acero,Aço estrutural NBR 7007 AR415,2.0e8,7.7e7,0.3,7.85,415,
+A572 Gr.42,acero,Aço ASTM A572 Gr.42 (perfis laminados; NBR 8800:2024 Tab. A.2),2.0e8,7.7e7,0.3,7.85,290,
+A572 Gr.50,acero,Aço ASTM A572 Gr.50 (perfis laminados; NBR 8800:2024 Tab. A.2),2.0e8,7.7e7,0.3,7.85,345,
+A572 Gr.55,acero,Aço ASTM A572 Gr.55 (perfis laminados; NBR 8800:2024 Tab. A.2),2.0e8,7.7e7,0.3,7.85,380,
+A572 Gr.60,acero,Aço ASTM A572 Gr.60 (perfis grupos 1 e 2; NBR 8800:2024 Tab. A.2),2.0e8,7.7e7,0.3,7.85,415,
+A572 Gr.65,acero,Aço ASTM A572 Gr.65 (perfis grupos 1 e 2; NBR 8800:2024 Tab. A.2),2.0e8,7.7e7,0.3,7.85,450,
 C20,hormigon,Concreto C20 (NBR 6118:2026; Ecs = αi·5600·√fck),2.1287e+7,8.8697e+6,0.2,2.5,,20
 C25,hormigon,Concreto C25 (NBR 6118:2026; Ecs = αi·5600·√fck),2.4150e+7,1.0063e+7,0.2,2.5,,25
 C30,hormigon,Concreto C30 (NBR 6118:2026; Ecs = αi·5600·√fck),2.6838e+7,1.1183e+7,0.2,2.5,,30

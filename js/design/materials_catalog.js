@@ -36,6 +36,13 @@ export const MATERIALS_BR = {
   'Aço AR350':         STEEL_BR(350, 450),
   'Aço AR350 COR':     STEEL_BR(350, 485),
   'Aço AR415':         STEEL_BR(415, 520),
+  // ASTM A572 for hot-rolled profiles — NBR 8800:2024 Anexo A, Tab. A.2 (fy / fu, MPa): grades 42, 50 and 55 for profile
+  // groups 1, 2 and 3; grades 60 and 65 only for groups 1 and 2 (lighter profiles)
+  'Aço A572 Gr.42':    STEEL_BR(290, 415),
+  'Aço A572 Gr.50':    STEEL_BR(345, 450),
+  'Aço A572 Gr.55':    STEEL_BR(380, 485),
+  'Aço A572 Gr.60':    STEEL_BR(415, 520),
+  'Aço A572 Gr.65':    STEEL_BR(450, 550),
   'Concreto C20':      CONC_BR(20),
   'Concreto C25':      CONC_BR(25),
   'Concreto C30':      CONC_BR(30),
@@ -58,7 +65,8 @@ for (const [cls, [E, G, rho]] of Object.entries(T7190)) MATERIALS_BR[`Madeira ${
   design: { family: 'timber', classe7190: cls } };
 
 export const MATERIAL_FAMILIES_BR = {
-  'Aço (NBR)':      ['Aço MR250', 'Aço AR350', 'Aço AR350 COR', 'Aço AR415'],
+  'Aço (NBR)':      ['Aço MR250', 'Aço AR350', 'Aço AR350 COR', 'Aço AR415',
+    'Aço A572 Gr.42', 'Aço A572 Gr.50', 'Aço A572 Gr.55', 'Aço A572 Gr.60', 'Aço A572 Gr.65'],
   'Concreto (NBR)': ['Concreto C20', 'Concreto C25', 'Concreto C30', 'Concreto C35', 'Concreto C40', 'Concreto C45', 'Concreto C50'],
   'Madeira (NBR)':  Object.keys(T7190).map((c) => `Madeira ${c}`),
 };
@@ -94,7 +102,7 @@ export const MATERIAL_FAMILIES = {
 export function materialNames() { return Object.keys(MATERIALS); }
 
 // Catalogue entries with type and standard (RFEM/CSI-like filtered library): [{ name, tipo, norma, resumo }]
-const NORMA = (name, fam) => /^Aço /.test(name) ? 'NBR 8800:2024 / NBR 7007' : /^Concreto /.test(name) ? 'NBR 6118:2026'
+const NORMA = (name, fam) => /^Aço A572/.test(name) ? 'NBR 8800:2024 Tab. A.2 / ASTM A572' : /^Aço /.test(name) ? 'NBR 8800:2024 / NBR 7007' : /^Concreto /.test(name) ? 'NBR 6118:2026'
   : /^Madeira /.test(name) ? 'NBR 7190-1:2022' : /A36|A572/.test(name) ? 'ASTM' : /S275|S355/.test(name) ? 'EN 10025'
   : /^Hormigón/.test(name) ? 'NCh 170' : /^Madera/.test(name) ? 'EN 338' : /Aluminio/.test(name) ? 'EN 1999' : fam;
 const TIPO = { steel: 'aço', concrete: 'concreto', timber: 'madeira', aluminum: 'alumínio' };
