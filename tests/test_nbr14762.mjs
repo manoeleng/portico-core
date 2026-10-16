@@ -193,7 +193,7 @@ for (const c of D.casos['BR-14762-CB'].casos) ok(`Cb Mmax=${c.Mmax}`, cbMoments(
     ok('S8 x Wc,ef (cm³) (tol 1,5 %)', fx.WcEf / cm3, ex.Wc_ef, 0.015); ok('S8 x MRd,FLT (kN·cm) (tol 1,5 %)', fx.MRdFLT * 100, ex.MRd_FLT, 0.015);
     ok('S8 x MxRd (kN·cm)', fx.capacity * 100, ex.MxRd, 0.015);
     const fy = r.flexaoY, ey = e.flexao_y;
-    ok('S8 y j (cm)', fy.j, ey.j, 0.002); assert('S8 y Cs = −1 (mesas comprimidas)', fy.Cs === -1);
+    ok('S8 y j (cm)', fy.j * 100, ey.j, 0.002); assert('S8 y Cs = −1 (mesas comprimidas)', fy.Cs === -1);
     ok('S8 y Wc (cm³) = Iy/(bf − xg)', fy.Wc / cm3, ey.Wc, 0.002);
     // Me do Anexo E é diferença de dois termos próximos (j arredondado no manual): recálculo do oráculo = 227,5 (+1,3 %)
     ok('S8 y Me Anexo E (kN·cm) (tol 2 %: j arredondado)', fy.Me * 100, ey.Me, 0.02);

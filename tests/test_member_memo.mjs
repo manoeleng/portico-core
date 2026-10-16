@@ -76,6 +76,10 @@ ok(r3(fy.itens, 'Me ')?.startsWith('9.8.2.2 / Anexo E') && r3(fy.itens, 'MRd (in
 ok(r3(m3.blocos[0].itens, 'Nex — flexão em relação a x')?.startsWith('9.7.2.2 a) (y de simetria'), 'composta: Nex ancorado em 9.7.2.2 a) com y de simetria');
 const m4 = memberMemo({ ...row, avisos: ['elemento AL com ψ < −1: extensão da Tab. 6 com k = 23,8 — não é leitura literal da NBR 14762.'] }, { model });
 ok(m4.pend.length === 1 && m4.avisos.length === 0 && m4.veredito === 'ATENDE COM RESSALVAS', 'extensão não literal da Tab. 6 vai às pendências e não se repete nos avisos');
+// 4.1.1 fu/fy (ZAR 280: 380/280 = 1,357), Anexo B declarado; 9.6.3 esbeltez na tração (Lx 5,6 m / rx 7,99 cm = 70,09)
+ok(find(m.dados, 'Relação fu/fy') === '1,36 ≥ 1,08' && find(m.dados, 'Trabalho a frio')?.startsWith('não considerado'), 'fu/fy (4.1.1) e Anexo B na memória');
+const mt = memberMemo({ ...row, forces: { ...row.forces, N: 107 }, axial: { demand: 107, capacity: 370.1, ratio: 0.289, modo: 'tração', formula: 'Nt,Rd = A·fy/1,10 (9.6.2 a)', esbeltez: { 'L/r': 70.09, limite: 300 } } }, { model });
+ok(find(mt.blocos[0].itens, 'Esbeltez') === 'L/r 70,1 / 300' && r3(mt.blocos[0].itens, 'Esbeltez')?.startsWith('9.6.3') && mt.blocos[0].norma.includes('9.6.2 a)'), `tração: esbeltez 9.6.3 (${find(mt.blocos[0].itens, 'Esbeltez')})`);
 const html = memoHTML(m);
 ok(html.includes('aviso com &lt;tag&gt;') && !html.includes('<tag>'), 'HTML escapa os avisos');
 ok(html.includes('Barra #242') && html.includes('r-ok') && html.includes('(9.9)') && html.includes('ART'), 'HTML com cabeçalho, cor do veredito, cláusulas e a nota de responsabilidade técnica');

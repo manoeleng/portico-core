@@ -630,6 +630,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     } else if (Nabs > 0) avisos.push('Tração: ruptura da seção líquida (9.6.2 b/c, Ct) não verificada — informe member.secaoLiquida (An0 e/ou An + ligação).');
     if (!isCh && !isL) avisos.push(`Seção "${shape}": tração só por escoamento da seção bruta.`);
     if (Nabs > 0 && !semLc && lamHard > 300) avisos.push(`Tração: L/r = ${lamHard.toFixed(0)} > 300 — recomenda-se L/r ≤ 300 (NBR 14762:2010 9.6.3).`);
+    if (!semLc && lamHard > 0) axial.esbeltez = { 'L/r': +lamHard.toFixed(2), limite: 300 };   // 9.6.3 (recomendação), shown in the memo
   } else {
     let why = whyC, det = {};
     if (!why && semLc) why = 'comprimento da barra não informado (flambagem global).';
@@ -812,6 +813,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     const o = { eixo, ramo: f.ramo, ...rest };
     for (const k of ['Wef', 'WcEf', 'Wc']) if (o[k] != null) o[k] = o[k] / 1e6;       // m³
     for (const k of ['Me', 'MRdEsc', 'MRdFLT', 'MRdDist']) if (o[k] != null) o[k] = o[k] / 100;  // kN·m
+    if (o.j != null) o.j = o.j / 100;                                                   // m (Anexo E; the angle path also returns m)
     delete o.Ief;
     return ratObj(D / 100, MRd / 100, o);
   };
@@ -969,6 +971,11 @@ function checkComposite14762(input) {
   }
   const av = r.avisos, N = demands.N || 0, Nabs = Math.abs(N);
   av.unshift(`Composta ${sec.designacao || kind}: cada perfil isolado com metade dos esforços, capacidades × 2 (Manual CBCA 2014 Anexo D; apostila Wanderson/INBEC Mód. 05). 9.7.4/9.6.3 com a esbeltez do conjunto λmáx = ${f2(lamConj, 1)}.`);
+  // the axial block shows the slenderness actually used in 9.7.4/9.6.3 (the set) next to that of one profile
+  if (r.axial && !semLc) {
+    const iso = r.axial.esbeltez ? Object.entries(r.axial.esbeltez).filter(([k]) => k !== 'limite' && k !== 'conjunto').map(([, v]) => v) : [];
+    r.axial.esbeltez = { conjunto: +lamConj.toFixed(2), ...(iso.length ? { 'perfil isolado': Math.max(...iso) } : {}), limite: N < 0 ? 200 : 300 };
+  }
 
   // 9.7.5 (compression) / 9.6.3 (tension): slenderness of one profile between presilhas
   const pr = member.presilhas || {}, l1 = pr.l1 > 0 ? pr.l1 * 100 : null, tipo = pr.tipo || 'presilha';

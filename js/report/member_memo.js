@@ -39,6 +39,7 @@ const LBL = {
   chiFLT: ['χFLT', ''], Cs: ['Cs', ''], Cm: ['Cm', ''], Cb: ['Cb', ''],
   kv: ['kv', ''], ht: ['h/t', ''], h: ['h (parte plana)', 'mm'], lp: ['λp (límite plástico)', ''], lr: ['λr (límite inelástico)', ''],
   lim108: ['1,08·√(E·kv/fy)', ''], lim140: ['1,40·√(E·kv/fy)', ''],
+  j: ['j (Anexo E)', 'mm'],
 };
 // ANCHORS — NBR 14762:2010 item and expression of every intermediate value, by block family (axial compression,
 // axial tension, flexure, shear, interaction); read from the standard (PDF in C:\projetos\_referencias, pages 34–58):
@@ -64,7 +65,7 @@ const REF14762 = {
     NcRdIsolado: ['9.7.5', '2 × Nc,Rd do perfil isolado'],
     esbeltez: ['9.7.4; 9.7.5', 'KL/r ≤ 200; perfil componente < ½ λ do conjunto (presilhas)'], distorcional: ['9.3; 9.7.3', 'Nc,Rd = χdist·A·fy/1,20'],
   },
-  trac: { _: ['9.6.2 a); 9.6.3', 'Nt,Rd = A·fy/γ, γ = 1,10 (escoamento da seção bruta); L/r ≤ 300 recomendado'] },
+  trac: { _: ['9.6.2 a); 9.6.3', 'Nt,Rd = A·fy/γ, γ = 1,10 (escoamento da seção bruta); L/r ≤ 300 recomendado'], esbeltez: ['9.6.3', 'L/r ≤ 300 (recomendação; também para cada perfil de barra composta)'] },
   flex: {
     _: ['9.8.2', 'MRd = menor de 9.8.2.1, 9.8.2.2 e 9.8.2.3'],
     Wef: ['9.8.2.1 a); 9.2.2', 'Wef da seção efetiva (MLE)'], MRdEsc: ['9.8.2.1', 'MRd = Wef·fy/γ, γ = 1,10'],
@@ -72,7 +73,7 @@ const REF14762 = {
     lambda0: ['9.8.2.2', 'λ0 = (Wc·fy/Me)^0,5'], chiFLT: ['9.8.2.2', 'λ0 ≤ 0,6: 1,0; 0,6 < λ0 < 1,336: 1,11(1 − 0,278·λ0²); λ0 ≥ 1,336: 1/λ0²'],
     Wc: ['9.8.2.2', 'módulo elástico da seção bruta, fibra extrema comprimida'], WcEf: ['9.8.2.2 a); 9.2.2', 'Wc,ef para σ = χFLT·fy'],
     MRdFLT: ['9.8.2.2', 'MRd = χFLT·Wc,ef·fy/γ, γ = 1,10'], Cb: ['9.8.2.2', 'Cb = 12,5·Mmáx/(2,5·Mmáx + 3MA + 4MB + 3MC); 1,0 a favor da segurança'],
-    Cs: ['Anexo E', 'sinal conforme a fibra comprimida'], Cm: ['Anexo E', 'coeficiente do diagrama de momentos'], dist: ['9.3; 9.8.2.3', 'MRd = χdist·W·fy/1,10'],
+    Cs: ['Anexo E', 'sinal conforme a fibra comprimida'], j: ['Anexo E (E.2.1)', 'j = [∫x³dA + ∫xy²dA]/(2·Iy) + x0; entra em Me = (Cs·Nex/Cm)·[j + Cs·(j² + r0²·Nez/Nex)^0,5] (E.2)'], Cm: ['Anexo E (E.2)', 'Cm = 0,6 − 0,4·(M1/M2); 1,0 se um momento intermediário supera M2'], dist: ['9.3; 9.8.2.3', 'MRd = χdist·W·fy/1,10'],
   },
   shear: {
     _: ['9.8.3', 'VRd = 0,6·fy·h·t/γ (h/t ≤ 1,08·(E·kv/fy)^0,5); 0,65·t²·(kv·fy·E)^0,5/γ; 0,905·E·kv·t³/h/γ; γ = 1,10'],
@@ -97,8 +98,7 @@ function refFamily(key, b) {
 }
 const refTxt = (r) => r ? `${r[0]} — ${r[1]}` : '';
 
-// j (Anexo E) is skipped: its unit differs between the U and angle paths of the checker (reported, not fixed here)
-const SKIP = new Set(['demand', 'capacity', 'ratio', 'formula', 'adim', 'verificado', 'j', 'parcelas', 'esbeltez', 'composta', 'distorcional', 'dist', 'motivo']);
+const SKIP = new Set(['demand', 'capacity', 'ratio', 'formula', 'adim', 'verificado', 'parcelas', 'esbeltez', 'composta', 'distorcional', 'dist', 'motivo']);
 const val = (k, v) => { const [, kind] = LBL[k] || []; return typeof v === 'number' ? (KIND[kind ?? ''] || KIND[''])(v) : String(v); };
 
 function items(o, R = null) {
@@ -122,7 +122,7 @@ const BLOCKS = [
 ];
 const BLOCKS_GEN = [['axial', 'Fuerza axial', 'F'], ['bending', 'Flexión', 'M'], ['shear', 'Cortante', 'F'], ['interaction', 'Interacción', '']];
 // pending premises / checks not made: shown at the top, and "atende" becomes "atende com ressalvas"
-const PEND = /NÃO verificad|não verificad|LACUNA|NÃO coberta|não coberta|não é considerada|não considerada|NÃO considerad|não é leitura literal/;
+const PEND = /NÃO verificad|não verificad|LACUNA|NÃO coberta|não coberta|não é considerada|não considerada|NÃO considerad|não é leitura literal|sem qualificação estrutural/;
 
 export function memberMemo(row, { model } = {}) {
   const el = model?.elements?.get(row.id), mat = el ? model.materials.get(el.matId) : null, md = mat?.design || {};
@@ -145,6 +145,8 @@ export function memberMemo(row, { model } = {}) {
   ];
   if (dsg.presilhas?.l1) dados.push([t('Presillas'), `l1 = ${num(dsg.presilhas.l1, 3)} m`]);
   if (dsg.contencaoTorcao) dados.push([t('Contención a la torsión'), t('declarada (Lb = Lz = Ly)')]);
+  if (is14762 && md.Fy && md.Fu) dados.push([t('Relação fu/fy (4.1.1)'), `${num(md.Fu / md.Fy, 2)} ${md.Fu / md.Fy >= 1.08 ? '≥' : '<'} 1,08`]);
+  if (is14762) dados.push([t('Trabalho a frio (Anexo B)'), t('não considerado: fy nominal do aço (a favor da segurança)')]);
   if (is14762) dados.push([t('Coeficientes de ponderação γ (NBR 14762:2010)'), `${t('tração')} 1,10 (${t('escoamento')}, 9.6.2 a) · ${t('compressão')} 1,20 (9.7) · ${t('flexão e cortante')} 1,10 (9.8)`]);
   // gross section (catalogue): x = major axis of the code (local z of the model), y = minor
   const props = [];

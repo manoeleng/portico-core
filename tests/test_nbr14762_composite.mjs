@@ -100,5 +100,10 @@ yes('U1c. aberta (J = 2·J1, sem Bredt)', !s2LU.closed && Math.abs(s2LU.J - 2 * 
 r = nbr14762.check({ demands: { N: -29.6 }, mat: mat28, sec: s2LU, member: { L: 1.22, Lx: 1.22, Ly: 1.22, Lz: 1.22, presilhas: { l1: 0.25 } } });
 ok('U2. 2L em U, KL 122, l1 ok: Nc,Rd = 2 × isolada = 19,97 kN', r.axial.capacity, 19.966, 2e-3);
 yes('U2b. aviso: composta não considerada em U', r.avisos.some(a => /2L em U/.test(a)));
+// exibição (16/10/2026): o bloco axial mostra a esbeltez usada no 9.7.4 (conjunto) e a do perfil isolado.
+// 2L 40x2,25 costas g8, L = 1,22 m: conjunto max(122/1,2552; 122/1,9559) = 97,20; isolado 122/0,77 = 158,44
+r = nbr14762.check({ demands: { N: -5 }, mat: mat28, sec: sec2L, member: { L: 1.22, Lx: 1.22, Ly: 1.22, Lz: 1.22 } });
+ok('E1. esbeltez do conjunto no bloco axial (9.7.4)', r.axial.esbeltez.conjunto, 97.20, 2e-3);
+ok('E1b. esbeltez do perfil isolado ao lado', r.axial.esbeltez['perfil isolado'], 158.44, 2e-3);
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);
