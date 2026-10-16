@@ -60,6 +60,13 @@ soldada; modelo com LMSS, LCSP, viga–viga recortada, emenda soldada, solda da 
 ampliados (Gerdau LCSP 346/275, LCPP com recorte 252/234, LMSS Md 136; Saulo Apl. 8/9; AISC 8-8). Pendências: ligação rígida com chapa de cabeça
 (efeito alavanca 6.3.5), atrito (6.3.4), base tubular (NBR 16239), sentido do cortante do pilar no painel (hoje conservador), cabeça de pilar e emenda
 de cumeeira (curso de Projeto e Cálculo de Estruturas Metálicas, aulas 10). Revisão de cálculo: 2 rodadas, **FECHADO**.
+**Base de pilar treliçado com pernas formadas a frio (16/10/2026, pedido do Manoel — galpão PFF do Wanderson)** — `js/design/connections_base_pff.js`
+(a 6.7 só cobre I/H: decisão B declarada). Padrão: uma placa por perna (rótula do modelo), 6.7 por analogia com a U como I (d = bw, bf), Tab. 18,
+arruelas soldadas com tração/cortante, mínimo de 50 % de NRd da perna (NBR 14762 10.1-a) na placa, chumbadores e solda; solda da perna pela 14762
+10.2.3. Opção: placa única sob as duas pernas pelo método do Wanderson (Especialização INBEC, Mód. 6, p.89–117) com σc,Rd da 6.6.5 de 2024 e a
+correção do caso sem tração (T ≤ 0); flexão da placa entre as pernas e ancoragem: LACUNA declarada. Oráculo: C4 do Wanderson (Y 2,04 / 1,715 cm,
+T 38,6 kN, t 1,26 / 1,39 cm) e C1 (T = 0, Y 3,15 cm); `tests/test_connections_base_pff.mjs`. Galpão do Wanderson: por perna 360 × 160 × 19 mm, 4 × ¾"
+A36; placa única 1060 × 370 × 22,4 mm. Revisão de cálculo **FECHADO**.
 
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).

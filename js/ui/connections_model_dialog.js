@@ -11,8 +11,9 @@ import { esc } from '../utils/escape.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar / viga–viga flexível', trelica: 'Barra de treliça × chapa de nó', emenda: 'Emenda com talas',
-  lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada', soldaBase: 'Solda pilar–placa de base', chapaBanzo: 'Solda chapa de nó–banzo' };
-const FIG = { base: figBase, flexivel: figShear, trelica: figTruss, emenda: figSplice, lmss: figLmss, emendaSoldada: figWeldedSplice, chapaBanzo: figChapaBanzo };
+  lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada', soldaBase: 'Solda pilar–placa de base', chapaBanzo: 'Solda chapa de nó–banzo',
+  basePerna: 'Base de perna de pilar treliçado', baseUnica: 'Base de pilar treliçado (placa única)' };
+const FIG = { base: figBase, basePerna: figBase, flexivel: figShear, trelica: figTruss, emenda: figSplice, lmss: figLmss, emendaSoldada: figWeldedSplice, chapaBanzo: figChapaBanzo };
 const ULS = (name) => /^ELU/i.test(name) || (!/^ELS/i.test(name) && !/servi(ç|c)o/i.test(name));
 
 /** plain topology of the app model (lengths mm, stresses MPa) */
@@ -78,6 +79,7 @@ export function openConnectionsModelDialog(app) {
       <h4>Bases</h4>
       <div class="prop-row cols2">${num('cm-fck', 'fck do bloco (MPa)', P.fck, 1)}${num('cm-a2', 'A2/A1 (6.6.5)', P.A2A1, 0.25)}</div>
       ${num('cm-fyp', 'fy da placa de base (MPa)', P.fyPlaca, 5)}
+      <div class="prop-field"><label>Pilar treliçado (pernas formadas a frio)</label><select id="cm-pff"><option value="perna">uma placa por perna (rótulas do modelo)</option><option value="unica">placa única sob as duas pernas (Wanderson)</option></select></div>
       <h4>Soldas</h4>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wb" checked> Solda pilar–placa de base</label>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wc" checked> Solda chapa de nó–banzo (comprimento mínimo)</label>
@@ -121,7 +123,7 @@ export function openConnectionsModelDialog(app) {
     const v = (id) => parseFloat(String($(id).value).replace(',', '.'));
     const spliceNodes = new Set([...el.querySelectorAll('[data-spl]')].filter((x) => x.checked).map((x) => +x.dataset.spl));
     Object.assign(P, { ligacaoFlexivel: $('#cm-flex').value, excentricidade: $('#cm-exc').checked, parafuso8800: $('#cm-p88').value, parafuso14762: $('#cm-p14').value,
-      rosca: $('#cm-rosca').checked, rigidas: $('#cm-rig').value, emendaTipo: $('#cm-emt').value, soldaBase: $('#cm-wb').checked, soldaChapaBanzo: $('#cm-wc').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
+      rosca: $('#cm-rosca').checked, basePFF: $('#cm-pff').value, rigidas: $('#cm-rig').value, emendaTipo: $('#cm-emt').value, soldaBase: $('#cm-wb').checked, soldaChapaBanzo: $('#cm-wc').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
     $('#cm-tab').innerHTML = '<p class="panel-hint">Dimensionando…</p>';
     setTimeout(() => {
       try { out = designAll(topo, combos, P); }

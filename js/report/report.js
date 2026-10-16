@@ -454,7 +454,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
     const cd = app.model.connectionDesign || (app._connectionDesign && app._connectionDesignFor === app._fileName ? app._connectionDesign : null);
     let connHTML = '';
     if (cd?.rows?.length) {
-      const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar flexível', trelica: 'Treliça × chapa de nó', emenda: 'Emenda', lcsp: 'Viga–pilar flexível soldada (LCSP)', lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada', soldaBase: 'Solda pilar–placa de base', chapaBanzo: 'Solda chapa de nó–banzo' };
+      const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar flexível', trelica: 'Treliça × chapa de nó', emenda: 'Emenda', lcsp: 'Viga–pilar flexível soldada (LCSP)', lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada', soldaBase: 'Solda pilar–placa de base', chapaBanzo: 'Solda chapa de nó–banzo', basePerna: 'Base de perna de pilar treliçado', baseUnica: 'Base de pilar treliçado (placa única)' };
       const nao = cd.rows.filter((r) => !r.ok).length;
       connHTML = `<h3>3.1 Ligações metálicas — NBR 8800:2024 §6 / NBR 14762:2010 §10</h3>
 <p class="muted">${cd.rows.length} ligações pré-dimensionadas para ${cd.nCombos} combinações de ELU em ${esc(cd.data || '')}; ${nao ? `<b>${nao} não atendem</b>` : 'todas atendem'}. Memória detalhada de cada ligação: Assistente → Ligações do modelo → Relatório.</p>
