@@ -17,6 +17,11 @@ favorável (envoltória 21–86 % curta) e G favorável só com vento; (4) 6123 
 Pendentes registrados nos testes: faixas finitas (fsm.js) local do U simples +3,5 % e distorcional −3 a −4 % contra CUFSM; autovalores
 repetidos do modal com dispersão ≤ 0,17 % (critério de convergência); fichas BR-6123-02/04, BR-15421-01 (espectro 2023) sem exemplo publicado.
 
+**Flexão de cantoneira (NBR 14762, 16/10/2026, revisão FECHADA)** — L isolada e 2L: eixos principais com 9.9 somado; M1 por
+9.8.2.2 (Me = Cb·√(Ney·G·J)), M2 pelo Anexo E (j = a/√2; pontas comprimidas Cs = −1), seção efetiva ASSIMÉTRICA com Iuv′ e flexão
+oblíqua (sem Iuv′ o M1Rd saía 2× maior, contra a segurança); cortante da aba pela NBR 8800:2024 5.4.3.4 (decisão do Manoel, referência
+externa). As 53 barras 2L do exemplo do Wanderson passam a ser verificadas. LACUNAS: espaçamento das ligações de 2L em flexão; M + V.
+
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
 2. Ratificação dos oráculos por cálculo manual: BR-8681-01, BR-15421-01, BR-6123-01..04, BR-8800-05f/g e 07, torção.

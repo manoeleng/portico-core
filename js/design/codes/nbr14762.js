@@ -419,7 +419,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
       gL.b = gL.B - (t + ri);                                                  // flat width of each leg (AL)
       gL.r2 = sec.r2 > 0 ? sec.r2 * 100 : Math.sqrt(gL.I2 / A);
       if (gL.b / t > 60) limComp = `Tab. 4 (9.1.2) excedida: aba (AL) b/t = ${(gL.b / t).toFixed(1)} > 60.`;
-      limFlex = 'flexão e cortante de cantoneira isolada fora do escopo da v1 (LACUNA).';
+      gL.xg = sec.xg > 0 ? sec.xg * 100 : null; gL.A = A;
+      if (!(gL.xg > 0)) limFlex = 'cantoneira sem xg (NBR 6355 Tab. A.1): flexão NÃO verificada.';
     }
   } else if (/^2(L|U|Ue)$/.test(shape)) geomWhy = sec.arr === 'caixa'
     ? `composta em caixa "${sec.designacao || shape}": LACUNA na v1 — a NBR 14762:2010 só trata o tubo de 2 U com solda de costura contínua (Tab. 9 d / Tab. 12 c) e não dá Cw nem FLT da seção composta. Tração: só escoamento da seção bruta.`
@@ -472,6 +473,112 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     const Nexz = (s / (2 * f)) * (1 - Math.sqrt(Math.max(0, 1 - 4 * Nex * Nez * f / (s * s))));   // 9.7.2.2 (x = symmetry axis)
     const Ne = Math.min(Ney, Nexz);
     return { Nex, Ney, Nez, Nexz, Ne, modo: Ne === Ney ? 'flexão em y' : 'flexo-torção' };
+  };
+
+
+  // ── single angle in bending (review 15/10/2026 — engenheiro de aço): principal axes, 9.9 summed ──────────────────
+  // NBR 14762 x/y are PRINCIPAL axes (9.7.2.1): the geometric Mz/My are projected on axis 1 (symmetry, I1) and 2 (I2):
+  // M1 = (−Mz + My)/√2, M2 = (Mz + My)/√2 in the section plane (Xs = −z, Ys = y). The design forces come as magnitudes,
+  // so every sign combination is checked: |M1|, |M2| ∈ {(|Mz| + |My|)/√2, ||Mz| − |My||/√2} and both senses of M2
+  // (leg tips or heel compressed) — the worst governs.
+  //   M1 (about the axis of symmetry): yield 9.8.2.1 with Wef (MLE) and FLT 9.8.2.2, Me = Cb·r0·√(Ney·Nez) =
+  //      Cb·√(Ney·G·J) (Cw = 0, r0 cancels), Ney with I2.
+  //   M2 (⊥ to the symmetry axis): yield with Wef and the Anexo E, Me = (Cs·Nex/Cm)·[j + Cs·√(j² + G·J/Nex)],
+  //      Nex with I1, j = a/√2 (general j of E.2.1 integrated on the mid-line of an equal-leg angle, a = B − t/2),
+  //      Cs = −1 with the tips compressed (low Me: torsional mode of the thin angle), +1 with the heel compressed.
+  //   Legs: AL elements of Tab. 6 (case d, σ1 at the free edge; case c, σ1 at the support) on the flat width
+  //   b = B − (t + ri), effective section iterated (centroid shift), product of inertia of the effective section
+  //   neglected (declared). Shear of the legs: 9.8.3 is written for webs — LACUNA.
+  const angleFlex = () => {
+    const t = gL.t, B = gL.B, xg = gL.xg, a = B - t / 2, c = xg - t / 2, s0 = gL.t + gL.ri - t / 2, s1 = a, r2 = Math.SQRT1_2;
+    const uOf = (X, Y) => [(X + Y) * r2, (-X + Y) * r2];                 // (u1, u2): u1 along the symmetry axis
+    const legs = [{ d: [1, 0], n: [0, 1] }, { d: [0, 1], n: [1, 0] }];  // horizontal / vertical leg (X, Y) and its normal
+    const P = (leg, s, off = 0) => uOf(-c + leg.d[0] * s + leg.n[0] * off, -c + leg.d[1] * s + leg.n[1] * off);
+    const corners = [[-xg, -xg], [-xg, B - xg], [t - xg, B - xg], [t - xg, t - xg], [B - xg, t - xg], [B - xg, -xg]].map(([X, Y]) => uOf(X, Y));
+    const tipCorners = [[4, 5], [1, 2]];                                // corner indices at the tip of leg 0 / leg 1
+    const Ig = { 1: gL.I1, 2: gL.I2 }, k = { 1: 1, 2: 0 };             // axis 1: stress ∝ u2; axis 2: stress ∝ u1
+    // effective section for bending about `ax`, sgn = +1 compresses the positive coordinate side; sigRef applied to the
+    // fibre with the largest distance among the compressed ones (mode 'stab') or all (mode 'yield')
+    // effective section for bending about principal axis `ax` (1 or 2), sgn = +1 compresses the positive side of the
+    // stress coordinate; sigRef applied at the fibre with the largest stress among the compressed ones (mode 'stab')
+    // or among all (mode 'yield', 9.8.2.1). The effective section loses part of ONE leg (M1) and is no longer
+    // symmetric: its product of inertia Iuv′ is kept and the stress is that of unsymmetric bending under the single
+    // principal moment (review 16/10/2026: neglecting Iuv′ underestimated the compression stress about 2×).
+    const eff = (ax, sgn, sigRef, mode) => {
+      const ci = k[ax], oi = 1 - ci;
+      let props = { e: [0, 0], Icc: Ig[ax], Ioo: Ig[ax === 1 ? 2 : 1], Ico: 0 }, gaps = [[], []], why = null, ref = 1, fibers = [];
+      // stress factor per unit moment at u (positive = compression): σ/M = sgn·(Ioo·c′ − Ico·o′)/(Icc·Ioo − Ico²)
+      const fOf = (u, pr) => sgn * (pr.Ioo * (u[ci] - pr.e[ci]) - pr.Ico * (u[oi] - pr.e[oi])) / (pr.Icc * pr.Ioo - pr.Ico * pr.Ico);
+      const propsOf = (gp) => {          // gross principal-axis inertias minus the removed strips (own inertia tL³/12 along the leg)
+        let dA = 0, S = [0, 0], dcc = 0, doo = 0, dco = 0;
+        gp.forEach((gl, li) => gl.forEach(([p0, q0]) => {
+          const L = q0 - p0, m = P(legs[li], s0 + (p0 + q0) / 2), d = uOf(legs[li].d[0], legs[li].d[1]), A_ = L * t, own = t * L ** 3 / 12;
+          dA += A_; S[0] += A_ * m[0]; S[1] += A_ * m[1];
+          dcc += A_ * m[ci] ** 2 + own * d[ci] ** 2; doo += A_ * m[oi] ** 2 + own * d[oi] ** 2; dco += A_ * m[ci] * m[oi] + own * d[ci] * d[oi];
+        }));
+        const A1 = gL.A - dA, e = [-S[0] / A1, -S[1] / A1];
+        return { e, A1, Icc: props0.Icc - dcc - A1 * e[ci] ** 2, Ioo: props0.Ioo - doo - A1 * e[oi] ** 2, Ico: -dco - A1 * e[ci] * e[oi] };
+      };
+      const props0 = { ...props };
+      for (let it = 0; it < 40; it++) {
+        fibers = corners.filter((_, i) => !gaps.some((gl, li) => gl.some(([, q]) => q >= gL.b - 1e-9) && tipCorners[li].includes(i)));
+        gaps.forEach((gl, li) => gl.forEach(([p0]) => { for (const off of [-t / 2, t / 2]) fibers.push(P(legs[li], s0 + p0, off)); }));
+        const fs = fibers.map((u) => fOf(u, props));
+        ref = mode === 'yield' ? Math.max(...fs.map(Math.abs)) : Math.max(...fs);
+        const sigAt = (u) => sigRef * fOf(u, props) / ref;
+        const ng = [];
+        for (const leg of legs) {
+          const r = effAL(gL.b, t, sigAt(P(leg, s0)), sigAt(P(leg, s1)), E);
+          if (r.unverified) { why = r.unverified; break; }
+          ng.push(r.gaps || []);
+        }
+        if (why) break;
+        const np = propsOf(ng);
+        const conv = Math.abs(np.e[0] - props.e[0]) + Math.abs(np.e[1] - props.e[1]) < 1e-7 && Math.abs(np.Ico - props.Ico) < 1e-9 && JSON.stringify(ng.map((g) => g.map(([a_, b_]) => [+a_.toFixed(6), +b_.toFixed(6)]))) === JSON.stringify(gaps.map((g) => g.map(([a_, b_]) => [+a_.toFixed(6), +b_.toFixed(6)])));
+        props = np; gaps = ng;
+        if (conv) break;
+      }
+      if (why) return { why };
+      // final stresses with the converged section
+      fibers = corners.filter((_, i) => !gaps.some((gl, li) => gl.some(([, q]) => q >= gL.b - 1e-9) && tipCorners[li].includes(i)));
+      gaps.forEach((gl, li) => gl.forEach(([p0]) => { for (const off of [-t / 2, t / 2]) fibers.push(P(legs[li], s0 + p0, off)); }));
+      const fs = fibers.map((u) => fOf(u, props));
+      ref = mode === 'yield' ? Math.max(...fs.map(Math.abs)) : Math.max(...fs);
+      return { W: 1 / ref, e: props.e, Ico: props.Ico, gaps };
+    };
+    const grossD = (ax, sgn) => Math.max(...corners.map((f) => sgn * f[k[ax]]));   // gross distance to the compressed fibre
+    const L1 = Math.max(Lx, Ly, LbIn ? Lby : 0);
+    const GJ = G * gL.J;
+    const out = {};
+    // M1 — yield + FLT (9.8.2.2)
+    {
+      const y = eff(1, 1, fy, 'yield'); if (y.why) return { why: `M1: ${y.why}` };
+      const Ney = PI2 * E * gL.I2 / (L1 * L1), Me = Cb * Math.sqrt(Ney * GJ), Wc = Ig[1] / grossD(1, 1);
+      const lam0 = Math.sqrt(Wc * fy / Me), chi = chiFLT(lam0);
+      const st = eff(1, 1, chi * fy, 'stab'); if (st.why) return { why: `M1: ${st.why}` };
+      out.m1 = { Wef: y.W, MRdEsc: y.W * fy / gamF, Me, lambda0: lam0, chiFLT: chi, WcEf: st.W, MRdFLT: chi * st.W * fy / gamF };
+      out.m1.MRd = Math.min(out.m1.MRdEsc, out.m1.MRdFLT);
+    }
+    // M2 — yield + Anexo E, both senses
+    const Nex = PI2 * E * gL.I1 / (L1 * L1), j = a * r2;
+    for (const [key, sgn, Cs] of [['pontas', 1, -1], ['quina', -1, 1]]) {
+      const y = eff(2, sgn, fy, 'yield'); if (y.why) return { why: `M2 (${key} comprimida(s)): ${y.why}` };
+      const Me = (Cs * Nex / Cm) * (j + Cs * Math.sqrt(j * j + GJ / Nex)), Wc = Ig[2] / grossD(2, sgn);
+      if (!(Me > 0)) return { why: `M2 (${key}): Me do Anexo E ≤ 0.` };
+      const lam0 = Math.sqrt(Wc * fy / Me), chi = chiFLT(lam0);
+      const st = eff(2, sgn, chi * fy, 'stab'); if (st.why) return { why: `M2 (${key} comprimida(s)): ${st.why}` };
+      out[key] = { Wef: y.W, MRdEsc: y.W * fy / gamF, Me, Cs, j, lambda0: lam0, chiFLT: chi, WcEf: st.W, MRdFLT: chi * st.W * fy / gamF };
+      out[key].MRd = Math.min(out[key].MRdEsc, out[key].MRdFLT);
+    }
+    // governing combination of signs
+    const A1 = (Mz + My) * r2, A2 = Math.abs(Mz - My) * r2;
+    let gov = null;
+    for (const [m1, m2] of [[A1, A2], [A2, A1]]) for (const key of ['pontas', 'quina']) {
+      const r = m1 / out.m1.MRd + m2 / out[key].MRd;
+      if (!gov || r > gov.r) gov = { r, m1, m2, key };
+    }
+    out.gov = gov; out.L1 = L1;
+    return out;
   };
 
   const solve = (gg, EE, cfg) => { const r = solveEff(gg, EE, cfg); if (r.naoConvergiu) avisos.push(`Seção efetiva (${cfg.axis}, ${cfg.mode || 'N'}): iteração do centroide efetivo não convergiu — resultado aproximado.`); return r; };
@@ -685,7 +792,8 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     return rs.reduce((a, b) => b.MRd < a.MRd ? b : a);
   };
 
-  const fx = flexX(), fyr = flexY();
+  const fx = isL ? {} : flexX(), fyr = isL ? {} : flexY();
+  const angF = isL && gL && !whyF && (Mz > 0 || My > 0) ? angleFlex() : null;
   // Anexo C (MRD) for strong-axis bending: replaces 9.8.2 (C.1); with the Anexo F declared, the smaller governs
   if (options.metodo === 'MRD' && isCh && g && !fx.why && fx.Me > 0) {
     const fsF = options.fsm === false ? null : fsmChannel(g, E);
@@ -707,14 +815,45 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     delete o.Ief;
     return ratObj(D / 100, MRd / 100, o);
   };
-  const flexaoX = mkFlex(fx, Mz, 'forte (Mz = Msd,x)');
-  const flexaoY = mkFlex(fyr, My, 'fraco (My = Msd,y)');
-  flexaoX.formula = 'MRd = min(Wef·fy/1,10; χFLT·Wc,ef·fy/1,10; χdist·W·fy/1,10) (9.8.2)';
-  flexaoY.formula = 'MRd = min(Wef·fy/1,10; χFLT·Wc,ef·fy/1,10 [Anexo E]; χdist·W·fy/1,10) (9.8.2)';
+  let flexaoX, flexaoY;
+  if (isL) {
+    const whyA = whyF || angF?.why;
+    if (whyA) { flexaoX = unverified(Mz / 100, whyA, { eixo: 'principal 1' }); flexaoY = unverified(My / 100, whyA, { eixo: 'principal 2' }); warnUnv(Mz + My, 'Flexão (cantoneira)', whyA); }
+    else if (!angF) { flexaoX = ratObj(0, 0, { eixo: 'principal 1 (simetria)' }); flexaoY = ratObj(0, 0, { eixo: 'principal 2' }); flexaoX.ratio = 0; flexaoY.ratio = 0; }
+    else {
+      const g2 = angF.gov, k2 = angF[g2.key], kN = (v) => +(v / 100).toFixed(6);
+      const det = (o) => ({ Wef: o.Wef / 1e6, MRdEsc: kN(o.MRdEsc), Me: kN(o.Me), lambda0: +o.lambda0.toFixed(4), chiFLT: +o.chiFLT.toFixed(4), WcEf: o.WcEf / 1e6, MRdFLT: kN(o.MRdFLT) });
+      flexaoX = ratObj(g2.m1 / 100, angF.m1.MRd / 100, { eixo: 'principal 1 (simetria, I1)', ramo: angF.m1.MRd === angF.m1.MRdEsc ? 'escoamento (9.8.2.1)' : 'FLT (9.8.2.2)', ...det(angF.m1),
+        formula: 'M1Rd = min(Wef·fy; χFLT·Wc,ef·fy)/1,10; Me = Cb·√(Ney·G·J) (9.8.2.2, Cw = 0)' });
+      flexaoY = ratObj(g2.m2 / 100, k2.MRd / 100, { eixo: `principal 2 (I2), ${g2.key === 'pontas' ? 'pontas das abas' : 'quina'} comprimida(s)`, ramo: k2.MRd === k2.MRdEsc ? 'escoamento (9.8.2.1)' : 'FLT (Anexo E)', ...det(k2), Cs: k2.Cs, j: k2.j / 100,
+        formula: 'M2Rd = min(Wef·fy; χFLT·Wc,ef·fy)/1,10; Me pelo Anexo E (j = a/√2, Cw = 0)' });
+      avisos.push(`Cantoneira em flexão: Mz/My projetados nos eixos principais (|M1| = ${(g2.m1 / 100).toFixed(3).replace('.', ',')}, |M2| = ${(g2.m2 / 100).toFixed(3).replace('.', ',')} kN·m, combinação de sinais mais desfavorável — ${g2.key === 'pontas' ? 'pontas das abas' : 'quina'} comprimida(s) em M2); 9.9 somado nos eixos principais (interação linear; o acoplamento de M1 e M2 pela seção efetiva assimétrica não é considerado na combinação). Seção efetiva com o produto de inércia Iuv′ (flexão oblíqua). Me de 9.8.2.2/Anexo E vale com a carga no centro de torção (vértice) ou em posição estabilizante — carga aplicada numa aba não é coberta. Comprimento ${(angF.L1 / 100).toFixed(2).replace('.', ',')} m nos dois eixos.`);
+    }
+  } else {
+    flexaoX = mkFlex(fx, Mz, 'forte (Mz = Msd,x)');
+    flexaoY = mkFlex(fyr, My, 'fraco (My = Msd,y)');
+    flexaoX.formula = 'MRd = min(Wef·fy/1,10; χFLT·Wc,ef·fy/1,10; χdist·W·fy/1,10) (9.8.2)';
+    flexaoY.formula = 'MRd = min(Wef·fy/1,10; χFLT·Wc,ef·fy/1,10 [Anexo E]; χdist·W·fy/1,10) (9.8.2)';
+  }
 
   // ── 9.8.3 shear / 9.8.4 M+V ─────────────────────────────────────────────────────────
   let corteY, corteZ, VRdY = null;
-  if (whyF) corteY = unverified(Vy, whyF, { dir: 'Vy (alma)' });
+  // angle legs in shear: the NBR 14762 has no kv for an AL element (9.8.3 is for webs). By decision of the engineer
+  // (Manoel, 16/10/2026) the NBR 8800:2024 5.4.3.4 is used as an EXTERNAL reference: procedure of 5.4.3.1.1 with
+  // kv = 1,2, h = b (leg width) and tw = t; Aw = 2bt for the pair → b·t per angle, the leg parallel to V resisting;
+  // γa1 = 1,10; b/t ≤ 260.
+  const shearL = (V, dirTxt) => {
+    const b = gL.B, t = gL.t, kv = 1.2, lam = b / t, lp = 1.10 * Math.sqrt(kv * E / fy), lr = 1.37 * Math.sqrt(kv * E / fy);
+    const Vpl = 0.60 * b * t * fy, ga = 1.10;
+    if (lam > 260) return unverified(V, `aba b/t = ${lam.toFixed(0)} > 260 (NBR 8800 5.4.3.4).`, { dir: dirTxt });
+    const VRk = lam <= lp ? Vpl : lam <= lr ? (lp / lam) * Vpl : 1.24 * (lp / lam) ** 2 * Vpl;
+    return ratObj(V, VRk / ga, { dir: dirTxt, regime: lam <= lp ? 'plastificação' : lam <= lr ? 'inelástico' : 'elástico', kv, ht: fix(lam), lp: fix(lp), lr: fix(lr),
+      formula: 'VRd pela NBR 8800:2024 5.4.3.4 (referência externa à NBR 14762): kv = 1,2; h = b da aba; Aw = b·t; γa1 = 1,10' });
+  };
+  if (isL && gL && !whyF) {
+    corteY = shearL(Vy, 'Vy (aba vertical)');
+    if (Vy > 0 || Vz > 0) avisos.push('Cortante nas abas da cantoneira pela NBR 8800:2024 5.4.3.4 (kv = 1,2; Aw = b·t por cantoneira) — referência externa, escrita para duas cantoneiras formando T (aplicada à cantoneira isolada por decisão do engenheiro): a NBR 14762:2010 9.8.3 só trata alma; M + V (9.8.4) não verificada para cantoneira.');
+  } else if (whyF || isL) corteY = unverified(Vy, whyF, { dir: isL ? 'V (aba)' : 'Vy (alma)' });
   else {
     const h = g.bw - 2 * (g.t + g.ri), sr = shearRd(h, g.t, fy, E, 5.0);
     VRdY = sr.V;
@@ -722,9 +861,12 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
       formula: 'VRd (9.8.3), kv = 5,0, h = parte plana da alma, γ = 1,10' });
   }
   warnUnv(Vy, 'Cortante Vy', whyF);
-  corteZ = Vz > 0 ? unverified(Vz, 'cortante paralelo às mesas (Vz): 9.8.3 trata só a(s) alma(s) — LACUNA.', { dir: 'Vz (mesas)' })
-    : { demand: 0, capacity: 0, ratio: 0, dir: 'Vz (mesas)' };
-  if (Vz > 0) avisos.push('Cortante Vz (mesas): NÃO verificado — 9.8.3 trata só a(s) alma(s) (LACUNA).');
+  if (isL && gL && !whyF) corteZ = shearL(Vz, 'Vz (aba horizontal)');
+  else {
+    corteZ = Vz > 0 ? unverified(Vz, 'cortante paralelo às mesas (Vz): 9.8.3 trata só a(s) alma(s) — LACUNA.', { dir: 'Vz (mesas)' })
+      : { demand: 0, capacity: 0, ratio: 0, dir: 'Vz (mesas)' };
+    if (Vz > 0) avisos.push('Cortante Vz (mesas): NÃO verificado — 9.8.3 trata só a(s) alma(s) (LACUNA).');
+  }
 
   // M + V (9.8.4): MRd of 9.8.2.1 (yield), no transverse stiffeners
   let rMV = 0, mvWhy = null;
@@ -739,8 +881,10 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   // ── 9.9 N + M ──────────────────────────────────────────────────────────────────────
   let H = 0, i99Why = null;
   const nr = Nabs > 0 ? (axial.verificado === false ? (i99Why = axial.motivo, Infinity) : Nabs / NRd) : 0;
-  const mx = Mz > 0 ? (flexaoX.verificado === false ? (i99Why = i99Why || flexaoX.motivo, Infinity) : (Mz / 100) / flexaoX.capacity) : 0;
-  const my = My > 0 ? (flexaoY.verificado === false ? (i99Why = i99Why || flexaoY.motivo, Infinity) : (My / 100) / flexaoY.capacity) : 0;
+  const mx = isL ? (Mz + My > 0 ? (flexaoX.verificado === false ? (i99Why = i99Why || flexaoX.motivo, Infinity) : flexaoX.ratio) : 0)
+    : Mz > 0 ? (flexaoX.verificado === false ? (i99Why = i99Why || flexaoX.motivo, Infinity) : (Mz / 100) / flexaoX.capacity) : 0;
+  const my = isL ? (Mz + My > 0 && flexaoY.verificado !== false ? flexaoY.ratio : 0)
+    : My > 0 ? (flexaoY.verificado === false ? (i99Why = i99Why || flexaoY.motivo, Infinity) : (My / 100) / flexaoY.capacity) : 0;
   H = nr + mx + my;
   const interaction99 = ratObj(H, 1, { adim: true, modo: axial.modo, parcelas: { N: nr, Mx: mx, My: my },
     formula: 'NSd/NRd + Mx,Sd/Mx,Rd + My,Sd/My,Rd ≤ 1,0 (9.9)', ...(i99Why ? { verificado: false, motivo: i99Why } : {}) });
@@ -864,6 +1008,8 @@ function checkComposite14762(input) {
       } else av.push(`9.8.6: s = ${f2(c.s, 3)} m ≤ smax = ${f2(smax, 3)} m (m = ${f2(m)} cm).`);
     } else av.push(`9.8.6: conexão dos perfis NÃO verificada — MRd = 2·MRd,1 pressupõe s ≤ smax = 2·g·FRd/(m·q) ≤ L/6, m = x0 − xg + t/2 = ${f2(m)} cm (informe member.conexao = { s, g, FRd, q }, q = 3 × carga distribuída de cálculo).`);
   }
+  if (kind === '2L' && (Math.abs(demands.Mz || 0) > 1e-9 || Math.abs(demands.My || 0) > 1e-9))
+    av.push('2L em flexão: cada cantoneira com metade dos momentos, nos eixos principais (sem ação composta — limite inferior); espaçamento das ligações dos perfis em flexão (análogo ao 9.8.6, que só trata 2U) — LACUNA.');
   if (kind !== '2L') av.push('Composta 2U/2Ue: ação composta (Cw e FLT do I) — LACUNA; My em cada perfil em torno do próprio eixo fraco com My/2, nos dois sentidos.');
 
   // interaction (9.9) with the final axial capacity
