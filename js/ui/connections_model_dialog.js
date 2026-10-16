@@ -77,6 +77,7 @@ export function openConnectionsModelDialog(app) {
       <h4>Emendas (marque os nós)</h4>
       <div id="cm-spl" style="max-height:160px;overflow:auto;border:1px solid var(--border2,#e2e8f0);border-radius:6px;padding:4px">${cands.length ? cands.map((c) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-spl="${c.node}"> nó ${c.node} — ${esc(c.name)}</label>`).join('') : '<span class="panel-hint">nenhum nó com 2 barras colineares da mesma seção</span>'}</div>
       <div style="display:flex;gap:6px;margin-top:10px"><button class="btn-primary" id="cm-run" style="flex:1">Dimensionar ligações</button><button id="cm-rep">🖨 Relatório</button></div>
+      <button id="cm-save" style="width:100%;margin-top:6px" title="Grava a geometria adotada e o resumo no arquivo do modelo (.s3d) e inclui a seção 3.1 no memorial">💾 Gravar no modelo (e no memorial)</button>
       <p class="panel-hint" style="margin-top:8px">Geometria pré-dimensionada: a primeira, na ordem de custo, que atende a todas as combinações de ELU (s = 3db, bordas da Tab. 16, gabaritos AISC 1-7A, viga–pilar Gerdau, chapas comerciais). Conferir no projeto; o desenho de fabricação fica com o Detalhador.</p>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;min-width:0">
@@ -123,6 +124,16 @@ export function openConnectionsModelDialog(app) {
     }, 20);
   };
   $('#cm-run').onclick = run;
+  $('#cm-save').onclick = () => {
+    if (!out) return;
+    const rows = out.rows.map((r) => ({ id: r.c.id, tipo: r.c.tipo, node: r.c.node, elem: r.c.elem, perfil: out.T.elems.find((e) => e.id === r.c.elem)?.name || '',
+      desc: r.desc || r.erro || '', combo: r.D?.combo || '', ratio: r.ratio, ok: !!r.ok, nota: r.nota || '', req: r.req || '', geo: r.geo ? JSON.parse(JSON.stringify(r.geo)) : null }));
+    const rec = { versao: 1, data: new Date().toLocaleDateString('pt-BR'), nCombos: combos.length, params: JSON.parse(JSON.stringify({ ...P, spliceNodes: [...(P.spliceNodes || [])] })), rows };
+    try { app.snapshot?.(); } catch { /* optional */ }
+    app.model.connectionDesign = rec; app._connectionDesign = rec; app._connectionDesignFor = app._fileName;   // cópia: a reanálise restaura o modelo sem este campo
+    try { app.markDirty?.(); } catch { /* optional */ }
+    app.toast?.(`${rows.length} ligações gravadas no modelo (seção 3.1 do memorial)`, 'ok');
+  };
   $('#cm-close').onclick = () => el.remove();
   $('#cm-rep').onclick = () => {
     if (!out) return;

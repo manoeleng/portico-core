@@ -450,6 +450,18 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         : `<p class="muted">${esc(tw.note)}</p>`);
     }
 
+    // ── Steel connections recorded in the model (js/ui/connections_model_dialog.js → "Gravar no modelo") ─────
+    const cd = app.model.connectionDesign || (app._connectionDesign && app._connectionDesignFor === app._fileName ? app._connectionDesign : null);
+    let connHTML = '';
+    if (cd?.rows?.length) {
+      const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar flexível', trelica: 'Treliça × chapa de nó', emenda: 'Emenda', lcsp: 'Viga–pilar flexível soldada (LCSP)', lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada' };
+      const nao = cd.rows.filter((r) => !r.ok).length;
+      connHTML = `<h3>3.1 Ligações metálicas — NBR 8800:2024 §6 / NBR 14762:2010 §10</h3>
+<p class="muted">${cd.rows.length} ligações pré-dimensionadas para ${cd.nCombos} combinações de ELU em ${esc(cd.data || '')}; ${nao ? `<b>${nao} não atendem</b>` : 'todas atendem'}. Memória detalhada de cada ligação: Assistente → Ligações do modelo → Relatório.</p>
+<table style="font-size:9.5px"><thead><tr><th>Ligação</th><th>Tipo</th><th>Nó</th><th>Barra</th><th>Geometria adotada</th><th>Combinação</th><th>Razão</th><th>Estado</th></tr></thead><tbody>` +
+        cd.rows.map((r) => `<tr><td>${esc(r.id)}</td><td>${esc(TIPO[r.tipo] || r.tipo)}</td><td>${r.node}</td><td>#${r.elem} ${esc(r.perfil || '')}</td><td>${esc(r.desc || '')}${r.nota ? `<br><span class="muted">${esc(r.nota)}</span>` : ''}${r.req ? `<br><span class="muted">${esc(r.req)}</span>` : ''}</td><td>${esc(r.combo || '—')}</td><td>${fmt(r.ratio, 3)}</td><td class="${r.ok ? 'r-ok' : 'r-bad'}">${r.ok ? 'OK' : 'NÃO'}</td></tr>`).join('') + `</tbody></table>`;
+    }
+
     // ── Top displacement under wind (NBR 6118 Tab. 13.3 / NBR 8800 Tab. B.1) ─────────
     const td = app._computeTopDrift?.();
     let topHTML = '';
@@ -624,6 +636,7 @@ ${modalHTML}
 
 <h2>${i18n.t('3. Diseño de elementos (resistencia)')}</h2>
 ${disenoHTML}
+${connHTML}
 
 <h2>${i18n.t('4. Verificaciones de servicio')}</h2>
 <h3>${i18n.t('4.1 Deformaciones de vigas — sobrecarga de uso (sin mayorar)')}</h3>

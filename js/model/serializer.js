@@ -107,6 +107,7 @@ export class Serializer {
     m.report        = obj.report || null;
     m.analysisParams = obj.analysisParams || null;
     m.designSettings = obj.designSettings || null;
+    m.connectionDesign = obj.connectionDesign || null;   // ligações pré-dimensionadas gravadas no modelo
     m.massSource     = obj.massSource || null;
 
     if (obj._counters) {

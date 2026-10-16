@@ -8301,6 +8301,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     obj.report        = this._projectReport();
     obj.analysisParams = this._gatherAnalysisParams();
     if (this.model.designSettings) obj.designSettings = this.model.designSettings;
+    const cdz = this.model.connectionDesign || (this._connectionDesignFor === this._fileName ? this._connectionDesign : null); if (cdz) obj.connectionDesign = cdz;   // ligações gravadas (connections_model_dialog)
     // Groups and hidden elements (view state) — persist in the .s3d.
     if (this._grupos && this._grupos.size)
       obj.groups = [...this._grupos].map(([name, set]) => ({ name, elems: [...set] }));
