@@ -34,7 +34,7 @@ export function modelTopology(app) {
     else if ((shape === 'U' || shape === 'Ue') && cf) ec = cf.xg * 1000;
     else if (shape === 'channel') ec = (d.xc ?? 0) * 1000 || undefined;
     if (!mat?.design?.Fy) matWarn = true;
-    return { id: el.id, n1: el.n1, n2: el.n2, rel: el.releases || Array(12).fill(0), cable: !!el.cable, excluded: !!el.designExcluded,
+    return { id: el.id, n1: el.n1, n2: el.n2, beta: +el.beta || 0, rel: el.releases || Array(12).fill(0), cable: !!el.cable, excluded: !!el.designExcluded,
       shape, dims, A, ec, Zx: d?.Zz ? d.Zz * 1e9 : undefined, Wx: d?.Sz ? d.Sz * 1e9 : undefined,
       fy: mat?.design?.Fy ?? 250, fu: mat?.design?.Fu ?? 400, name: sec?.name || `seção ${el.secId}` };
   });
@@ -82,7 +82,8 @@ export function openConnectionsModelDialog(app) {
       <div class="prop-field"><label>Pilar treliçado (pernas formadas a frio)</label><select id="cm-pff"><option value="perna">uma placa por perna (rótulas do modelo)</option><option value="unica">placa única sob as duas pernas (Wanderson)</option></select></div>
       <h4>Soldas</h4>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wb" checked> Solda pilar–placa de base</label>
-      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wc" checked> Solda chapa de nó–banzo (comprimento mínimo)</label>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wc" checked> Solda chapa de nó–banzo</label>
+      <label style="display:flex;gap:6px;align-items:center;margin-left:18px"><input type="checkbox" id="cm-wcf" checked> em toda a borda da chapa (desmarcado: comprimento mínimo)</label>
       <h4>Emendas (marque os nós)</h4>
       <div class="prop-field"><label>Tipo de emenda</label><select id="cm-emt"><option value="talas">talas parafusadas</option><option value="soldada">soldada (penetração total)</option></select></div>
       <div id="cm-spl" style="max-height:160px;overflow:auto;border:1px solid var(--border2,#e2e8f0);border-radius:6px;padding:4px">${cands.length ? cands.map((c) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-spl="${c.node}"> nó ${c.node} — ${esc(c.name)}</label>`).join('') : '<span class="panel-hint">nenhum nó com 2 barras colineares da mesma seção</span>'}</div>
@@ -124,7 +125,7 @@ export function openConnectionsModelDialog(app) {
     const v = (id) => parseFloat(String($(id).value).replace(',', '.'));
     const spliceNodes = new Set([...el.querySelectorAll('[data-spl]')].filter((x) => x.checked).map((x) => +x.dataset.spl));
     Object.assign(P, { ligacaoFlexivel: $('#cm-flex').value, excentricidade: $('#cm-exc').checked, parafuso8800: $('#cm-p88').value, parafuso14762: $('#cm-p14').value,
-      rosca: $('#cm-rosca').checked, basePFF: $('#cm-pff').value, rigidas: $('#cm-rig').value, emendaTipo: $('#cm-emt').value, soldaBase: $('#cm-wb').checked, soldaChapaBanzo: $('#cm-wc').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
+      rosca: $('#cm-rosca').checked, basePFF: $('#cm-pff').value, rigidas: $('#cm-rig').value, emendaTipo: $('#cm-emt').value, soldaBase: $('#cm-wb').checked, soldaChapaBanzo: $('#cm-wc').checked, soldaChapaInteira: $('#cm-wcf').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
     $('#cm-tab').innerHTML = '<p class="panel-hint">Dimensionando…</p>';
     setTimeout(() => {
       try { out = designAll(topo, combos, P); }

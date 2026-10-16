@@ -61,8 +61,11 @@ function gussets(ctx) {
       if (G.cdir) poly = clipY(poly, hc * MM);                      // the plate starts at the chord face (welded there)
       if (poly.length < 3) return;
       const pts3 = poly.map(([x, y]) => add(P, add(mul(G.e1, x), mul(G.e2, G.side * y))));
+      // edge on the chord face (where the plate is welded): extent along the chord axis e1, mm from the node
+      const onFace = G.cdir ? poly.filter(([, y]) => Math.abs(y - hc * MM) < 1e-9).map(([x]) => x / MM) : [];
+      const edge = onFace.length >= 2 ? { x0: Math.min(...onFace), x1: Math.max(...onFace), L: Math.max(...onFace) - Math.min(...onFace) } : null;
       res.push({ id: `G${nid}${groups.length > 1 ? '-' + (gi + 1) : ''}`, tipo: 'trelica', node: nid, prims: [{ k: 'poly', pts: pts3, n: G.n, h: tg / 2 * MM, m: 'plate' }],
-        gusset: { tg, membros: G.items.map((g) => g.elem) } });
+        gusset: { tg, membros: G.items.map((g) => g.elem), edge } });
     });
   }
   return res;
@@ -182,7 +185,8 @@ const BUILD = {
     const nrm = unit(cross(cdir, s)); if (!nrm) return;
     let p = unit(cross(nrm, cdir)); if (dot(p, s) < 0) p = mul(p, -1);
     const hc = extentAlong(chord, axc, p);
-    for (const sn of [-1, 1]) out.push(box(at(P, [p, hc + g.dw / 2], [nrm, sn * (g.tg / 2 + g.dw / 2)]), [cdir, p, nrm], [g.L / 2, g.dw / 2, g.dw / 2], 'weld'));
+    const xm = g.x0 != null && g.x1 != null ? (g.x0 + g.x1) / 2 : 0;          // along the whole gusset edge when designed so
+    for (const sn of [-1, 1]) out.push(box(at(P, [cdir, xm], [p, hc + g.dw / 2], [nrm, sn * (g.tg / 2 + g.dw / 2)]), [cdir, p, nrm], [g.L / 2, g.dw / 2, g.dw / 2], 'weld'));
   },
   flexivel(q, g, ctx, out) {
     const n = ctx.node(q.node), u = outward(ctx, q.elem, q.node), ax = ctx.axes(q.elem); if (!n || !u || !ax) return;
@@ -242,6 +246,22 @@ const BUILD = {
     out.push(box(P, [ax.ex, ax.ez, ax.ey], [2, tw / 2 + 1, (d - 2 * tf) / 2], 'weld'));
   },
 };
+
+/**
+ * Gusset edges on the chord face per truss node, from the adopted truss rows and the topology (design side: the gusset →
+ * chord weld is laid along the whole edge). T = topology() of connections_model (nodes Map, elems with beta, ends).
+ * Returns Map nodeId → { x0, x1, L } (mm along the chord axis from the node); with plates on both sides of the chord, the
+ * shorter edge (conservative for one weld check per node).
+ */
+export function gussetEdges(rows, T) {
+  const model = { nodes: T.nodes, elements: new Map(T.elems.map((e) => [e.id, { n1: e.n1, n2: e.n2, beta: e.beta || 0 }])) };
+  const out = new Map();
+  for (const g of connectionPrimitives(rows.filter((r) => (r.c || r).tipo === 'trelica'), makeContext(model, T))) {
+    const e = g.gusset?.edge; if (!e) continue;
+    const prev = out.get(g.node); if (!prev || e.L < prev.L) out.set(g.node, e);
+  }
+  return out;
+}
 
 /** rows: live ({ c, geo }) or saved ({ id, tipo, node, elem, geo }); returns [{ id, tipo, prims: [...] }] */
 export function connectionPrimitives(rows, ctx) {

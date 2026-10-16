@@ -26,6 +26,7 @@ import { spliceConnection } from './connections_splice.js?v=7';
 import { edgeMin8800, filletMin8800 } from './connections.js?v=7';
 import { lcspConnection, gussetChordWeld, baseColumnWeld } from './connections_weld.js?v=7';
 import { lmssConnection, weldedSplice } from './connections_rigid.js?v=7';
+import { gussetEdges } from './connections_geom.js?v=7';
 import { basePerna, basePlacaUnica } from './connections_base_pff.js?v=7';
 
 export { PLATES } from './connections.js?v=7';
@@ -46,7 +47,7 @@ export const DEFAULTS = {
   diam8800: [15.875, 19.05, 22.225, 25.4], diam14762: [12.5, 16], nMax: 8,
   chapaNoMin: 8, chapaNoMin14762: 4.75, Lw: 100,
   fck: 25, A2A1: 1, fyPlaca: 250, minimo50: false,
-  rigidas: 'lmss', emendaTipo: 'talas', soldaBase: true, soldaChapaBanzo: true, basePFF: 'perna',
+  rigidas: 'lmss', emendaTipo: 'talas', soldaBase: true, soldaChapaBanzo: true, soldaChapaInteira: true, basePFF: 'perna',
 };
 
 /* ------------------------------------------------------------------------------------------------ topology */
@@ -301,10 +302,15 @@ function* baseUnicaCandidates(e, s, P) {
 function* soldaBaseCandidates(e, tp) {
   for (let dw = Math.max(3, filletMin8800(Math.min(e.dims.tf, tp))); dw <= 16; dw++) yield { pilar: { ...e.dims, fy: e.fy, fu: e.fu }, tp, dw, eletrodo: 'E70', desc: `filetes de ${dw} mm em todo o contorno do pilar (E70)` };
 }
-function* chapaBanzoCandidates(chord, tg) {
+function* chapaBanzoCandidates(chord, tg, edge = null) {
   const tc = chord.shape === 'I' || chord.shape === 'channel' ? chord.dims.tf : chord.dims.t;
   const cf = Math.min(tg, tc) <= 4.75, dw = cf ? Math.max(Math.min(tg, tc), 2) : Math.max(3, filletMin8800(Math.min(tg, tc)));
-  for (let L = 60; L <= 1500; L += 10) yield { dw, L, tg, tc, fy: 250, fu: 400, fuChord: chord.fu, eletrodo: 'E70', desc: `2 filetes ${n2(dw)} mm × ${L} mm (chapa de nó ${n2(tg)} mm ao banzo)` };
+  // whole edge of the gusset on the chord face (Manoel, 16/10/2026): the weld IS the edge; longer only if the edge fails
+  // (then the plate has to grow along the chord — said in the description)
+  const L0 = edge ? Math.max(10, Math.floor(edge.L / 10) * 10) : 60, at = edge ? { x0: edge.x0, x1: edge.x1 } : {};
+  for (let L = L0; L <= 1500; L += 10) yield { dw, L, tg, tc, fy: 250, fu: 400, fuChord: chord.fu, eletrodo: 'E70', ...at,
+    desc: edge ? `2 filetes ${n2(dw)} mm × ${L} mm ${L <= edge.L + 1e-9 ? 'em toda a borda da chapa' : `— a borda da chapa (${Math.round(edge.L)} mm) não basta: estender a chapa ao longo do banzo`} (chapa de nó ${n2(tg)} mm ao banzo)`
+      : `2 filetes ${n2(dw)} mm × ${L} mm (chapa de nó ${n2(tg)} mm ao banzo)` };
 }
 
 /* ------------------------------------------------------------------------------------------------ run one connection */
@@ -354,7 +360,7 @@ export function designConnection(c, T, combos, P = {}) {
     : c.tipo === 'base' ? baseCandidates(e, P) : c.tipo === 'lmss' ? lmssCandidates(e, T.elems.find((x) => x.id === c.apoio), P)
     : c.tipo === 'emendaSoldada' ? [{ perfil: { ...e.dims, fy: e.fy, fu: e.fu }, penetracao: 'total', eletrodo: 'E70', desc: 'penetração total nas mesas e na alma (E70, compatibilidade total)' }]
     : c.tipo === 'basePerna' ? basePernaCandidates(e, P) : c.tipo === 'baseUnica' ? baseUnicaCandidates(e, c.s, P)
-    : c.tipo === 'soldaBase' ? soldaBaseCandidates(e, c.tp) : c.tipo === 'chapaBanzo' ? chapaBanzoCandidates(e, c.tg) : spliceCandidatesGeo(e, P);
+    : c.tipo === 'soldaBase' ? soldaBaseCandidates(e, c.tp) : c.tipo === 'chapaBanzo' ? chapaBanzoCandidates(e, c.tg, c.edge) : spliceCandidatesGeo(e, P);
   // scope limits that no geometry fixes (reported, never hidden)
   const lim = [];
   const MwMax = Math.max(...dem.map((d) => d.Mw || 0)), NMax = Math.max(...dem.map((d) => Math.abs(d.N || 0)));
@@ -371,7 +377,8 @@ export function designConnection(c, T, combos, P = {}) {
   if (c.tipo === 'lmss' && c.outra) lim.push('ligação dos dois lados do pilar: painel com (M1 + M2)/(d − tf) e instabilidade da alma por compressão (5.7.6)');
   if (c.tipo === 'basePerna') lim.push('pilar treliçado: uma placa por perna (rótula do modelo); 6.7 por analogia (pilar I/H na norma) — decisão B');
   if (c.tipo === 'baseUnica') lim.push(`pilar treliçado: placa única sob as pernas dos nós ${c.node} e ${c.node2} (confirmar que são do mesmo pilar) (Wanderson, Mód. 6) — método de literatura; flexão da placa entre as pernas não verificada (LACUNA); orientação das pernas desconhecida: d com a menor e B com a maior dimensão da perna (conservador)`);
-  if (c.tipo === 'chapaBanzo') lim.push('comprimento mínimo da solda calculado; a chapa de nó real deve ter pelo menos esse comprimento ao longo do banzo; seção vertical da chapa (Fakury, linha 1) à parte');
+  if (c.tipo === 'chapaBanzo') lim.push(c.edge ? `solda em toda a borda da chapa de nó na face do banzo (${Math.round(c.edge.L)} mm — chapa = envoltória das ligações das barras do nó); seção vertical da chapa (Fakury, linha 1) à parte`
+    : 'comprimento mínimo da solda calculado; a chapa de nó real deve ter pelo menos esse comprimento ao longo do banzo; seção vertical da chapa (Fakury, linha 1) à parte');
   if (c.tipo === 'trelica' && memberSection(e)?.desigual) lim.push('cantoneira de abas desiguais: admitida ligada pela aba maior');
   if (c.tipo === 'base' && T.nodes.get(c.node)?.springRest) lim.push('apoio elástico (mola) tratado como base de pilar');
   if (c.tipo === 'flexivel' && NMax > 5) lim.push(`força normal na viga até ${NMax.toFixed(1).replace('.', ',')} kN não verificada na ligação flexível (só V; ver Gerdau 3.4.2, caso 2)`);
@@ -398,9 +405,10 @@ export function designAll(topo, combos, P = {}) {
   const rows = first.map((c) => designConnection(c, T, combos, P));
   // dependent welds: column → base plate (tp of the base adopted) and gusset → chord (thickest gusset adopted at the node)
   if (P.soldaBase) for (const r of rows.filter((x) => x.c.tipo === 'base' && x.geo)) rows.push(designConnection({ id: `W${r.c.node}`, tipo: 'soldaBase', node: r.c.node, elem: r.c.elem, o: r.c.o, tp: r.geo.placa.tp }, T, combos, P));
+  const edges = P.soldaChapaInteira !== false ? gussetEdges(rows.filter((x) => x.c.tipo === 'trelica' && x.geo), T) : new Map();
   for (const c of conns.filter((x) => x.tipo === 'chapaBanzo')) {
     const tg = Math.max(P.chapaNoMin14762, ...rows.filter((x) => x.c.tipo === 'trelica' && x.c.node === c.node && x.geo).map((x) => x.geo.chapa.t));
-    rows.push(designConnection({ ...c, tg }, T, combos, P));
+    rows.push(designConnection({ ...c, tg, edge: edges.get(c.node) || null }, T, combos, P));
   }
   return { rows, avisos, T, candidatosEmenda: spliceCandidates(T) };
 }
