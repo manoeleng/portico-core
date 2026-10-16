@@ -47,8 +47,19 @@ atrito → arruelas na base); sem solução, mostra a de menor razão e o que go
 (largura de Whitmore, Lw), eixo fraco da base (> 5 % de Zy·fy/γa1 → NÃO, fora da 6.7.1.3), N na viga flexível, torção. Tabela + memória por
 ligação + relatório. `js/design/connections_model.js`, `js/ui/connections_model_dialog.js`, teste `tests/test_connections_model.mjs` (oráculo Gerdau
 LCPP 30-B: W360 265/328/346 kN reproduzidos em ±0,5 %). Conferido no navegador: galpão PFF do Wanderson (106 ligações de treliça) e galpão W
-(14 bases, 108 flexíveis). Revisão de cálculo: 2 rodadas, **FECHADO**. Pendências: contraventamento em perfil I, recorte de viga, flexão oblíqua da base, gravar a geometria adotada no modelo,
-seção de ligações no memorial.
+(14 bases, 108 flexíveis). Revisão de cálculo: 2 rodadas, **FECHADO**. Geometria gravada no modelo (.s3d, `model.connectionDesign`) e seção 3.1 do memorial FEITAS (commit 52a1e20).
+**Ligações soldadas e pendências (16/10/2026, decisão do Manoel: soldas "à parte", LCSP, LMSS, emenda soldada; recorte, perfil I, base biaxial)** —
+`js/design/connections_weld.js` (método elástico de grupos de solda no plano e fora dele — Saulo Almeida, INBEC Mód. 12; centro instantâneo 6.2.5.2-b
+validado na AISC Manual 16th Tab. 8-8; solda pilar–placa; solda chapa de nó–banzo, Fakury 10.14.3; LCSP Gerdau; viga recortada Gerdau 3.4.2/AISC 9-7a —
+flambagem local sem cláusula na NBR, decisão B) e `js/design/connections_rigid.js` (LMSS: penetração total nas mesas, filete na alma, pilar pela 5.7.2–5.7.7
+com enrijecedores 5.7.9 e chapas de reforço 5.7.7.2, painel com soma algébrica do cortante do pilar; emenda soldada total/parcial, 6.2.6.1). Perfil I
+ligado pela alma (5.2.5-c, 2 U fictícios). Corrigido: NBR 14762 só para formados a frio (laminados/soldados com t ≤ 4,75 iam para a 14762).
+6.2.6.2.2-b: perna mínima da Tab. 11 acima do máximo de borda → solda "reforçada" com aviso de desenho. Base biaxial: LACUNA confirmada (6.7.1.3,
+EN 1993-1-8 6.2.8 e Gerdau PBE só eixo forte) — reprova "fora da 6.7.1.3" acima de 5 % de Zy·fy/γa1. Janela manual com as abas LCSP, LMSS e emenda
+soldada; modelo com LMSS, LCSP, viga–viga recortada, emenda soldada, solda da base e da chapa–banzo. Testes `test_connections_{weld,rigid}.mjs` e
+ampliados (Gerdau LCSP 346/275, LCPP com recorte 252/234, LMSS Md 136; Saulo Apl. 8/9; AISC 8-8). Pendências: ligação rígida com chapa de cabeça
+(efeito alavanca 6.3.5), atrito (6.3.4), base tubular (NBR 16239), sentido do cortante do pilar no painel (hoje conservador), cabeça de pilar e emenda
+de cumeeira (curso de Projeto e Cálculo de Estruturas Metálicas, aulas 10). Revisão de cálculo: 2 rodadas, **FECHADO**.
 
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).

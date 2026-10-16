@@ -14,6 +14,8 @@ import { ctPerfil14762 } from './codes/nbr14762.js?v=7';
 
 export const GAMMA = { a1: 1.10, a2: 1.35, w2: 1.35, c: 1.4 };
 export const E_ACO = 200000;
+/** commercial plate thicknesses (mm) */
+export const PLATES = [4.75, 6.3, 8, 9.5, 12.5, 16, 19, 22.4, 25, 31.5, 37.5, 44.5, 50];
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const kN = (N) => N / 1000;

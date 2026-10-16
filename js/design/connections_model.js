@@ -24,8 +24,11 @@ import { shearConnection } from './connections_shear.js?v=7';
 import { columnBase, TAB18 } from './connections_base.js?v=7';
 import { spliceConnection } from './connections_splice.js?v=7';
 import { edgeMin8800, filletMin8800 } from './connections.js?v=7';
+import { lcspConnection, gussetChordWeld, baseColumnWeld } from './connections_weld.js?v=7';
+import { lmssConnection, weldedSplice } from './connections_rigid.js?v=7';
 
-export const PLATES = [4.75, 6.3, 8, 9.5, 12.5, 16, 19, 22.4, 25, 31.5, 37.5, 44.5, 50];
+export { PLATES } from './connections.js?v=7';
+import { PLATES } from './connections.js?v=7';
 const up5 = (v) => Math.ceil(v / 5 - 1e-9) * 5;
 const INCH = 25.4;
 // AISC Manual 16th ed. Table 1-7A — workable gages (in): leg → [g, g1, g2]
@@ -42,6 +45,7 @@ export const DEFAULTS = {
   diam8800: [15.875, 19.05, 22.225, 25.4], diam14762: [12.5, 16], nMax: 8,
   chapaNoMin: 8, chapaNoMin14762: 4.75, Lw: 100,
   fck: 25, A2A1: 1, fyPlaca: 250, minimo50: false,
+  rigidas: 'lmss', emendaTipo: 'talas', soldaBase: true, soldaChapaBanzo: true,
 };
 
 /* ------------------------------------------------------------------------------------------------ topology */
@@ -74,7 +78,8 @@ export function spliceCandidates(T) {
   return out;
 }
 
-export function classify(T, { spliceNodes = new Set() } = {}) {
+export function classify(T, P = {}) {
+  const { spliceNodes = new Set(), emendaTipo = 'talas' } = P;
   const conns = [], avisos = [];
   for (const [nid, list] of T.ends) {
     const node = T.nodes.get(nid);
@@ -87,7 +92,7 @@ export function classify(T, { spliceNodes = new Set() } = {}) {
     }
     if (spliceNodes.has(nid) && list.length === 2) {
       const [p, q] = list;
-      if (p.e.shape === 'I') conns.push({ id: `E${nid}`, tipo: 'emenda', node: nid, elem: p.e.id, o: p.o, elem2: q.e.id });
+      if (p.e.shape === 'I') conns.push({ id: `E${nid}`, tipo: emendaTipo === 'soldada' ? 'emendaSoldada' : 'emenda', node: nid, elem: p.e.id, o: p.o, elem2: q.e.id });
       else avisos.push(`Nó ${nid}: emenda de "${p.e.name}" — v1 só emenda perfis I; não dimensionada.`);
     }
     const hasCont = (skip) => list.some(({ e, o }) => e !== skip && continuous(e, o) && !e.cable);
@@ -97,13 +102,34 @@ export function classify(T, { spliceNodes = new Set() } = {}) {
         if (hasCont(e) || list.length > 1) conns.push({ id: `T${e.id}${o ? 'j' : 'i'}`, tipo: 'trelica', node: nid, elem: e.id, o });
       } else if (majorReleased(e, o) && e.shape === 'I' && e._horiz && !node.support) {
         const supp = list.find(({ e: s, o: so }) => s !== e && continuous(s, so) && s.shape === 'I');
-        if (supp) conns.push({ id: `F${e.id}${o ? 'j' : 'i'}`, tipo: 'flexivel', node: nid, elem: e.id, o, apoio: supp.e.id });
+        if (supp) conns.push({ id: `F${e.id}${o ? 'j' : 'i'}`, tipo: 'flexivel', node: nid, elem: e.id, o, apoio: supp.e.id, vigaViga: supp.e._horiz });
         else avisos.push(`Barra ${e.id}, nó ${nid}: extremidade rotulada sem elemento suporte de perfil I contínuo — não dimensionada.`);
+      } else if (pinned(e, o) && e.shape === 'I' && !e._horiz && !node.support) {
+        // diagonal / bracing in an I section connected by the web to a gusset plate (5.2.5-c, 2 fictitious U)
+        if (hasCont(e)) conns.push({ id: `T${e.id}${o ? 'j' : 'i'}`, tipo: 'trelica', node: nid, elem: e.id, o });
+        else avisos.push(`Barra ${e.id} (${e.name}), nó ${nid}: perfil I rotulado sem barra contínua no nó — não dimensionada.`);
       } else if (majorReleased(e, o) && e.shape === 'I' && !e._horiz && !node.support) {
-        avisos.push(`Barra ${e.id} (${e.name}), nó ${nid}: perfil I rotulado inclinado/vertical (diagonal ou contraventamento em perfil I) — tipo de ligação não previsto na v1; dimensionar à parte.`);
+        avisos.push(`Barra ${e.id} (${e.name}), nó ${nid}: perfil I com rótula só no eixo forte, inclinado/vertical — tipo de ligação não previsto; dimensionar à parte.`);
+      } else if (continuous(e, o) && e.shape === 'I' && e._horiz && !node.support && P.rigidas !== 'nao') {
+        // rigid beam → column (LMSS): continuous I beam end at a node where a vertical I column is continuous
+        const col = list.find(({ e: s, o: so }) => s !== e && s._vert && s.shape === 'I' && continuous(s, so));
+        if (col) {
+          const other = list.find(({ e: s, o: so }) => s !== e && s._horiz && s.shape === 'I' && continuous(s, so) && Math.abs(s._dir.reduce((q, v, i) => q + v * e._dir[i], 0)) > 0.999);
+          if (other && other.e.id < e.id) continue;   // beam continuous over the column: one LMSS per node (2 lados), not one per end
+          conns.push({ id: `R${e.id}${o ? 'j' : 'i'}`, tipo: 'lmss', node: nid, elem: e.id, o, apoio: col.e.id, oApoio: col.o, outra: other ? { elem: other.e.id, o: other.o } : null,
+            extremidade: !list.some(({ e: s, o: so }) => s !== col.e && s._vert && s.shape === 'I' && continuous(s, so)) });
+        }
       } else if ((pinned(e, o) || majorReleased(e, o)) && !node.support && !AXIAL_SHAPES.has(e.shape) && e.shape !== 'I') {
         avisos.push(`Barra ${e.id} (${e.name}), nó ${nid}: ligação rotulada de seção "${e.shape}" — tipo não previsto na v1.`);
       }
+    }
+  }
+  // gusset plate → chord weld: one per node with truss members on a continuous chord (Fakury 10.14.3)
+  if (P.soldaChapaBanzo !== false) {
+    const byNode = new Map(); for (const c of conns) if (c.tipo === 'trelica') { if (!byNode.has(c.node)) byNode.set(c.node, []); byNode.get(c.node).push(c); }
+    for (const [nid, tl] of byNode) {
+      const chord = T.ends.get(nid).find(({ e, o }) => continuous(e, o) && !e.cable && !tl.some((c) => c.elem === e.id));
+      if (chord) conns.push({ id: `S${nid}`, tipo: 'chapaBanzo', node: nid, elem: chord.e.id, o: chord.o, membros: tl.map((c) => ({ elem: c.elem, o: c.o })) });
     }
   }
   return { conns, avisos };
@@ -115,9 +141,24 @@ function demands(c, T, combos) {
   return combos.map((cb) => {
     const f = cb.ef(c.elem); if (!f) return null;
     const ef = endF(f, c.o);
-    if (c.tipo === 'base') {
+    if (c.tipo === 'base' || c.tipo === 'soldaBase') {
       const R = cb.R(c.node) || [0, 0, 0, 0, 0, 0];
       return { combo: cb.name, N: R[2], V: Math.hypot(R[0], R[1]), M: ef.M, Mw: ef.Mw };     // N > 0 compression on the base
+    }
+    if (c.tipo === 'lmss') {
+      const fc = cb.ef(c.apoio), ec = fc ? endF(fc, c.oApoio) : { V: 0 };
+      const f2 = c.outra ? cb.ef(c.outra.elem) : null;
+      // column shear with unknown sense relative to the flange force → added (conservative, 5.7.7.1 algebraic sum)
+      return { combo: cb.name, N: f.N, V: ef.V, M: ef.M, Mw: ef.Mw, Ncol: fc ? -fc.N : 0, Vcol: +ec.V, M2: f2 ? endF(f2, c.outra.o).M : 0 };
+    }
+    if (c.tipo === 'chapaBanzo') {
+      // resultant on the gusset of the members at the node: Σ N·u (u from the node outward; tension pulls the plate)
+      const F = [0, 0, 0];
+      for (const m of c.membros) { const fm = cb.ef(m.elem), em = T.elems.find((x) => x.id === m.elem); if (!fm || !em) continue;
+        const u = m.o === 0 ? em._dir : em._dir.map((v) => -v); for (let i = 0; i < 3; i++) F[i] += fm.N * u[i]; }
+      const ch = T.elems.find((x) => x.id === c.elem)._dir, Fpar = F.reduce((q, v, i) => q + v * ch[i], 0);
+      const Fperp = Math.hypot(...F.map((v, i) => v - Fpar * ch[i]));
+      return { combo: cb.name, Fpar: Math.abs(Fpar), Fperp, N: Math.hypot(Fpar, Fperp), V: 0, M: 0 };
     }
     return { combo: cb.name, N: f.N, V: ef.V, Vw: ef.Vw, M: ef.M, Mw: ef.Mw };
   }).filter(Boolean);
@@ -126,24 +167,25 @@ function demands(c, T, combos) {
 /* ------------------------------------------------------------------------------------------------ candidates */
 function memberSection(e) {
   const d = e.dims || {}, s = e.shape;
-  if (s === 'angle') return { tipo: 'L', b: Math.max(d.d, d.b), b2: Math.min(d.d, d.b), t: d.t, A: e.A, ec: e.ec, desigual: Math.abs(d.d - d.b) > 0.5 };
+  if (s === 'angle') return { tipo: 'L', b: Math.max(d.d, d.b), b2: Math.min(d.d, d.b), t: d.t, A: e.A, ec: e.ec, desigual: Math.abs(d.d - d.b) > 0.5, laminado: true };
+  if (s === 'I') return { tipo: 'I', d: d.d, bf: d.bf, tf: d.tf, tw: d.tw, t: d.tw, bw: d.d - 2 * d.tf, A: e.A, laminado: true };
   if (s === 'L') return { tipo: 'L', b: d.b, b2: d.b, t: d.t, A: e.A, ec: e.ec };
   if (s === '2L') return { tipo: '2L', b: d.b, b2: d.b, t: d.t, A: e.A / 2, ec: e.ec };
   if (s === 'U' || s === 'Ue') return { tipo: 'U', bw: d.bw, bf: d.bf, t: d.t, A: e.A, ec: e.ec };
-  if (s === 'channel') return { tipo: 'U', bw: d.d, bf: d.bf, t: d.tw, A: e.A, ec: e.ec };
+  if (s === 'channel') return { tipo: 'U', bw: d.d, bf: d.bf, t: d.tw, A: e.A, ec: e.ec, laminado: true };
   if (s === 'flat') return { tipo: 'chapa', b: d.b, t: d.t };
   return null;
 }
 function* trussCandidates(e, P) {
   const sec = memberSection(e); if (!sec) return;
-  const cf = sec.t <= 4.75, diams = cf ? P.diam14762 : P.diam8800, grade = cf ? P.parafuso14762 : P.parafuso8800;
-  const legB = sec.tipo === 'U' ? sec.bw : sec.b;
+  const cf = sec.t <= 4.75 && !sec.laminado && sec.tipo !== 'I', diams = cf ? P.diam14762 : P.diam8800, grade = cf ? P.parafuso14762 : P.parafuso8800;
+  const legB = sec.tipo === 'U' || sec.tipo === 'I' ? sec.bw : sec.b;
   const t0 = cf ? P.chapaNoMin14762 : Math.max(P.chapaNoMin, sec.t);
   for (const db of diams) for (let n = 1; n <= P.nMax; n++) for (const tg of PLATES.filter((x) => x >= t0 - 1e-9).slice(0, 5)) {
     const emin = cf ? up5(db * 1.5) : up5(edgeMin8800(db) || 1.25 * db), s = up5(3 * db);
     let gHeel, linhas = 1, g = 0;
     if (sec.tipo === 'L' || sec.tipo === '2L') { const ga = !cf && angleGage(legB); gHeel = ga ? ga.g : legB / 2; }
-    else if (sec.tipo === 'U' && legB >= 4 * s) { linhas = 2; g = up5(legB / 2); }
+    else if ((sec.tipo === 'U' || sec.tipo === 'I') && legB >= 4 * s) { linhas = 2; g = up5(legB / 2); }
     yield { secao: { ...sec, fy: e.fy, fu: e.fu }, chapa: { t: tg, fy: P.fyChapa ?? 250, fu: P.fuChapa ?? 400, eBorda: emin, Lw: P.Lw, eLat: Math.max(emin, (n - 1) * s * Math.tan(Math.PI / 6)) },   // eLat = lwh/2 (geometria da chapa não está no modelo — conservador)
       meio: 'parafuso', par: { grade, db, n, linhas, s, g, e1: emin, gHeel, rosca: P.rosca }, desc: `${n * linhas} × Ø${fmtD(db)} (${grade.replace('ASTM F3125 ', '').replace('ISO 898-1 classe', 'ISO')}), s = ${s}, e = ${emin}; chapa de nó ${n2(tg)} mm` };
   }
@@ -162,18 +204,23 @@ function gerdauFlex(d) {
   if (d < 530) return { db: 19.05, s: 75, e: 40, ang: { b: 76, t: 6.4, g: 45 } };
   return { db: 22.225, s: 75, e: 40, ang: { b: 102, t: 8, g: 65 } };
 }
-function* flexCandidates(e, sup, P) {
+function* flexCandidates(e, sup, P, c = {}) {
   const { d, tw, tf } = e.dims, G = gerdauFlex(d), hw = d - 2 * tf;
   const supT = Math.min(sup.dims.tf, sup.dims.tw);
+  // viga–viga: copes of the supported beam (tops aligned assumed): Gerdau 3.3 — Lh = (bf − tw)/2 of the support, Lv = tf + 10
+  const recorte = c.vigaViga ? { n: d >= sup.dims.d - 1 ? 2 : 1, Lh: Math.ceil((sup.dims.bf - sup.dims.tw) / 2), Lv: Math.ceil(sup.dims.tf + 10), ya: 75 } : null;
   const n0 = Math.max(2, Math.ceil((d / 2 - 2 * G.e) / G.s + 1 - 1e-9));             // angle length ≥ d/2 (Gerdau 3.1.1)
   for (let n = n0; (n - 1) * G.s + 2 * G.e <= hw - 10 + 1e-9 || n === n0; n++) {
-    const L = (n - 1) * G.s + 2 * G.e, viga = { tw, d, fy: e.fy, fu: e.fu };
+    const L = (n - 1) * G.s + 2 * G.e, viga = { tw, d, bf: e.dims.bf, tf, fy: e.fy, fu: e.fu };
     const par = { grade: P.parafuso8800, db: G.db, n, s: G.s, rosca: P.rosca, ...(P.dhGerdau ? { dh: P.dhGerdau[G.db] } : {}) };
-    if (P.ligacaoFlexivel === 'chapa') {
+    if (P.ligacaoFlexivel === 'lcsp') {
+      for (const dw of [5, 6, 8]) yield { _tipo: 'lcsp', viga, cant: { b: G.ang.b, t: G.ang.t, L, ev: G.e, g: G.ang.g, fy: 250, fu: 400 }, solda: { dw, eletrodo: 'E70' }, suporte: { t: supT, fu: sup.fu },
+        par, recorte, desc: `2L ${G.ang.b}×${G.ang.b}×${n2(G.ang.t)} × ${L} mm soldadas na alma (filete ${dw} mm em C), ${n} × Ø${fmtD(G.db)} por aba no suporte (Gerdau LCSP)${recorte ? `; ${recorte.n} recorte(s) Lh ${recorte.Lh} × Lv ${recorte.Lv}` : ''}` };
+    } else if (P.ligacaoFlexivel === 'chapa') {
       for (const tp of PLATES.filter((x) => x >= 6.3 && x <= 16)) yield { tipo: 'chapa', viga, chapa: { t: tp, fy: 250, fu: 400, ev: G.e, eh: G.e, a: G.e + 10, ebv: G.e }, solda: { dw: Math.max(5, Math.min(8, Math.ceil(0.75 * tp))), eletrodo: 'E70' }, pilar: { t: supT }, par, desc: `chapa simples ${n2(tp)} × ${L} mm, ${n} × Ø${fmtD(G.db)}` };
     } else {
       yield { tipo: 'cantoneira', viga, cant: { b: G.ang.b, b2: G.ang.b, t: G.ang.t, L, fy: 250, fu: 400, ev: G.e, eh: G.ang.b - G.ang.g, a: G.ang.g, gc: G.ang.g, ebv: G.ang.g - 10 },
-        pilar: { t: supT, fu: sup.fu }, par, opts: { excentricidade: P.excentricidade }, desc: `2L ${G.ang.b}×${G.ang.b}×${n2(G.ang.t)} × ${L} mm, ${n} × Ø${fmtD(G.db)} por aba (Gerdau LCPP)` };
+        pilar: { t: supT, fu: sup.fu }, par, opts: { excentricidade: P.excentricidade }, recorte, desc: `2L ${G.ang.b}×${G.ang.b}×${n2(G.ang.t)} × ${L} mm, ${n} × Ø${fmtD(G.db)} por aba (Gerdau LCPP)${recorte ? `; ${recorte.n} recorte(s) Lh ${recorte.Lh} × Lv ${recorte.Lv}` : ''}` };
     }
     if (n > 20) break;
   }
@@ -200,6 +247,22 @@ function* spliceCandidatesGeo(e, P) {
   }
 }
 
+function* lmssCandidates(e, col, P) {
+  const B = { ...e.dims, fy: e.fy, fu: e.fu, Zx: e.Zx, Wx: e.Wx }, C0 = { ...col.dims, fy: col.fy, fu: col.fu, A: col.A, r: col.dims.r ?? 0 };
+  for (const reforco of [0, ...PLATES.filter((x) => x >= 6.3 && x <= 25)]) for (const dw of [5, 6, 8, 10, 12]) {
+    if (dw < filletMin8800(Math.min(B.tw, C0.tf))) continue;
+    yield { viga: B, pilar: C0, solda: { dw, eletrodo: 'E70' }, reforco, desc: `mesas com penetração total; alma com filete duplo ${dw} mm${reforco ? `; chapas de reforço do painel 2 × ${n2(reforco)} mm (5.7.7.2)` : ''}` };
+  }
+}
+function* soldaBaseCandidates(e, tp) {
+  for (let dw = Math.max(3, filletMin8800(Math.min(e.dims.tf, tp))); dw <= 16; dw++) yield { pilar: { ...e.dims, fy: e.fy, fu: e.fu }, tp, dw, eletrodo: 'E70', desc: `filetes de ${dw} mm em todo o contorno do pilar (E70)` };
+}
+function* chapaBanzoCandidates(chord, tg) {
+  const tc = chord.shape === 'I' || chord.shape === 'channel' ? chord.dims.tf : chord.dims.t;
+  const cf = Math.min(tg, tc) <= 4.75, dw = cf ? Math.max(Math.min(tg, tc), 2) : Math.max(3, filletMin8800(Math.min(tg, tc)));
+  for (let L = 60; L <= 1500; L += 10) yield { dw, L, tg, tc, fy: 250, fu: 400, fuChord: chord.fu, eletrodo: 'E70', desc: `2 filetes ${n2(dw)} mm × ${L} mm (chapa de nó ${n2(tg)} mm ao banzo)` };
+}
+
 /* ------------------------------------------------------------------------------------------------ run one connection */
 function evaluate(c, geo, dem, P) {
   let worst = null;
@@ -208,7 +271,11 @@ function evaluate(c, geo, dem, P) {
     try {
       if (c.tipo === 'trelica') {
         r = trussMemberConnection({ ...geo, N: Math.abs(D.N) < 1e-9 ? 1e-6 : D.N, opts: { minimo50: P.minimo50 } });   // N = 0 → mínimo de 45 kN / 50 % NRd
-      } else if (c.tipo === 'flexivel') r = shearConnection({ ...geo, V: D.V });
+      } else if (c.tipo === 'flexivel') r = geo._tipo === 'lcsp' ? lcspConnection({ ...geo, V: D.V }) : shearConnection({ ...geo, V: D.V });
+      else if (c.tipo === 'lmss') r = lmssConnection({ ...geo, M: D.M, V: D.V, N: D.N, Ncol: D.Ncol, Vcol: D.Vcol, lados: c.outra ? 2 : 1, M2: D.M2, extremidade: c.extremidade });
+      else if (c.tipo === 'emendaSoldada') r = weldedSplice({ ...geo, N: D.N, M: D.M, V: D.V });
+      else if (c.tipo === 'soldaBase') r = baseColumnWeld({ ...geo, N: D.N, M: D.M, V: D.V });
+      else if (c.tipo === 'chapaBanzo') r = gussetChordWeld({ ...geo, Fpar: D.Fpar, Fperp: D.Fperp });
       else if (c.tipo === 'base') {
         r = columnBase({ ...geo, N: D.N, M: D.M, V: D.V, cis: { tipo: 'atrito' } });
         // friction not enough (or T1/T2: no friction) → welded special washers (6.7.2.3/6.7.2.5, Tab. 18)
@@ -237,8 +304,10 @@ export function designConnection(c, T, combos, P = {}) {
   P = { ...DEFAULTS, ...P };
   const e = T.elems.find((x) => x.id === c.elem), dem = demands(c, T, combos);
   if (!dem.length) return { c, ok: false, erro: 'sem esforços nas combinações de ELU' };
-  const gen = c.tipo === 'trelica' ? trussCandidates(e, P) : c.tipo === 'flexivel' ? flexCandidates(e, T.elems.find((x) => x.id === c.apoio), P)
-    : c.tipo === 'base' ? baseCandidates(e, P) : spliceCandidatesGeo(e, P);
+  const gen = c.tipo === 'trelica' ? trussCandidates(e, P) : c.tipo === 'flexivel' ? flexCandidates(e, T.elems.find((x) => x.id === c.apoio), P, c)
+    : c.tipo === 'base' ? baseCandidates(e, P) : c.tipo === 'lmss' ? lmssCandidates(e, T.elems.find((x) => x.id === c.apoio), P)
+    : c.tipo === 'emendaSoldada' ? [{ perfil: { ...e.dims, fy: e.fy, fu: e.fu }, penetracao: 'total', eletrodo: 'E70', desc: 'penetração total nas mesas e na alma (E70, compatibilidade total)' }]
+    : c.tipo === 'soldaBase' ? soldaBaseCandidates(e, c.tp) : c.tipo === 'chapaBanzo' ? chapaBanzoCandidates(e, c.tg) : spliceCandidatesGeo(e, P);
   // scope limits that no geometry fixes (reported, never hidden)
   const lim = [];
   const MwMax = Math.max(...dem.map((d) => d.Mw || 0)), NMax = Math.max(...dem.map((d) => Math.abs(d.N || 0)));
@@ -250,7 +319,10 @@ export function designConnection(c, T, combos, P = {}) {
     if (MwMax > tol) { baseFora = true; lim.push(`${txt} — fora da 6.7.1.3 (só eixo de maior inércia): base dimensionada para N, M (eixo forte) e V; verificar o eixo fraco por outro método`); }
     else lim.push(`${txt} — desprezado`);
   }
-  if (c.tipo === 'flexivel' || c.tipo === 'emenda') lim.push('torção e esforços do eixo de menor inércia não entram nesta ligação');
+  if (['flexivel', 'emenda', 'emendaSoldada', 'lmss'].includes(c.tipo)) lim.push('torção e esforços do eixo de menor inércia não entram nesta ligação');
+  if (c.tipo === 'flexivel' && c.vigaViga) lim.push('viga–viga: topos alinhados admitidos para os recortes (Lh = (bf − tw)/2 e Lv = tf + 10 mm do suporte, Gerdau 3.3)');
+  if (c.tipo === 'lmss' && c.outra) lim.push('ligação dos dois lados do pilar: painel com (M1 + M2)/(d − tf) e instabilidade da alma por compressão (5.7.6)');
+  if (c.tipo === 'chapaBanzo') lim.push('comprimento mínimo da solda calculado; a chapa de nó real deve ter pelo menos esse comprimento ao longo do banzo; seção vertical da chapa (Fakury, linha 1) à parte');
   if (c.tipo === 'trelica' && memberSection(e)?.desigual) lim.push('cantoneira de abas desiguais: admitida ligada pela aba maior');
   if (c.tipo === 'base' && T.nodes.get(c.node)?.springRest) lim.push('apoio elástico (mola) tratado como base de pilar');
   if (c.tipo === 'flexivel' && NMax > 5) lim.push(`força normal na viga até ${NMax.toFixed(1).replace('.', ',')} kN não verificada na ligação flexível (só V; ver Gerdau 3.4.2, caso 2)`);
@@ -271,7 +343,15 @@ export function designConnection(c, T, combos, P = {}) {
   return finish({ c, ok: false, geo: best.geo, desc: best.geo.desc, ratio: best.ev.ratio, r: best.ev.r, D: best.ev.D, erro: best.ev.erro, nota: why, tried, dem });
 }
 export function designAll(topo, combos, P = {}) {
+  P = { ...DEFAULTS, ...P };
   const T = topology(topo), { conns, avisos } = classify(T, P);
-  const rows = conns.map((c) => designConnection(c, T, combos, P));
+  const first = conns.filter((c) => c.tipo !== 'chapaBanzo');
+  const rows = first.map((c) => designConnection(c, T, combos, P));
+  // dependent welds: column → base plate (tp of the base adopted) and gusset → chord (thickest gusset adopted at the node)
+  if (P.soldaBase) for (const r of rows.filter((x) => x.c.tipo === 'base' && x.geo)) rows.push(designConnection({ id: `W${r.c.node}`, tipo: 'soldaBase', node: r.c.node, elem: r.c.elem, o: r.c.o, tp: r.geo.placa.tp }, T, combos, P));
+  for (const c of conns.filter((x) => x.tipo === 'chapaBanzo')) {
+    const tg = Math.max(P.chapaNoMin14762, ...rows.filter((x) => x.c.tipo === 'trelica' && x.c.node === c.node && x.geo).map((x) => x.geo.chapa.t));
+    rows.push(designConnection({ ...c, tg }, T, combos, P));
+  }
   return { rows, avisos, T, candidatosEmenda: spliceCandidates(T) };
 }

@@ -13,7 +13,7 @@ const kN = (N) => N / 1000;
 /** one plate splice (member plate + talas), force F [N] (> 0 tension). Pushes checks; prefix names the part. */
 function splicePlate({ checks, avisos, pre, mem, tal, par, F, folga = 10 }) {
   const { db, linhas, ncol, s, g = 0, e1, et, e2 } = par;
-  const tmin = Math.min(mem.t, tal.t), norma = tmin <= 4.75 ? '14762' : '8800';
+  const tmin = Math.min(mem.t, tal.t), norma = mem.formadoFrio && tmin <= 4.75 ? '14762' : '8800';   // 14762 only for cold-formed parts
   const ops = boltOps(norma, par), dh = ops.dh, dn = ops.dn;
   const tr = F > 0, Fa = Math.abs(F), nb = linhas * ncol, np = tal.n;
   const G = `${pre} — disposições construtivas`;
@@ -86,7 +86,7 @@ export function spliceConnection(inp) {
   if (Fc !== 0) splicePlate({ checks, avisos, pre: Fc > 0 ? 'Mesa comprimida' : 'Mesa “comprimida” (tracionada)', mem: { b: P.bf, t: P.tf, fy: P.fy, fu: P.fu }, tal: { n: 1, b: tm.b ?? P.bf, t: tm.t, fy: tm.fy, fu: tm.fu }, par: pm, F: -Fc, folga });
   // web: 2 talas, bolts per side nr × nc, vertical pitch sv, horizontal sh, e1w = column nearest the gap → web end
   if (V !== 0) {
-    const { db, nr, nc = 1, sv, sh = 0, e1w, ev, et } = parAlma, ops = boltOps(Math.min(P.tw, ta.t) <= 4.75 ? '14762' : '8800', parAlma);
+    const { db, nr, nc = 1, sv, sh = 0, e1w, ev, et } = parAlma, ops = boltOps('8800', parAlma);   // I sections: rolled or welded → NBR 8800
     const e = folga / 2 + e1w + (nc - 1) * sh / 2;
     const bolts = []; for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) bolts.push({ x: j * sh, y: (i - (nr - 1) / 2) * sv });
     const grp = C.elasticGroup(bolts, { Vy: -Math.abs(V), M: Math.abs(V) * e });

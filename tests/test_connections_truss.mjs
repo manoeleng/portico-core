@@ -74,7 +74,23 @@ const fak = (N) => trussMemberConnection({
   const q = 0.6 * 0.707 * 5 * 485 / 1.35 / 1000, Fl = 200 * q, Ft = 76.2 * q;
   ok('C1. grupo longitudinal + transversal: máx(Fwl + Fwt; 0,85Fwl + 1,5Fwt) (6.2.5.2-c)', find(r, /Metal da solda/).Rd, Math.max(Fl + Ft, 0.85 * Fl + 1.5 * Ft), 1e-9);
   ok('C2. metal-base da barra 0,6·fu·200·6,35/1,35 vs 0,6·fy·…/1,10 (6.5.5)', find(r, /Metal-base da barra/).Rd, Math.min(0.6 * 250 * 1270 / 1.1, 0.6 * 400 * 1270 / 1.35) / 1000, 1e-9);
-  yes('C3. perna mínima 3 mm (6,35 → Tab. 11) e máxima 4,85 mm: dw = 5 > 4,85 → NÃO', r.checks.find((c) => /Perna máxima/.test(c.nome)).ok === false); }
+  // Tab. 11: t = 6,35 > 6,3 → mínimo 5 mm; 6.2.6.2.2-b: máximo ao longo da borda t − 1,5 = 4,85 mm "a não ser que nos desenhos
+  // essa solda seja indicada como reforçada" → admitido com aviso de desenho
+  yes('C3. dw = 5 (mínimo da Tab. 11) > 4,85 (máximo da borda): solda reforçada pela 6.2.6.2.2-b, com aviso', r.checks.some((c) => /reforçada/.test(c.nome)) && r.avisos.some((a) => /reforçado durante a execução/.test(a))); }
 
+// ---------------- perfil I ligado pela alma (5.2.5-c, 2 U fictícios — Fig. 4); conta de mão (sem exemplo publicado)
+//   W 150×13: d 148, bf 100, tf 4,9, tw 4,3 (laminado → NBR 8800 mesmo com tw ≤ 4,75); A = 2·100·4,9 + 138,2·4,3 = 1574,3 mm²;
+//   meia seção (U): Q = 2·(50·4,9)·25 + 138,2·2,15·1,075 = 12 569 mm³ → ec = Q/(A/2) = 15,97 mm; ℓc = 2·50 = 100 → Ct = 0,840
+{ const r = trussMemberConnection({ secao: { tipo: 'I', d: 148, bf: 100, tf: 4.9, tw: 4.3, t: 4.3, bw: 138.2, fy: 345, fu: 450, laminado: true },
+    chapa: { t: 9.5, fy: 250, fu: 400, eBorda: 30, Lw: 100 }, meio: 'parafuso', par: { grade: 'ASTM F3125 A325', db: 16, n: 3, linhas: 2, s: 50, g: 60, e1: 30 }, N: 150 });
+  const A = 2 * 100 * 4.9 + 138.2 * 4.3, ec = (2 * 50 * 4.9 * 25 + 138.2 * 2.15 * 1.075) / (A / 2), Ct = 1 - ec / 100, An = A - 2 * 20 * 4.3;
+  yes('I1. perfil I laminado com tw = 4,3 mm → NBR 8800 (a 14762 é de formados a frio)', r.norma === '8800');
+  ok('I2. ruptura da seção líquida: Ct = 1 − ec/ℓc (U fictício) · An · fu/γa2', find(r, /seção líquida/).Rd, Ct * An * 450 / 1.35 / 1000, 1e-9);
+  ok('I3. ec = 15,97 mm → Ct = 0,840', Ct, 0.8403, 0.001);
+  yes('I4. bloco do miolo da alma (2 linhas)', r.checks.some((c) => /miolo/.test(c.nome))); }
+{ const { shearConnection } = await import('../js/design/connections_shear.js');
+  const r = shearConnection({ tipo: 'cantoneira', V: 40, viga: { tw: 4.3, d: 148, fy: 345, fu: 450 }, cant: { b: 76, b2: 76, t: 6.4, fy: 250, fu: 400, ev: 30, eh: 31, a: 45, gc: 45 }, pilar: { t: 9, fu: 450 },
+    par: { grade: 'ASTM F3125 A325', db: 15.875, n: 2, s: 60 } });
+  yes('I5. viga W150×13 (tw 4,3) na ligação flexível → NBR 8800', r.norma === '8800'); }
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

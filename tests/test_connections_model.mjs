@@ -93,7 +93,7 @@ for (const [name, Vd] of [['W 360 x 32,9', 265], ['W 360 x 51,0', 328], ['W 360 
 // ---------------- revisão (Importantes a, b, c)
 { const tI = CM.topology({ nodes: [{ id: 1, x: 0, y: 0, z: 0 }, { id: 2, x: 4, y: 0, z: 0 }, { id: 3, x: 0, y: 0, z: 4 }],
     elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...bm }, { id: 2, n1: 2, n2: 3, rel: PIN, ...W('W 250 x 25,3') }, { id: 3, n1: 3, n2: 1, rel: FIX, ...col }] });
-  yes('R-a. perfil I rotulado inclinado (diagonal em W) gera aviso', CM.classify(tI).avisos.some((a) => /perfil I rotulado inclinado/.test(a))); }
+  yes('R-a. perfil I rotulado inclinado (diagonal em W) → ligação de treliça pela alma (5.2.5-c)', CM.classify(tI).conns.some((c) => c.tipo === 'trelica' && c.elem === 2)); }
 { const r = all.rows.find((x) => x.c.tipo === 'trelica');
   yes('R-b. treliça: requisitos da chapa de nó no resultado (largura de Whitmore, Lw)', /largura na seção de Whitmore ≥ \d+ mm/.test(r.req || '') && /≤ 100 mm/.test(r.req), r.req); }
 { const mk = (Mw) => { const t = CM.topology({ nodes: [{ id: 1, x: 0, y: 0, z: 0, support: true }, { id: 2, x: 0, y: 0, z: 4 }], elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...col }] });
@@ -103,5 +103,38 @@ for (const [name, Vd] of [['W 360 x 32,9', 265], ['W 360 x 51,0', 328], ['W 360 
   const lo = mk(5), hi = mk(15);
   yes('R-c1. eixo fraco 5 kN·m ≤ 5 % de Zy·fy/γa1 (11,34) → desprezado, atende', lo.ok && /desprezado/.test(lo.nota) && /11,34/.test(lo.nota), lo.nota);
   yes('R-c2. eixo fraco 15 kN·m > 11,34 → NÃO, fora da 6.7.1.3', !hi.ok && /fora da 6.7.1.3/.test(hi.nota)); }
+// ---------------- v2: soldadas, rígida, recorte, chapa–banzo
+{ // portal knee: column W310×97 (1–2, support at 1) continuous into a rafter W360×51 (2–3) continuous → LMSS
+  const t = CM.topology({ nodes: [{ id: 1, x: 0, y: 0, z: 0, support: true }, { id: 2, x: 0, y: 0, z: 5 }, { id: 3, x: 8, y: 0, z: 5 }],
+    elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...col, Zx: undefined }, { id: 2, n1: 2, n2: 3, rel: FIX, ...bm }] });
+  const { conns } = CM.classify(t, CM.DEFAULTS);
+  const r = conns.find((c) => c.tipo === 'lmss');
+  yes('V1. nó de pórtico (viga contínua no pilar contínuo) → LMSS, no topo do pilar', r && r.elem === 2 && r.apoio === 1 && r.extremidade === true);
+  const out = CM.designAll({ nodes: [...t.nodes.values()], elems: t.elems }, [{ name: 'ELU', ef: (id) => id === 2 ? { N: -20, Vy1: 80, Vz1: 0, My1: 0, Mz1: 90, Vy2: 0, Vz2: 0, My2: 0, Mz2: 0 } : { N: -100, Vy1: 20, Vz1: 0, My1: 0, Mz1: 0, Vy2: 20, Vz2: 0, My2: 0, Mz2: 90 }, R: () => [20, 0, 100, 0, 0, 0] }]);
+  const lm = out.rows.find((x) => x.c.tipo === 'lmss');
+  yes('V2. LMSS pré-dimensionada (mesas CJP, filete na alma) — atende ou mostra o que governa', lm && lm.r && (lm.ok || /governa/.test(lm.nota || '')), lm?.desc);
+  yes('V3. solda pilar–placa de base gerada para a base', out.rows.some((x) => x.c.tipo === 'soldaBase' && x.ok), out.rows.filter((x) => x.c.tipo === 'soldaBase').map((x) => x.desc + ' ' + x.ok).join()); }
+{ // Fakury 10.14.3 arrangement: chord 1–2–3 (x), two diagonals ±200 kN at 60° meeting at node 2 → F∥ = 200, F⊥ = 0
+  const c60 = Math.cos(Math.PI / 3), s60 = Math.sin(Math.PI / 3);
+  const t = CM.topology({ nodes: [{ id: 1, x: -2, y: 0, z: 0 }, { id: 2, x: 0, y: 0, z: 0 }, { id: 3, x: 2, y: 0, z: 0 }, { id: 4, x: -c60, y: 0, z: -s60 }, { id: 5, x: c60, y: 0, z: -s60 }],
+    elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...chord }, { id: 2, n1: 2, n2: 3, rel: FIX, ...chord }, { id: 3, n1: 2, n2: 4, rel: PIN, ...diag }, { id: 4, n1: 2, n2: 5, rel: PIN, ...diag }] });
+  const ef = (id) => ({ N: id === 3 ? 200 : id === 4 ? -200 : 0, Vy1: 0, Vz1: 0, My1: 0, Mz1: 0, Vy2: 0, Vz2: 0, My2: 0, Mz2: 0 });
+  const out = CM.designAll({ nodes: [...t.nodes.values()], elems: t.elems }, [{ name: 'ELU', ef, R: () => null }]);
+  const sb = out.rows.find((x) => x.c.tipo === 'chapaBanzo');
+  ok('V4. solda chapa–banzo: F∥ = |200·(−cos60) − 200·cos60| = 200 kN (Fakury 10.14.3)', sb.D.Fpar, 200, 1e-9);
+  ok('V5. F⊥ = 0 (componentes verticais se anulam)', sb.D.Fperp + 1, 1, 1e-9);
+  yes('V6. comprimento mínimo de solda adotado e atende', sb.ok && /2 filetes/.test(sb.desc), sb.desc); }
+{ // viga–viga: W360×51 pinned into W360×51 (same depth → 2 copes), LCSP
+  const t = CM.topology({ nodes: [{ id: 1, x: 0, y: -3, z: 4 }, { id: 2, x: 0, y: 0, z: 4 }, { id: 3, x: 0, y: 3, z: 4 }, { id: 4, x: 6, y: 0, z: 4 }],
+    elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...bm }, { id: 2, n1: 2, n2: 3, rel: FIX, ...bm }, { id: 3, n1: 2, n2: 4, rel: PIN, ...bm }] });
+  const c = CM.classify(t).conns.find((x) => x.tipo === 'flexivel' && x.node === 2);
+  const r = CM.designConnection(c, t, [{ name: 'ELU', ef: () => ({ N: 0, Vy1: 150, Vy2: -150, Vz1: 0, Vz2: 0, My1: 0, My2: 0, Mz1: 0, Mz2: 0 }), R: () => null }], { ligacaoFlexivel: 'lcsp' });
+  yes('V7. viga–viga mesma altura → 2 recortes (Lh = (bf − tw)/2, Lv = tf + 10) e LCSP soldada', r.geo._tipo === 'lcsp' && r.geo.recorte?.n === 2 && r.geo.recorte.Lh === Math.ceil((171 - 7.2) / 2), JSON.stringify(r.geo?.recorte));
+  yes('V8. memória inclui flexão e flambagem local da alma recortada', r.r.checks.some((x) => /Escoamento por flexão da seção recortada/.test(x.nome)) && r.r.checks.some((x) => /Flambagem local da alma recortada/.test(x.nome))); }
+{ // welded splice option
+  const t = CM.topology({ nodes: [{ id: 1, x: 0, y: 0, z: 0, support: true }, { id: 2, x: 0, y: 0, z: 3 }, { id: 3, x: 0, y: 0, z: 6 }],
+    elems: [{ id: 1, n1: 1, n2: 2, rel: FIX, ...col }, { id: 2, n1: 2, n2: 3, rel: FIX, ...col }] });
+  const cs = CM.classify(t, { spliceNodes: new Set([2]), emendaTipo: 'soldada' }).conns.find((x) => x.node === 2);
+  yes('V9. emenda marcada com opção soldada → emendaSoldada (penetração total)', cs?.tipo === 'emendaSoldada'); }
 console.log(fails ? `\n${fails}/${n} FALHAS` : `\n${n}/${n} ok`);
 process.exit(fails ? 1 : 0);

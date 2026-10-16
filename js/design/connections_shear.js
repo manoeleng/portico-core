@@ -7,6 +7,7 @@
 //  cantoneira dupla: a = face do pilar (dorso) → linha da alma; ev = parafuso extremo → ponta da cantoneira;
 //                 eh = linha da alma → ponta da aba; gc = dorso → linha no pilar (aba b2); ebv = linha → extremidade da viga.
 import * as C from './connections.js?v=7';
+import { copedChecks } from './connections_weld.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const kN = (N) => N / 1000;
@@ -66,7 +67,8 @@ export function shearConnection(inp) {
 
   if (tipo === 'chapa') {
     const { chapa: p, solda: w } = inp;
-    const tmin = Math.min(p.t, viga.tw), norma = tmin <= 4.75 ? '14762' : '8800';
+    // NBR 14762 only for COLD-FORMED parts (10.3.1 is inside the cold-formed standard); rolled/welded I beams → NBR 8800
+    const tmin = Math.min(p.t, viga.tw), norma = viga.formadoFrio && tmin <= 4.75 ? '14762' : '8800';
     const ops = boltOps(norma, par);
     if (norma === '14762') avisos.push('Parte com t ≤ 4,75 mm: parafusos, rasgamento e esmagamento pela NBR 14762 §10; chapa e solda pela NBR 8800 (6.5, Tab. 9).');
     detailing(checks, ops, norma, { db, s, tmin, edges: [['Borda vertical da chapa (ev)', p.ev, p.t], ['Borda horizontal livre da chapa (eh)', p.eh, p.t], ['Extremidade da viga (ebv)', p.ebv ?? BIG, viga.tw]].filter((e) => e[1] < BIG) });
@@ -107,7 +109,7 @@ export function shearConnection(inp) {
 
   // ---------------- double angle
   const { cant: a, pilar: col } = inp;
-  const tmin = Math.min(a.t, viga.tw, col.t), norma = tmin <= 4.75 ? '14762' : '8800';
+  const tmin = Math.min(a.t, viga.tw, col.t), norma = viga.formadoFrio && tmin <= 4.75 ? '14762' : '8800';
   const ops = boltOps(norma, par);
   if (norma === '14762') avisos.push('Parte com t ≤ 4,75 mm: parafusos, rasgamento e esmagamento pela NBR 14762 §10; cantoneiras e alma pela NBR 8800 6.5.');
   const L = a.L ?? (n - 1) * s + 2 * a.ev;
@@ -129,7 +131,10 @@ export function shearConnection(inp) {
   const bAgv = 2 * (a.ev + (n - 1) * s) * a.t, bAnv = bAgv - 2 * (n - 0.5) * ops.dn * a.t, bAnt = 2 * (a.eh - 0.5 * ops.dn) * a.t;
   const bk = C.blockShear8800({ Agv: bAgv, Anv: bAnv, Ant: bAnt, fy: a.fy, fu: a.fu, Cts: 1 });
   checks.push(C.chk('Cantoneiras', 'Colapso por rasgamento das 2 cantoneiras (aba na alma)', '6.5.6', `Agv = ${nf(bAgv, 0)}, Anv = ${nf(bAnv, 0)}, Ant = ${nf(bAnt, 0)} mm², Cts = 1; ${bk.eq}`, Vd, bk.R));
-  if (viga.d > 0) {
+  if (inp.recorte && viga.bf > 0) {
+    // coped supported beam (viga–viga): Gerdau 3.4.2; ya = top of the beam → first bolt (Gerdau: 75 mm), ebv = bolt line → beam end
+    copedChecks(checks, avisos, { recorte: inp.recorte, viga, V: Vd, bolts: { n, s, ya: inp.recorte.ya ?? 75, ebv: a.ebv ?? (a.a - 10), dn: ops.dn } });
+  } else if (viga.d > 0) {
     const vw = C.shearElement8800({ Agv: viga.d * viga.tw, Anv: (viga.d - n * ops.dn) * viga.tw, fy: viga.fy, fu: viga.fu });
     checks.push(C.chk('Viga', 'Cisalhamento da alma da viga na ligação', '6.5.5', `Agv = d·tw = ${nf(viga.d * viga.tw, 0)}, Anv = (d − n·dn)·tw = ${nf((viga.d - n * ops.dn) * viga.tw, 0)} mm²; ${vw.eq}`, Vd, vw.R));
   }

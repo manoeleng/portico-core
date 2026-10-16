@@ -199,3 +199,44 @@ export function figSplice(geo) {
   out.push(sv.toString());
   return out;
 }
+
+/* ------------------------------------------------------------------------------------------------ welded: LMSS */
+export function figLmss(geo) {
+  const { viga: B, pilar: P, enrij, lados = 1 } = geo, W = 460, H = 360, k = fit(W, H, P.d + 2 * Math.max(500, B.d), Math.max(B.d * 2.2, 500));
+  const sv = new Svg(W, H, 'Elevação — viga–pilar rígida soldada (LMSS)'), cx = W / 2, cy = H / 2 + 10;
+  const D = P.d * k, tfc = Math.max(2, P.tf * k);
+  sv.rect(cx - D / 2, 24, D, H - 40, COL.mem, COL.memS, 'fill-opacity="0.45"');
+  sv.rect(cx - D / 2, 24, tfc, H - 40, COL.mem, COL.memS); sv.rect(cx + D / 2 - tfc, 24, tfc, H - 40, COL.mem, COL.memS);
+  const bd = B.d * k, btf = Math.max(2, B.tf * k);
+  for (const sx of lados === 2 ? [-1, 1] : [1]) {
+    const x0 = sx > 0 ? cx + D / 2 : 20, w = sx > 0 ? W - 20 - (cx + D / 2) : cx - D / 2 - 20;
+    sv.rect(x0, cy - bd / 2, w, bd, COL.mem, COL.memS, 'fill-opacity="0.45"');
+    sv.rect(x0, cy - bd / 2, w, btf, COL.mem, COL.memS); sv.rect(x0, cy + bd / 2 - btf, w, btf, COL.mem, COL.memS);
+    const xf = sx > 0 ? cx + D / 2 : cx - D / 2;
+    for (const y of [cy - bd / 2, cy + bd / 2 - btf]) sv.poly([[xf, y], [xf + sx * 8, y], [xf, y + btf]], COL.weld, COL.weld);      // CJP mark
+    sv.line(xf + sx * 2, cy - bd / 2 + btf + 4, xf + sx * 2, cy + bd / 2 - btf - 4, COL.weld, 3);                                    // web fillet
+  }
+  if (enrij) for (const y of [cy - bd / 2 + btf / 2, cy + bd / 2 - btf / 2]) sv.rect(cx - D / 2 + tfc, y - 2, D - 2 * tfc, 4, COL.plate, COL.plateS);
+  sv.text(cx, H - 22, `pilar d = ${nf(P.d)} · viga d = ${nf(B.d)}${enrij ? ` · enrijecedores ${nf(enrij.bs)} × ${nf(enrij.ts, 2)}` : ''}`, { size: 9 });
+  return [sv.toString()];
+}
+/* ------------------------------------------------------------------------------------------------ welded splice */
+export function figWeldedSplice(geo) {
+  const { perfil: P, penetracao } = geo, W = 460, H = 240, k = fit(W, H, 1200, P.d + 60), cx = W / 2, cy = H / 2 + 8, D = P.d * k, tf = Math.max(2, P.tf * k);
+  const sv = new Svg(W, H, `Elevação — emenda soldada (${penetracao === 'parcial' ? 'penetração parcial' : 'penetração total'})`);
+  for (const sx of [-1, 1]) { const x0 = sx < 0 ? 20 : cx + 1, w = cx - 21; sv.rect(x0, cy - D / 2, w, D, COL.mem, COL.memS, 'fill-opacity="0.45"'); sv.rect(x0, cy - D / 2, w, tf, COL.mem, COL.memS); sv.rect(x0, cy + D / 2 - tf, w, tf, COL.mem, COL.memS); }
+  sv.line(cx, cy - D / 2, cx, cy + D / 2, COL.weld, 4);
+  sv.text(cx + 8, cy - D / 2 - 6, 'solda de topo (mesas e alma)', { anchor: 'start', color: COL.weld, size: 9 });
+  return [sv.toString()];
+}
+/* ------------------------------------------------------------------------------------------------ gusset → chord weld */
+export function figChapaBanzo(geo) {
+  const { L, tg, dw } = geo, W = 460, H = 220, k = fit(W, H, L + 300, 300), cx = W / 2, cy = 70;
+  const sv = new Svg(W, H, 'Elevação — chapa de nó soldada ao banzo');
+  sv.rect(20, cy - 14, W - 40, 28, COL.mem, COL.memS); sv.text(26, cy - 18, 'banzo', { anchor: 'start', size: 9 });
+  sv.poly([[cx - L * k / 2, cy + 14], [cx + L * k / 2, cy + 14], [cx + L * k / 2 - 30, cy + 130], [cx - L * k / 2 + 30, cy + 130]], COL.plate, COL.plateS);
+  sv.line(cx - L * k / 2, cy + 15, cx + L * k / 2, cy + 15, COL.weld, 4);
+  sv.dimH(cx - L * k / 2, cx + L * k / 2, cy + 150, `L = ${nf(L)} mm (2 filetes de ${nf(dw, 1)} mm)`);
+  sv.text(cx, cy + 80, `chapa de nó t = ${nf(tg, 2)}`, { color: COL.plateS, size: 9 });
+  return [sv.toString()];
+}

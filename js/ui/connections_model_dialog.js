@@ -5,13 +5,14 @@
 import { designAll, DEFAULTS, topology, spliceCandidates } from '../design/connections_model.js?v=7';
 import { profileToSection } from '../design/profiles.js?v=7';
 import { angleProps } from '../design/cf_geom.js?v=7';
-import { figTruss, figShear, figBase, figSplice } from '../design/connections_figs.js?v=7';
+import { figTruss, figShear, figBase, figSplice, figLmss, figWeldedSplice, figChapaBanzo } from '../design/connections_figs.js?v=7';
 import { resultHTML, CSS } from './connections_dialog.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
-const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar / viga–viga flexível', trelica: 'Barra de treliça × chapa de nó', emenda: 'Emenda com talas' };
-const FIG = { base: figBase, flexivel: figShear, trelica: figTruss, emenda: figSplice };
+const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar / viga–viga flexível', trelica: 'Barra de treliça × chapa de nó', emenda: 'Emenda com talas',
+  lmss: 'Viga–pilar rígida soldada (LMSS)', emendaSoldada: 'Emenda soldada', soldaBase: 'Solda pilar–placa de base', chapaBanzo: 'Solda chapa de nó–banzo' };
+const FIG = { base: figBase, flexivel: figShear, trelica: figTruss, emenda: figSplice, lmss: figLmss, emendaSoldada: figWeldedSplice, chapaBanzo: figChapaBanzo };
 const ULS = (name) => /^ELU/i.test(name) || (!/^ELS/i.test(name) && !/servi(ç|c)o/i.test(name));
 
 /** plain topology of the app model (lengths mm, stresses MPa) */
@@ -33,7 +34,8 @@ export function modelTopology(app) {
     else if (shape === 'channel') ec = (d.xc ?? 0) * 1000 || undefined;
     if (!mat?.design?.Fy) matWarn = true;
     return { id: el.id, n1: el.n1, n2: el.n2, rel: el.releases || Array(12).fill(0), cable: !!el.cable, excluded: !!el.designExcluded,
-      shape, dims, A, ec, fy: mat?.design?.Fy ?? 250, fu: mat?.design?.Fu ?? 400, name: sec?.name || `seção ${el.secId}` };
+      shape, dims, A, ec, Zx: d?.Zz ? d.Zz * 1e9 : undefined, Wx: d?.Sz ? d.Sz * 1e9 : undefined,
+      fy: mat?.design?.Fy ?? 250, fu: mat?.design?.Fu ?? 400, name: sec?.name || `seção ${el.secId}` };
   });
   if (matWarn) avisos.push('Há materiais sem fy/fu de projeto: adotados 250/400 MPa (MR250/A36). Ajuste o material na biblioteca se for outro aço.');
   return { topo: { nodes, elems }, avisos };
@@ -62,7 +64,9 @@ export function openConnectionsModelDialog(app) {
     <div style="width:310px;overflow:auto;padding:10px;border-right:1px solid var(--border2,#e2e8f0)">
       <p class="panel-hint">${combos.length} combinação(ões) de ELU com resultados · ${topo.elems.length} barras · ${topo.nodes.length} nós</p>
       <h4>Viga–pilar flexível</h4>
-      <div class="prop-field"><label>Tipo</label><select id="cm-flex"><option value="cantoneira">cantoneira dupla (Gerdau LCPP)</option><option value="chapa">chapa simples</option></select></div>
+      <div class="prop-field"><label>Tipo</label><select id="cm-flex"><option value="cantoneira">cantoneira dupla parafusada (Gerdau LCPP)</option><option value="lcsp">cantoneira dupla soldada na viga (Gerdau LCSP)</option><option value="chapa">chapa simples</option></select></div>
+      <h4>Viga–pilar rígida (viga contínua no pilar)</h4>
+      <div class="prop-field"><label>Ligação</label><select id="cm-rig"><option value="lmss">soldada: mesas com penetração total, alma com filete (LMSS)</option><option value="nao">não dimensionar</option></select></div>
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-exc" checked> Excentricidade do grupo na alma (conservador; Gerdau despreza)</label>
       <h4>Parafusos</h4>
       <div class="prop-field"><label>NBR 8800</label><select id="cm-p88"><option>ASTM F3125 A325</option><option>ISO 898-1 classe 8.8</option><option>ASTM A307</option></select></div>
@@ -74,7 +78,11 @@ export function openConnectionsModelDialog(app) {
       <h4>Bases</h4>
       <div class="prop-row cols2">${num('cm-fck', 'fck do bloco (MPa)', P.fck, 1)}${num('cm-a2', 'A2/A1 (6.6.5)', P.A2A1, 0.25)}</div>
       ${num('cm-fyp', 'fy da placa de base (MPa)', P.fyPlaca, 5)}
+      <h4>Soldas</h4>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wb" checked> Solda pilar–placa de base</label>
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cm-wc" checked> Solda chapa de nó–banzo (comprimento mínimo)</label>
       <h4>Emendas (marque os nós)</h4>
+      <div class="prop-field"><label>Tipo de emenda</label><select id="cm-emt"><option value="talas">talas parafusadas</option><option value="soldada">soldada (penetração total)</option></select></div>
       <div id="cm-spl" style="max-height:160px;overflow:auto;border:1px solid var(--border2,#e2e8f0);border-radius:6px;padding:4px">${cands.length ? cands.map((c) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-spl="${c.node}"> nó ${c.node} — ${esc(c.name)}</label>`).join('') : '<span class="panel-hint">nenhum nó com 2 barras colineares da mesma seção</span>'}</div>
       <div style="display:flex;gap:6px;margin-top:10px"><button class="btn-primary" id="cm-run" style="flex:1">Dimensionar ligações</button><button id="cm-rep">🖨 Relatório</button></div>
       <button id="cm-save" style="width:100%;margin-top:6px" title="Grava a geometria adotada e o resumo no arquivo do modelo (.s3d) e inclui a seção 3.1 no memorial">💾 Gravar no modelo (e no memorial)</button>
@@ -113,7 +121,7 @@ export function openConnectionsModelDialog(app) {
     const v = (id) => parseFloat(String($(id).value).replace(',', '.'));
     const spliceNodes = new Set([...el.querySelectorAll('[data-spl]')].filter((x) => x.checked).map((x) => +x.dataset.spl));
     Object.assign(P, { ligacaoFlexivel: $('#cm-flex').value, excentricidade: $('#cm-exc').checked, parafuso8800: $('#cm-p88').value, parafuso14762: $('#cm-p14').value,
-      rosca: $('#cm-rosca').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
+      rosca: $('#cm-rosca').checked, rigidas: $('#cm-rig').value, emendaTipo: $('#cm-emt').value, soldaBase: $('#cm-wb').checked, soldaChapaBanzo: $('#cm-wc').checked, chapaNoMin: v('#cm-tg'), Lw: v('#cm-lw'), minimo50: $('#cm-m50').checked, fck: v('#cm-fck'), A2A1: v('#cm-a2'), fyPlaca: v('#cm-fyp'), spliceNodes });
     $('#cm-tab').innerHTML = '<p class="panel-hint">Dimensionando…</p>';
     setTimeout(() => {
       try { out = designAll(topo, combos, P); }

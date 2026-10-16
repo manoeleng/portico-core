@@ -17,6 +17,11 @@ function memberProps(sec) {
   const { tipo, b, b2 = b, t } = sec;
   if (tipo === 'chapa') return { A1: b * t, ec: 0, Ac1: b * t, nPerf: 1 };
   if (tipo === 'U') { const A1 = sec.A ?? t * (sec.bw + 2 * (sec.bf - t)); return { A1, ec: sec.ec ?? sec.xg, Ac1: sec.bw * t, nPerf: 1 }; }
+  if (tipo === 'I') {                // I connected by the web: 5.2.5-c, two fictitious U (Fig. 4), ec = centroid of the half section → web plane
+    const A1 = sec.A ?? 2 * sec.bf * sec.tf + (sec.d - 2 * sec.tf) * sec.tw;
+    const Q = 2 * (sec.bf / 2 * sec.tf) * (sec.bf / 4) + (sec.d - 2 * sec.tf) * (sec.tw / 2) * (sec.tw / 4);
+    return { A1, ec: sec.ec ?? Q / (A1 / 2), Ac1: (sec.d - 2 * sec.tf) * sec.tw, nPerf: 1 };
+  }
   const r = C.angleRect({ b, b2, t });
   return { A1: sec.A ?? r.A, ec: sec.ec ?? r.ec, Ac1: b * t, nPerf: tipo === '2L' ? 2 : 1 };
 }
@@ -25,7 +30,9 @@ function memberProps(sec) {
 export function trussMemberConnection(inp) {
   const { secao: sec, chapa: gp, meio = 'parafuso', par = {}, sol = {}, N, opts = {} } = inp;
   const avisos = [], checks = [];
-  const tmin = Math.min(sec.t, gp.t), norma = tmin <= 4.75 ? '14762' : '8800';
+  // NBR 14762 §10 only for COLD-FORMED members with the thinnest part ≤ 4,75 mm; rolled shapes (laminado) and I → NBR 8800
+  const formadoFrio = sec.formadoFrio ?? (['L', '2L', 'U'].includes(sec.tipo) && !sec.laminado);
+  const tmin = Math.min(sec.t, gp.t), norma = formadoFrio && tmin <= 4.75 ? '14762' : '8800';
   const mp = memberProps(sec), nP = mp.nPerf, Ag = mp.A1 * nP, tm = sec.t * nP;   // tm: total member thickness at the bolts
   const tracao = N > 0;
   // member tension resistance for the 50 % rule (14762 10.1-a), when not given
@@ -39,7 +46,7 @@ export function trussMemberConnection(inp) {
   if (meio === 'parafuso') {
     const { grade, db, n = 2, linhas = 1, s = 3 * db, g = 0, e1, gHeel, rosca = true, furo = 'padrao', deform = 'limitada' } = par;
     const nb = n * linhas, planes = sec.tipo === '2L' ? 2 : 1;
-    const e2 = sec.tipo === 'chapa' ? (sec.b - (linhas - 1) * g) / 2 : sec.tipo === 'U' ? null : sec.b - gHeel - (linhas - 1) * g;
+    const e2 = sec.tipo === 'chapa' ? (sec.b - (linhas - 1) * g) / 2 : (sec.tipo === 'U' || sec.tipo === 'I') ? null : sec.b - gHeel - (linhas - 1) * g;
     const lc = (n - 1) * s;
     if (norma === '8800') {
       const dh = par.dh ?? C.holeStd8800(db); if (!dh) throw new Error(`furo não tabelado para db = ${db} mm (Tab. 14): informe par.dh`);
@@ -92,9 +99,9 @@ export function trussMemberConnection(inp) {
         const L = e1 + (n - 1) * s, Agv1 = L * sec.t, Anv1 = (L - (n - 0.5) * dn) * sec.t;
         const blocks = [];
         if (sec.tipo === 'L' || sec.tipo === '2L') blocks.push({ txt: 'linha de parafusos → aba (ponta)', Agv: Agv1, Anv: Anv1, Ant: (e2 + (linhas - 1) * g - (linhas - 0.5) * dn) * sec.t, Cts: 1, mult: nP });
-        if ((sec.tipo === 'U' || sec.tipo === 'chapa') && linhas > 1) blocks.push({ txt: 'miolo entre as linhas externas', Agv: 2 * Agv1, Anv: 2 * Anv1, Ant: ((linhas - 1) * g - (linhas - 1) * dn) * sec.t, Cts: 1, mult: 1 });
+        if ((sec.tipo === 'U' || sec.tipo === 'I' || sec.tipo === 'chapa') && linhas > 1) blocks.push({ txt: 'miolo entre as linhas externas', Agv: 2 * Agv1, Anv: 2 * Anv1, Ant: ((linhas - 1) * g - (linhas - 1) * dn) * sec.t, Cts: 1, mult: 1 });
         if (sec.tipo === 'chapa') blocks.push({ txt: 'faixas externas (linhas → bordas; Cts = 0,5 como Fakury 10.14.7, perímetro 2)', Agv: 2 * Agv1, Anv: 2 * Anv1, Ant: 2 * (e2 - 0.5 * dn) * sec.t, Cts: 0.5, mult: 1 });
-        if (sec.tipo === 'U' && linhas < 2) avisos.push('U ligado pela alma com uma linha de parafusos: colapso por rasgamento da alma não se forma no miolo — não verificado (verificar arrancamento com as mesas, se aplicável).');
+        if ((sec.tipo === 'U' || sec.tipo === 'I') && linhas < 2) avisos.push('Perfil ligado pela alma com uma linha de parafusos: colapso por rasgamento da alma não se forma no miolo — não verificado (verificar arrancamento com as mesas, se aplicável).');
         for (const bk of blocks) {
           const r = C.blockShear8800({ Agv: bk.Agv * bk.mult, Anv: bk.Anv * bk.mult, Ant: bk.Ant * bk.mult, fy: sec.fy, fu: sec.fu, Cts: bk.Cts });
           checks.push(C.chk('Colapso por rasgamento', `Barra — ${bk.txt}${bk.mult > 1 ? ' (2 cantoneiras)' : ''}`, '6.5.6', `Agv = ${nf(bk.Agv * bk.mult, 0)}, Anv = ${nf(bk.Anv * bk.mult, 0)}, Ant = ${nf(bk.Ant * bk.mult, 0)} mm²; ${r.eq}`, F, r.R));
@@ -166,12 +173,15 @@ export function trussMemberConnection(inp) {
     const { dw, L1 = 0, L2 = 0, Lt = 0, eletrodo = 'E70' } = sol;
     const fw = C.ELECTRODES[eletrodo];
     const Llong = Math.max(L1, L2);
-    const bConn = sec.tipo === 'U' ? sec.bw : sec.b;                          // width of the connected element (distance between the welds)
+    const bConn = sec.tipo === 'U' || sec.tipo === 'I' ? sec.bw : sec.b;                          // width of the connected element (distance between the welds)
     if (norma === '8800') {
       const G = 'Disposições construtivas';
       const dmin = C.filletMin8800(tmin), dmax = C.filletMaxEdge8800(sec.t);
       checks.push(C.det(G, 'Perna mínima do filete (Tab. 11)', '6.2.6.2.1', `dw = ${nf(dw, 1)} ≥ ${nf(dmin, 1)} mm (menor espessura ${nf(tmin, 2)} mm)`, dw, dmin, 'min'));
-      checks.push(C.det(G, 'Perna máxima ao longo da borda', '6.2.6.2.2', `dw = ${nf(dw, 1)} ≤ ${nf(dmax, 1)} mm`, dw, dmax, 'max'));
+      if (dw > dmax && sec.t >= 6.3 && dw <= sec.t + 1e-9) {
+        checks.push({ g: G, nome: 'Perna ao longo de borda: solda indicada como reforçada', ref: '6.2.6.2.2-b', info: true, eq: `dw = ${nf(dw, 1)} > t − 1,5 = ${nf(dmax, 1)} mm — admitido pela 6.2.6.2.2-b com a solda indicada nos desenhos como reforçada` });
+        avisos.push(`Indicar nos desenhos o filete de ${nf(dw, 1)} mm ao longo da borda de ${nf(sec.t, 2)} mm como "reforçado durante a execução" (6.2.6.2.2-b).`);
+      } else checks.push(C.det(G, 'Perna máxima ao longo da borda', '6.2.6.2.2', `dw = ${nf(dw, 1)} ≤ ${nf(dmax, 1)} mm`, dw, dmax, 'max'));
       for (const [nm, L] of [['L1', L1], ['L2', L2], ['Lt', Lt]]) if (L > 0) checks.push(C.det(G, `Comprimento mínimo do filete ${nm}`, '6.2.6.2.3', `${nm} = ${nf(L, 0)} ≥ máx(4·dw; 40) = ${nf(Math.max(4 * dw, 40), 0)} mm`, L, Math.max(4 * dw, 40), 'min'));
       if (sec.tipo === 'chapa' && Lt === 0) checks.push(C.det(G, 'Só filetes longitudinais em chapa: comprimento ≥ distância entre eles', '6.2.6.2.3', `L = ${nf(Math.min(L1, L2), 0)} ≥ b = ${nf(sec.b, 0)} mm`, Math.min(L1, L2), sec.b, 'min'));
       const wl = [L1, L2].filter((L) => L > 0).map((L) => C.fillet8800({ dw, L, fw, longitudinalExtremo: true }));
