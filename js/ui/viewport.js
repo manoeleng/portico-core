@@ -163,6 +163,8 @@ export class Viewport {
     this._cameraOrtho = new THREE.OrthographicCamera(-10, 10, 10, -10, -1e5, 1e5);
     this._camera = this._cameraPersp;
     this._elevation = null;   // active 2D elevation {axis, coord, name} | null
+    // free 3D view: perspective (default) or orthographic, the user's choice (menu Vista / key P), remembered here
+    this._userOrtho = (() => { try { return localStorage.getItem('portico.projection') === 'ortho'; } catch { return false; } })();
 
     // Scene
     this._scene = new THREE.Scene();
@@ -1266,12 +1268,54 @@ export class Viewport {
         this._cameraOrtho = new THREE.OrthographicCamera(-10, 10, 10, -10, -1e5, 1e5);
       }
       this._camera = this._cameraOrtho;
+    } else if (this._userOrtho) {                       // free 3D, orthographic by the user's choice
+      if (this._camera === this._cameraPersp) this._orthoFromPersp();
+      this._camera = this._cameraOrtho;
     } else {
       this._camera = this._cameraPersp;
     }
     this._controls.object = this._camera;
     this._onResize();
     this._controls.update();
+  }
+
+  // Free 3D view: perspective ↔ orthographic. Keeps the eye direction, the target and the apparent size at the
+  // target (orthographic half-height = distance·tan(fov/2)). 2D projects, elevations and a locked work plane are
+  // always orthographic; the choice applies when back to the free 3D view.
+  setFreeProjection(ortho) {
+    this._userOrtho = !!ortho;
+    try { localStorage.setItem('portico.projection', ortho ? 'ortho' : 'persp'); } catch { /* storage blocked */ }
+    const fixed = this.app.model.mode === '2D' || this._elevation || this._planeLock;
+    if (!fixed) {
+      if (ortho && this._camera === this._cameraPersp) { this._orthoFromPersp(); this._camera = this._cameraOrtho; }
+      else if (!ortho && this._camera === this._cameraOrtho) {
+        const o = this._cameraOrtho, p = this._cameraPersp, tgt = this._controls.target;
+        const halfH = (o.top - o.bottom) / 2 / (o.zoom || 1);
+        const dist = halfH / Math.tan(p.fov * Math.PI / 360);
+        const dir = o.position.clone().sub(tgt).normalize();
+        p.position.copy(tgt).addScaledVector(dir, dist); p.up.set(0, 1, 0); p.lookAt(tgt);
+        this._camera = p;
+      }
+      this._controls.object = this._camera;
+      this._onResize();
+      this._controls.update();
+    }
+    this.app.toast?.(`${ortho ? i18n.t('Proyección ortográfica') : i18n.t('Proyección en perspectiva')}${fixed ? ' — ' + i18n.t('se aplica al volver a la vista 3D libre') : ''}`, 'ok');
+  }
+  toggleFreeProjection() { this.setFreeProjection(!this._userOrtho); }
+
+  // orthographic camera at the perspective camera's pose, framing the same height at the target
+  _orthoFromPersp() {
+    const o = this._cameraOrtho, p = this._cameraPersp, tgt = this._controls.target;
+    o.position.copy(p.position); o.up.set(0, 1, 0);
+    this._frameOrtho(p.position.distanceTo(tgt));
+    o.lookAt(tgt);
+  }
+  _frameOrtho(dist) {
+    const o = this._cameraOrtho, w = this.container.clientWidth || 800, h = this.container.clientHeight || 600;
+    const halfH = Math.max(dist * Math.tan(this._cameraPersp.fov * Math.PI / 360), 0.5);
+    o.top = halfH; o.bottom = -halfH; o.left = -halfH * w / h; o.right = halfH * w / h; o.zoom = 1;
+    o.updateProjectionMatrix();
   }
 
   // Frames the orthographic camera looking at the given plane.
@@ -2652,6 +2696,7 @@ export class Viewport {
     };
     const p = positions[view] || positions.iso;
     this._camera.position.set(...p);
+    if (this._camera.isOrthographicCamera) { this._camera.up.set(0, 1, 0); this._frameOrtho(this._camera.position.distanceTo(tc)); }
     this._camera.lookAt(tc);
     this._controls.update();
   }

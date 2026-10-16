@@ -9318,6 +9318,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
         case 't':      this.viewport.setStandardView('top');   break;
         case 'f':      this.viewport.setStandardView('front'); break;
         case 'l':      this.viewport.setStandardView('side');  break;
+        case 'p':      this.viewport.toggleFreeProjection();    break;
         case 'g':      this.viewport.toggleGrid();          break;
         case 'h':      if (e.shiftKey) this.showAllElements(); else this.hideSelected(); break;
       }

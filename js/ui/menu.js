@@ -101,6 +101,7 @@ export class MenuBar {
       case 'view-top':    a.viewport.setStandardView('top');   break;
       case 'view-front':  a.viewport.setStandardView('front'); break;
       case 'view-side':   a.viewport.setStandardView('side');  break;
+      case 'toggle-projection': a.viewport.toggleFreeProjection(); break;
       case 'toggle-grid':    a.viewport.toggleGrid();        break;
       case 'toggle-axes':    a.viewport.toggleAxes();        break;
       case 'toggle-grid-axes': a.viewport.toggleGridAxes();  break;
