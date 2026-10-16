@@ -24,6 +24,8 @@
 // Axes: z = strong axis (NBR x: Iz = Ix_tab), y = weak axis. SI everywhere (m, kN not needed).
 // ──────────────────────────────────────────────────────────────────────────────
 
+import { AC_PROFILES } from './catalog_acocearense.js?v=7';
+
 const UE = [
   ["Ue 50x25x10x1,20", 1.06, 50, 25, 10, 1.2, 1.35, 5.24, 2.09, 1.97, 1.23, 0.78, 0.95, 0.01, 8.13, 2.17, 0.93, 3.08],
   ["Ue 50x25x10x1,50", 1.3, 50, 25, 10, 1.5, 1.65, 6.32, 2.53, 1.96, 1.46, 0.93, 0.94, 0.01, 9.62, 2.13, 0.93, 3.04],
@@ -614,12 +616,14 @@ function buildU(r) {
   }];
 }
 
+// manufacturer catalogues (properties computed from the dimensions, js/design/cf_geom.js): kept in the same map so that
+// cfSection/cfProfile resolve them for NBR 14762, but out of the NBR 6355 lists (cfNames below)
 export const CF_PROFILES = Object.fromEntries([...UE.map(buildUe), ...LCANT.map(buildL), ...U_SIMPLES.map(buildU),
-  ...Z90.map(buildZ(90)), ...Z45.map(buildZ(45)), ...CR.map(buildCr)]);
+  ...Z90.map(buildZ(90)), ...Z45.map(buildZ(45)), ...CR.map(buildCr), ...Object.entries(AC_PROFILES)]);
 
 /** Names of the catalogue (optionally only one shape: 'Ue' | 'U' | 'L' | 'Z' | 'Cr'). */
-export function cfNames(shape) {
-  return Object.keys(CF_PROFILES).filter(n => !shape || CF_PROFILES[n].shape === shape);
+export function cfNames(shape, { fabricante = null } = {}) {
+  return Object.keys(CF_PROFILES).filter(n => (!shape || CF_PROFILES[n].shape === shape) && (CF_PROFILES[n].fabricante || null) === fabricante);
 }
 
 /** Profile (SI) or null. */

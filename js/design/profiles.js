@@ -15,6 +15,7 @@
 import { fromShape } from './section_props.js?v=7';
 import { cfNames, cfSection } from './profiles_cf.js?v=7';
 import { compositeNames, compositeSection, parseCompositeName } from './composite_cf.js?v=7';
+import { AC_ANGLES } from './catalog_acocearense.js?v=7';
 import { VS, CVS, CS } from './profiles_nbr5884.js?v=7';
 import { L as L_LIB, TUBO_RED, TUBO_RET } from './profiles_lib.js?v=7';
 import { rhsEN10219 } from './rhs_en10219.js?v=7';
@@ -234,6 +235,11 @@ CATALOG['2Ue costas (NBR 6355)'] = famComp('2Ue', 'costas', 0);
 CATALOG['2Ue caixa (NBR 6355)'] = famComp('2Ue', 'caixa', 0);
 CATALOG['2U costas (NBR 6355)'] = famComp('2U', 'costas', 0);
 CATALOG['2U caixa (NBR 6355)'] = famComp('2U', 'caixa', 0);
+// Manufacturer: Aço Cearense, Catálogo 2026 (catalog_acocearense.js) — dimensions and mass of the catalogue; U/Ue
+// cold-formed (properties by cf_geom.js, NBR 14762), angles hot-rolled (library shape 'angle', NBR 8800)
+CATALOG['U simples — Aço Cearense'] = Object.fromEntries(cfNames('U', { fabricante: 'Aço Cearense' }).map(n => [n, { shape: 'U', cf: true }]));
+CATALOG['Ue — Aço Cearense'] = Object.fromEntries(cfNames('Ue', { fabricante: 'Aço Cearense' }).map(n => [n, { shape: 'Ue', cf: true }]));
+CATALOG['L laminada — Aço Cearense'] = { ...AC_ANGLES };
 
 // List of names per family (to populate a <select>).
 export function catalogFamilies() { return Object.keys(CATALOG); }

@@ -22,6 +22,15 @@ repetidos do modal com dispersão ≤ 0,17 % (critério de convergência); ficha
 oblíqua (sem Iuv′ o M1Rd saía 2× maior, contra a segurança); cortante da aba pela NBR 8800:2024 5.4.3.4 (decisão do Manoel, referência
 externa). As 53 barras 2L do exemplo do Wanderson passam a ser verificadas. LACUNAS: espaçamento das ligações de 2L em flexão; M + V.
 
+**Catálogo Aço Cearense 2026 e calculador de propriedades (16/10/2026)** — js/design/cf_geom.js calcula as propriedades de U/Ue/L
+formados a frio pelas dimensões (linha média, cantos ri = t, Cw com cantos vivos como a NBR 6355; 1 332 verificações contra todas as
+linhas da NBR 6355 com t ≤ 4,75 mm). Famílias "U simples / Ue / L laminada — Aço Cearense" (38 + 35 + 14, dimensões e massa do
+fabricante; massa dentro de ±6 % de A·7850; 50 perfis coincidentes com a NBR 6355 conferem com a tabela). Fora: tubos industriais e
+patente (aço SAE 1008/1012, sem qualificação estrutural) e barras chatas.
+**Módulo de vento (16/10/2026)** — Assistente → Vento: estudo NBR 6123:2023 com vista 3D, figuras cotadas (blocos de carga), Cpi,
+combinações, força de arrasto e forças no pórtico; relatório imprimível. Pendências: V0 pelo mapa de isopletas/município, S1 de
+talude/morro, Cpi pelas áreas de abertura, telhados de uma água, calha central, abóbada, coberturas isoladas e marquises.
+
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
 2. Ratificação dos oráculos por cálculo manual: BR-8681-01, BR-15421-01, BR-6123-01..04, BR-8800-05f/g e 07, torção.
