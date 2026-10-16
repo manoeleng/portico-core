@@ -12,6 +12,7 @@ import { esc } from '../utils/escape.js?v=7';
 import { i18n } from '../i18n/i18n.js?v=7';
 import { localizeNum } from './numfmt.js?v=7';
 import { toDisp, ulbl, isTf, KN_PER_TF } from '../utils/units.js?v=7';
+import { memberMemo, memoHTML, memoDocx, criticalPerSection } from './member_memo.js?v=7';
 
 // Display-unit system for the cover (js/utils/units.js). Every force-bearing number below is printed with toDisp/ulbl;
 // under tf·m the memorial records the conversion factor used.
@@ -47,6 +48,7 @@ export function reportDocxCover(app, d, opts = {}) {
       [{ text: i18n.t('Unidades'), bold: true }, U],
       [{ text: i18n.t('Proyectista'), bold: true }, cm.proyectista || ''],
       [{ text: i18n.t('Revisó'), bold: true }, cm.revisor || ''],
+      ...(cm.revision || cm.codigo ? [[{ text: i18n.t('Código del documento'), bold: true }, `${cm.codigo || '—'} · ${i18n.t('Revisión')} ${cm.revision || '—'}`]] : []),
     ]);
     d.paragraph([{ text: i18n.t('Documento de carácter orientativo. Los resultados deben ser validados por un profesional competente antes de cualquier uso en obra.'), italic: true, color: '5C6A7D', size: 9 }], { align: 'center' });
     if (app._brandingPro && cm.descripcion) d.paragraph(cm.descripcion);
@@ -137,6 +139,9 @@ export function reportDocxBody(app, d, imgs, diseno, deflex, drift) {
       const shown = f.length > 60 ? `${i18n.t('Se muestran los 60 elementos más solicitados de')} ${f.length}. ` : '';
       d.paragraph(`${shown}${i18n.t('Resumen:')} ${f.length - nNo - nAj} ${i18n.t('cumplen')} · ${nAj} ${i18n.t('ajustados')} · ${nNo} ${i18n.t('no cumplen')}.`);
       if (diseno.excluidos?.length) d.paragraph([{ text: `${diseno.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}: ${[...new Set(diseno.excluidos.map(x => x.why))].join(' ')} (${diseno.excluidos.slice(0, 30).map(x => '#' + x.id).join(', ')}${diseno.excluidos.length > 30 ? ' …' : ''})`, bold: true, color: 'B45309' }]);
+      // calculation report of the most loaded member of each section (member_memo.js)
+      d.heading(i18n.t('Memoria de cálculo — barra más solicitada de cada sección'), 2);
+      for (const x of criticalPerSection(f)) memoDocx(d, memberMemo(x, { model: app.model }));
     } else {
       d.paragraph([{ text: i18n.t('No hay resultados de análisis para verificar. Ejecute el análisis estático (F5) con sus combinaciones de carga antes de generar la memoria.'), italic: true, color: '5C6A7D' }]);
     }
@@ -406,7 +411,9 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         ${diseno.excluidos?.length ? `<p class="r-warn"><b>${diseno.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}</b>: ${esc([...new Set(diseno.excluidos.map(x => x.why))].join(' '))} (${diseno.excluidos.slice(0, 30).map(x => '#' + x.id).join(', ')}${diseno.excluidos.length > 30 ? ' …' : ''})</p>` : ''}
         <p class="muted">${shown}
         ${i18n.t('Resumen:')} <b class="r-ok">${nOk} ${i18n.t('cumplen')}</b> · <b class="r-warn">${nAj} ${i18n.t('ajustados')}</b> · <b class="r-bad">${nNo} ${i18n.t('no cumplen')}</b>.
-        ${i18n.t('D/C: flexión/corte/axial e interacción flexo-axial. Colores: verde ≤ 0.90 · ámbar 0.90–1.00 · rojo > 1.00.')}</p>`;
+        ${i18n.t('D/C: flexión/corte/axial e interacción flexo-axial. Colores: verde ≤ 0.90 · ámbar 0.90–1.00 · rojo > 1.00.')}</p>
+        <h3>${i18n.t('Memoria de cálculo — barra más solicitada de cada sección')}</h3>
+        ${criticalPerSection(f).map(x => memoHTML(memberMemo(x, { model: app.model }))).join('')}`;
     } else {
       disenoHTML = `<p class="muted">${i18n.t('No hay resultados de análisis para verificar. Ejecute el análisis estático (F5) con sus combinaciones de carga antes de generar la memoria.')}</p>`;
     }
@@ -528,6 +535,7 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
         <tr><th>${i18n.t('Unidades')}</th><td>${esc(U)}</td></tr>
         <tr><th>${i18n.t('Proyectista')}</th><td>${esc(cm.proyectista) || '&nbsp;'}</td></tr>
         <tr><th>${i18n.t('Revisó')}</th><td>${esc(cm.revisor) || '&nbsp;'}</td></tr>
+        ${cm.revision || cm.codigo ? `<tr><th>${i18n.t('Código del documento')}</th><td>${esc(cm.codigo || '—')} · ${i18n.t('Revisión')} ${esc(cm.revision || '—')}</td></tr>` : ''}
       </tbody></table>
       <p class="cover-note">${i18n.t('Documento de carácter orientativo. Los resultados deben ser validados por un profesional competente antes de cualquier uso en obra.')}</p>
     </section>`;
@@ -565,6 +573,11 @@ export function reportHTML(app, imgs, diseno, deflex, drift) {
   .figrow figure{flex:1 1 30%;min-width:200px;margin:4px 0;}
   .spec-graph{border:1px solid var(--bd);border-radius:6px;padding:6px;background:#f6f8fb;max-width:480px;}
   .r-ok{background:#e8f6ed;color:#15803d;} .r-warn{background:#fdf3e2;color:#b45309;} .r-bad{background:#fde8e8;color:#dc2626;font-weight:700;}
+  .memo{border:1px solid #d8dee6;border-radius:4px;padding:6px 8px;margin:8px 0;page-break-inside:avoid;font-size:9.5px;}
+  .memo-h{font-weight:700;margin-bottom:4px;} .memo-sub{font-weight:700;margin:6px 0 2px;color:#0a3a57;}
+  .memo-t{width:100%;border-collapse:collapse;} .memo-t td{padding:1px 4px;border-bottom:1px solid #eef1f5;} .memo-t td:first-child{color:#5c6a7d;width:46%;}
+  .memo-blk{border-left:3px solid #d8dee6;padding:2px 0 2px 6px;margin:4px 0;} .memo-blk-h{display:flex;justify-content:space-between;gap:6px;}
+  .memo-f{font-style:italic;color:#5c6a7d;} .memo-av{margin:2px 0 0 14px;padding:0;color:#5c6a7d;}
   .print-btn{position:fixed;top:12px;right:12px;background:var(--ac);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:10;}
   .page-footer{position:fixed;bottom:0;left:0;right:0;height:42px;display:flex;align-items:center;justify-content:space-between;
     padding:0 40px;font-size:9px;color:var(--mut);border-top:1px solid var(--bd);background:#fff;}

@@ -29,7 +29,7 @@ export function designMembers(model, disResults, params, mod) {
     // truss chords) are listed, never "approved"
     if (el.designExcluded) { excluidos.push({ id: el.id, sec: sec.name, why: el.designExcluded }); continue; }
     let peor = null, peorNom = null, peorFuerzas = null;
-    for (const { nombre, res } of disResults) {
+    for (const { name: nombre, res } of disResults) {   // states carry `name` (was read as `nombre` → "undefined")
       const f = res.getElemForces(el.id); if (!f) continue;
       const fuerzas = {
         N: (Math.sign(f.N) || 1) * maxAbs(res, el.id, 'N'),

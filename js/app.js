@@ -208,6 +208,9 @@ class App {
       if (lab) { lab.value = lsGet('portico.diagLabels', 'global'); lab.addEventListener('change', () => { lsSet('portico.diagLabels', lab.value); this._refreshResultView(); }); }
       const flip = document.getElementById('res-flip');
       if (flip) { flip.checked = lsGet('portico.flipBMD', '0') === '1'; flip.addEventListener('change', () => { lsSet('portico.flipBMD', flip.checked ? '1' : '0'); this._refreshResultView(); }); }
+      // force diagrams only on the selected members (none selected = all)
+      const osel = document.getElementById('res-onlysel');
+      if (osel) { osel.checked = lsGet('portico.diagOnlySel', '0') === '1'; osel.addEventListener('change', () => { lsSet('portico.diagOnlySel', osel.checked ? '1' : '0'); this._refreshResultView(); }); }
     }
     document.getElementById('result-scale')?.addEventListener('change', () => {
       this._refreshResultView();
@@ -7408,6 +7411,8 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
         subInstitucion: '',
         proyectista: '',
         revisor: '',
+        revision: '',          // document revision (e.g. 0A, R00) — sheet header
+        codigo: '',            // document code (e.g. AV-MC-002) — sheet header
         descripcion: '',       // PRO
         footer: '',            // PRO (empty = default academic footer)
         limitaciones: '',      // PRO (empty = default academic limitations)
@@ -7447,7 +7452,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
   // Header/report fields that travel with the model (in the .s3d). The company
   // logo does NOT: it's firm branding, the same across all projects → global.
   static get _MEMORIA_PROJ_KEYS() {
-    return ['titulo','kicker','institucion','subInstitucion','proyectista','revisor',
+    return ['titulo','kicker','institucion','subInstitucion','proyectista','revisor','revision','codigo',
             'descripcion','footer','limitaciones','mostrarIds','modosVisibles'];
   }
   // EFFECTIVE report: global defaults (config) overridden by the model's.
@@ -7563,6 +7568,10 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
           <div class="prop-row cols2" style="gap:8px;margin-top:6px">
             <div class="prop-field"><label>Revisó</label><input id="cfg-rev" value="${ea(mm.revisor)}"></div>
           </div>
+          <div class="prop-row cols2" style="gap:8px;margin-top:6px">
+            <div class="prop-field"><label>Revisión</label><input id="cfg-revn" value="${ea(mm.revision)}" placeholder="0A"></div>
+            <div class="prop-field"><label>Código del documento</label><input id="cfg-cod" value="${ea(mm.codigo)}" placeholder="MC-001"></div>
+          </div>
         </fieldset>
 
         <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px 12px">
@@ -7612,7 +7621,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     });
     overlay._resolve = () => {
       const v = id => document.getElementById(id)?.value ?? '';
-      mm.titulo = v('cfg-titulo'); mm.proyectista = v('cfg-proy'); mm.revisor = v('cfg-rev');
+      mm.titulo = v('cfg-titulo'); mm.proyectista = v('cfg-proy'); mm.revisor = v('cfg-rev'); mm.revision = v('cfg-revn'); mm.codigo = v('cfg-cod');
       mm.mostrarIds = document.getElementById('cfg-ids')?.checked ?? true;
       mm.modosVisibles = document.getElementById('cfg-modos')?.checked ?? true;
       an.matrizDensa = document.getElementById('cfg-solver')?.value === 'full';   // dense (full) / banded (fast)

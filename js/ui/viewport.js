@@ -3372,9 +3372,16 @@ export class Viewport {
       ? { pts: raw, extremes: [] }
       : (raw && raw.pts ? raw : { pts: [], extremes: [] });
 
+    // "Só selecionadas": diagrams (and their auto scale) only on the selected members; none selected = all
+    let onlySel = false; try { onlySel = localStorage.getItem('portico.diagOnlySel') === '1'; } catch { /* no storage */ }
+    const selIds = new Set([...this._selected].filter((k) => k.startsWith('elem:')).map((k) => +k.slice(5)));
+    const shown = (elem) => !onlySel || !selIds.size || selIds.has(elem.id);
+    this._diagSelIds = onlySel && selIds.size ? selIds : null;
+
     // ── Pass 1: find global max absolute value (includes analytical extrema) ──
     let maxVal = 0;
     for (const elem of this.app.model.elements.values()) {
+      if (!shown(elem)) continue;
       const d = _normDiagram(results.getDiagramData(elem.id, type, 2));
       for (const p of d.pts)      if (Math.abs(p.val)   > maxVal) maxVal = Math.abs(p.val);
       for (const e of d.extremes) if (Math.abs(e.val)   > maxVal) maxVal = Math.abs(e.val);
@@ -3388,6 +3395,7 @@ export class Viewport {
     document.getElementById('result-scale').value = +f.toPrecision(3);
 
     for (const [, line] of this._elemLines) line.material.color.set(0x222840);
+    if (this._diagSelIds) for (const id of this._diagSelIds) this._elemLines.get(id)?.material.color.set(COL.ELEM_SEL);   // "Só selecionadas"
     const useLocalZ = (type === 'My' || type === 'Vz');
     const uk = (type === 'N' || type === 'Vy' || type === 'Vz') ? 'F' : 'M';   // display-unit kind of the labels
     // display options (SkyCiv-like, 15/10/2026): moment diagrams on the TENSION side (sign convention of the solver:
@@ -3402,6 +3410,7 @@ export class Viewport {
 
     // ── Pass 2: draw diagrams ──────────────────────────────────────────────
     for (const elem of this.app.model.elements.values()) {
+      if (!shown(elem)) continue;
       const f = results.getElemForces(elem.id);
       if (!f) continue;
       const { pts, extremes } = _normDiagram(results.getDiagramData(elem.id, type, 20));
@@ -3488,6 +3497,17 @@ export class Viewport {
     const elemHits = this._raycaster.intersectObjects(this._elemPickTargets(), false);
     const areaHits = this._raycaster.intersectObjects(this._areaFills());
 
+    // Ctrl+click on a member in the results view: add/remove it from the selection — with "Só selecionadas" the force
+    // diagrams are redrawn on the selected members only
+    if ((e.ctrlKey || e.metaKey) && elemHits.length) {
+      const k = `elem:${elemHits[0].object.userData.id}`;
+      if (this._selected.has(k)) this._selected.delete(k); else this._selected.add(k);
+      const n = [...this._selected].filter((x) => x.startsWith('elem:')).length;
+      document.getElementById('sb-sel').textContent = n ? `${n} ${i18n.t('seleccionado(s)')}` : i18n.t('Sin selección');
+      let only = false; try { only = localStorage.getItem('portico.diagOnlySel') === '1'; } catch { /* no storage */ }
+      if (only && this._currentDiagramType) this.app._refreshResultView?.();
+      return;
+    }
     const showNode = () => { if (this._results) this._showNodeInspector(nodeHits[0].object.userData.id, e.clientX, e.clientY); };
     const showElem = () => { if (this._results) this._showElemInspector(elemHits[0].object.userData.id, e.clientX, e.clientY); };
     const showArea = () => {

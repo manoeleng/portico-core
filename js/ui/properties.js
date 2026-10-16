@@ -491,11 +491,24 @@ export class PropertiesPanel {
       <div style="max-height:58vh;overflow:auto;border:1px solid var(--border,#334);border-radius:5px">
         <table class="dis-table"><thead><tr><th>Elem</th><th>Sec.</th><th>Gob.</th><th>D/C</th><th>|δ| mm</th><th></th></tr></thead><tbody>${rows}</tbody></table>
       </div>
+      <p class="panel-hint" style="margin-top:4px">${i18n.t('Clic en una fila para ver la memoria de cálculo de la barra.')}</p>
       ${dis.excluidos?.length ? `<p class="panel-hint" style="margin-top:6px;color:var(--warn)"><b>${dis.excluidos.length} ${i18n.t('barra(s) NO verificada(s)')}</b> — ${esc([...new Set(dis.excluidos.map(x => x.why))].join(' · '))}</p>` : ''}
       <p class="panel-hint" style="margin-top:6px">D/C = resistencia (flexión/corte/axial/interacción) ≤ 1. <b>|δ|</b> = desplazamiento máx. de los nodos del elemento en el caso/combo mostrado. Las flechas de servicio y derivas se documentan en <b>Análisis → Memoria</b>.</p>`;
-    body.querySelectorAll('.dis-row').forEach(tr => tr.addEventListener('click', () => {
+    body.querySelectorAll('.dis-row').forEach(tr => tr.addEventListener('click', async () => {
       const id = +tr.dataset.elem;
       if (this.app.viewport.selectElements) this.app.viewport.selectElements([id]);
+      // calculation report of the member (member_memo.js) in an A4 viewer (memo_viewer.js)
+      const row = dis.filas.find(x => x.id === id);
+      if (!row) return;
+      body.querySelectorAll('.dis-row').forEach(r => r.classList.toggle('sel', r === tr));
+      const [{ memberMemo }, { openMemoViewer }] = await Promise.all([import('../report/member_memo.js?v=7'), import('./memo_viewer.js?v=7')]);
+      // sheet header from the memorial settings (Configurações → Memorial): company, designer, reviewer
+      const cm = this.app._report?.() || {}, nome = (document.title || '').replace(/^●\s*/, '').replace(/\s*—\s*PORTICO$/, '');
+      openMemoViewer(memberMemo(row, { model: this.app.model }), {
+        empresa: cm.institucion || 'PORTICO', sub: cm.subInstitucion || i18n.t('Projetos estruturais'), obra: nome,
+        documento: `${i18n.t('Memoria de cálculo de la barra')} #${row.id} — ${row.sec}`, calc: cm.proyectista || '', verif: cm.revisor || '', rev: cm.revision || '', cod: cm.codigo || '',
+        footerL: cm.footer || i18n.t('Este documento não pode ser usado, copiado ou cedido fora dos termos contratuais'),
+        footerR: `${i18n.t('Material sujeito a alterações em meio eletrônico')} · PORTICO · ${dis.caso || ''}` });
     }));
     body.querySelector('#btn-predim')?.addEventListener('click', () => this.app.predimensionarDialog());
     body.querySelector('#btn-autodiseno')?.addEventListener('click', () => this.app.autoDesignDialog(dis));

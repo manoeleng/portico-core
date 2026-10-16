@@ -1661,3 +1661,6 @@ details.prop-fold[open] > summary { color: var(--text); }
 }
 .ifr-disp .ifv { color: var(--success); }
 .ifr-disp span:first-child { color: #56d364; }
+
+/* member calculation report: A4 viewer in js/ui/memo_viewer.js (own styles) */
+.dis-row.sel { outline: 1px solid var(--accent); }
