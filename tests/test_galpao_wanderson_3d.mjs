@@ -136,7 +136,9 @@ ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 2
 // connections saved in the example (tools/design_galpao_pff_wanderson_3d_ligacoes.mjs): Assistente → "Ligações gravadas — mostrar no 3D"
 {
   const cd = m3.connectionDesign, nComb = m3.combinations.size;
-  ok(cd?.rows?.length === 1328 && cd.nCombos === nComb && cd.rows.every((r) => r.geo && r.ok), `ligações gravadas no exemplo: ${cd?.rows?.length} (${cd?.nCombos} de ${nComb} combinações), todas com geometria e atendendo`);
+  // 1 440 = 32 bases + 944 barra × chapa + 464 soldas chapa–banzo; the chords hinged to the legs (16/10/2026) add 12 chord
+  // ends per frame as barra × chapa (8 × 12 = 96) and 2 chapa–banzo welds per frame at the knees (16)
+  ok(cd?.rows?.length === 1440 && ['basePerna', 'trelica', 'chapaBanzo'].map((t) => cd.rows.filter((r) => r.tipo === t).length).join() === '32,944,464' && cd.nCombos === nComb && cd.rows.every((r) => r.geo && r.ok), `ligações gravadas no exemplo: ${cd?.rows?.length} (${cd?.nCombos} de ${nComb} combinações), todas com geometria e atendendo`);
 }
 console.log(`test_galpao_wanderson_3d: ${pass}/${pass + fail}`);
 if (fail) process.exit(1);

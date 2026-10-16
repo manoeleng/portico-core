@@ -109,7 +109,11 @@ const prims = (ctx, row) => connectionPrimitives([row], ctx).flatMap((x) => x.pr
     const rowsG = g.filter((x) => !x.gusset), gus = g.filter((x) => x.gusset);
     const trussNodes = new Set(out.rows.filter((r) => r.c.tipo === 'trelica').map((r) => r.c.node));
     ok(rowsG.length === out.rows.length && rowsG.every((x) => x.prims.length > 0) && finite, `${basePFF}: ${rowsG.length}/${out.rows.length} ligações com peças finitas`);
-    ok(gus.length === trussNodes.size, `${basePFF}: uma chapa de nó por nó de treliça (${gus.length} chapas, ${trussNodes.size} nós)`);
+    // one gusset per truss node and side of the continuous member: with the chords hinged to the legs, the 4 knee nodes
+    // (chords on both sides of the leg) get one plate on each side
+    const per = new Map(); for (const x of gus) per.set(x.node, (per.get(x.node) || 0) + 1);
+    const two = [...per.values()].filter((v) => v === 2).length;
+    ok(per.size === trussNodes.size && [...per.keys()].every((n) => trussNodes.has(n)) && [...per.values()].every((v) => v <= 2) && two === 4, `${basePFF}: uma chapa por nó de treliça e por lado (${gus.length} chapas, ${trussNodes.size} nós, ${two} com chapa dos dois lados)`);
     if (basePFF === 'unica') {
       const u = g.find((x) => x.tipo === 'baseUnica'), pl = u?.prims.find((q) => q.m === 'plate'), r = out.rows.find((x) => x.c.id === u.id);
       near(pl.h[0] * 2000, r.geo.placa.H, 1e-9, 'placa única: H na direção perna–perna');
