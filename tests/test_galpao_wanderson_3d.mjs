@@ -15,7 +15,7 @@ const m2 = rd('galpao_pff_wanderson.s3d'), m3 = rd('galpao_pff_wanderson_3d.s3d'
 const nFr = [...m3.nodes.keys()].filter((id) => id < 100000).length;
 ok(nFr === 8 * m2.nodes.size && !m3.planar, `oito pórticos, modelo espacial (${nFr} nós dos pórticos + ${m3.nodes.size - nFr} nós das mãos-francesas nas terças)`);
 const E0 = m2.elements.size, SC = [...m2.loadCases.values()].find((l) => l.name === 'SC').id;
-// X in every bay (Manoel, 16/10/2026) ties the frames longitudinally (ΔN ≈ 3 % in the interior frame): the plane-frame
+// X in alternate bays (Manoel, 16/10/2026) ties the frames longitudinally (ΔN ≈ 3 % in the interior frame): the plane-frame
 // equivalence is checked on a copy without the X (layer 4) — the premise of this oracle
 const m3x = rd('galpao_pff_wanderson_3d.s3d'); for (const e of [...m3x.elements.values()]) if (e.layer === 4) m3x.elements.delete(e.id);
 const r2 = new StaticSolver().solve(m2, SC, false), r3 = new StaticSolver().solve(m3x, SC, false);
@@ -66,7 +66,7 @@ ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && 
   ok(fct(c1, lc('PP').id) === 1.25 && fct(c1, lc('CP').id) === 1.3, 'NBR 8681:2025 Tab. 1: 1,25 PP (aço) e 1,30 CP (industrializados)');
   ok([...m3.combinations.values()].every((c) => c.factors.find((x) => x.lcId === lc('SC').id) || (fct(c, lc('PP').id) === 1 && fct(c, lc('CP').id) === 1 && c.factors.length === 3 && c.factors.some((x) => x.factor === 1.4 && /^Vento/.test(m3.loadCases.get(x.lcId).name)))), 'sem SC (vento de sucção): PP e CP favoráveis 1,0 e vento 1,4');
 }
-ok(sec.filter((e) => e.layer === 4).length === 7 * (2 * 8 + 2 * 2) && sec.filter((e) => e.layer === 4).every((e) => e.cable), 'X na cobertura (8 painéis) e nas duas paredes, em todos os 7 vãos');
+ok(sec.filter((e) => e.layer === 4).length === 4 * (2 * 8 + 2 * 2) && sec.filter((e) => e.layer === 4).every((e) => e.cable), 'X na cobertura (8 painéis) e nas duas paredes, nos vãos alternados 1, 3, 5 e 7');
 // correntes φ9,5 (tirantes) no meio de cada vão e barras rígidas (Mód. 5 p.34/37): telhado 14 trechos + 4 inclinados à
 // cumeeira, cada parede 3 trechos + 2 inclinados ao beiral; barras rígidas: 2 junto à cumeeira + 1 em cada parede, por vão
 {
@@ -77,7 +77,7 @@ ok(sec.filter((e) => e.layer === 4).length === 7 * (2 * 8 + 2 * 2) && sec.filter
   const midP = [...m3.nodes.values()].filter((n) => n.id > 100000 && Math.abs(n.y % 6 - 3) < 1e-9);
   ok(midP.length === 7 * 25 && midP.every((n) => sec.filter((e) => (e.layer === 2 || e.layer === 3) && (e.n1 === n.id || e.n2 === n.id)).every((e) => !e.releases[e.n1 === n.id ? 4 : 10])), 'terças e longarinas contínuas no meio do vão (17 + 8 linhas × 7 vãos)');
 }
-ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 28].includes(n % 1000)) && [e.n1, e.n2].some((n) => [1, 16].includes(n % 1000))).length === 7 * 2 * 2, 'X das paredes da base ao beiral (9,5 m), 7 vãos × 2 paredes');
+ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 28].includes(n % 1000)) && [e.n1, e.n2].some((n) => [1, 16].includes(n % 1000))).length === 4 * 2 * 2, 'X das paredes da base ao beiral (9,5 m), 4 vãos × 2 paredes');
 // wind of our NBR 6123:2023 engine (windNBR6123): resultants by hand — walls 3,0–9,5 m (h = 6,5 m) × L = 42 m, roof
 // horizontal projection 13 m per slope, rise 1,3 m, gables 26 × 6,5 + 26 × 1,3 / 2 m²; p = q·(Cpe − Cpi), N/m² → kN
 {
