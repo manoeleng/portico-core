@@ -2940,6 +2940,47 @@ export class PropertiesPanel {
     const container = document.getElementById('sec-list');
     container.innerHTML = '';
     const m = this.app.model;
+    // Library (same as the materials tab): family + search (+ favourites) → key properties → ＋ inserts a section
+    // in the model with the catalogue properties (profileToSection: tabulated A, I, J, Av, shape for design/drawing)
+    const pick = document.createElement('div');
+    pick.style.cssText = 'margin-bottom:8px';
+    pick.innerHTML = `<div class="prop-title" style="margin-top:0">${i18n.t('Biblioteca de secciones')}</div>
+      <div class="prop-row" style="gap:4px">
+        <select id="sec-f-fam" style="flex:1;min-width:0"><option value="">${i18n.t('Todas las familias')}</option><option value="__fav">★ ${i18n.t('Favoritos')}</option></select>
+        <input type="search" id="sec-f-q" placeholder="${esc(i18n.t('buscar: W250 · U 150 2,65 · 2L 60'))}" style="flex:1;min-width:0">
+      </div>
+      <div id="sec-lib" style="max-height:200px;overflow:auto;border:1px solid var(--border2);border-radius:4px;margin-top:4px;font-size:11px"></div>`;
+    container.appendChild(pick);
+    import('../design/profiles.js?v=7').then(({ catalogFamilies, searchCatalog, profileToSection }) => {
+      const fF = pick.querySelector('#sec-f-fam'), fQ = pick.querySelector('#sec-f-q'), lib = pick.querySelector('#sec-lib');
+      fF.innerHTML += catalogFamilies().map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+      try { const last = localStorage.getItem('portico.secLibFam'); if (last != null && [...fF.options].some((o) => o.value === last)) fF.value = last; } catch { /* storage blocked */ }
+      const favs = () => { try { return new Set(JSON.parse(localStorage.getItem('portico.favProfiles') || '[]')); } catch { return new Set(); } };
+      const toggleFav = (n) => { const f = favs(); f.has(n) ? f.delete(n) : f.add(n); try { localStorage.setItem('portico.favProfiles', JSON.stringify([...f])); } catch { /* storage blocked */ } };
+      const fmt = (v, k, d = 1) => (v > 0 ? (v * k).toLocaleString(i18n.locale?.() || 'pt-BR', { maximumFractionDigits: d }) : '—');
+      const list = () => {
+        try { localStorage.setItem('portico.secLibFam', fF.value); } catch { /* storage blocked */ }
+        const F = favs();
+        let rows = fF.value === '__fav' ? searchCatalog(fQ.value, '', 2000).filter((r) => F.has(r.name)) : searchCatalog(fQ.value, fF.value, 60);
+        rows = rows.slice(0, 60);
+        lib.innerHTML = rows.length ? rows.map((r) => {
+          const p = profileToSection(r.name), cf = p?.design?.cfProps, mass = cf?.massa ?? (p?.A ? p.A * 7850 : null);
+          const res = p ? `A ${fmt(p.A, 1e4, 2)} cm² · Iz ${fmt(p.Iz, 1e8)} · Iy ${fmt(p.Iy, 1e8)} cm⁴ · ${fmt(mass, 1, 2)} kg/m` : '';
+          return `<div class="sec-hit" data-n="${esc(r.name)}" style="display:flex;gap:6px;align-items:center;padding:2px 6px;border-bottom:1px solid var(--border2)">
+            <span class="sec-star" title="${esc(i18n.t('Favorito'))}" style="color:#d97706;cursor:pointer">${F.has(r.name) ? '★' : '☆'}</span>
+            <div style="flex:1;min-width:0"><b>${esc(r.name)}</b> <span class="muted" style="font-size:10px">${esc(r.family)}</span><br><span class="muted" style="font-size:10px">${res}</span></div>
+            <button class="btn-secondary sec-ins" style="font-size:11px;padding:1px 8px" title="${esc(i18n.t('Insertar en el modelo'))}">＋</button></div>`;
+        }).join('') : `<div class="panel-hint" style="padding:4px">${i18n.t('Sin resultados')}</div>`;
+        lib.querySelectorAll('.sec-star').forEach((st) => st.addEventListener('click', () => { toggleFav(st.closest('.sec-hit').dataset.n); list(); }));
+        lib.querySelectorAll('.sec-ins').forEach((bt) => bt.addEventListener('click', () => {
+          const name = bt.closest('.sec-hit').dataset.n, props = profileToSection(name);
+          if (!props) { this.app.toast(i18n.t('Perfil no encontrado'), 'warn'); return; }
+          this.app.snapshot(); this.app.model.addSection({ ...props, name }); this.app.markDirty(); this.renderSections();
+          this.app.toast(`${i18n.t('Sección')} «${name}» ${i18n.t('agregada del catálogo')}`, 'ok');
+        }));
+      };
+      fF.addEventListener('change', list); fQ.addEventListener('input', list); list();
+    }).catch(() => {});
     const unused = [...m.sections.keys()].filter((id) => m.sectionUsage(id).count === 0);
     if (unused.length) {
       const bar = document.createElement('div');
