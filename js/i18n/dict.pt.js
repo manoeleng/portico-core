@@ -2546,6 +2546,7 @@ export const PT = {
   "Activa": "Ativa",
   "Referencia": "Referência",
   "Visible": "Visível",
+  "Visible — clic: mostrar u ocultar todas las capas": "Visível — clique: mostrar ou ocultar todas as camadas",
   "Bloqueada (no seleccionable)": "Travada (não selecionável)",
   "Eliminar capa (sus elementos pasan a la capa padrão)": "Excluir camada (as barras vão para a camada padrão)",
   "Representar la estructura con los colores de las capas": "Representar a estrutura com as cores das camadas",

@@ -2804,6 +2804,7 @@ export const EN = {
   "Activa": "Active",
   "Referencia": "Reference",
   "Visible": "Visible",
+  "Visible — clic: mostrar u ocultar todas las capas": "Visible — click: show or hide all layers",
   "Bloqueada (no seleccionable)": "Locked (not selectable)",
   "Eliminar capa (sus elementos pasan a la capa padrão)": "Delete layer (its members go to the default layer)",
   "Representar la estructura con los colores de las capas": "Draw the structure with the layer colours",

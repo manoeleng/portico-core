@@ -16,7 +16,7 @@ export function renderLayersPanel(app) {
   const count = new Map();
   for (const e of m.elements.values()) count.set(e.layer ?? 1, (count.get(e.layer ?? 1) || 0) + 1);
   box.innerHTML = `
-    <table class="ly-tbl"><colgroup><col class="c-act"><col class="c-col"><col><col class="c-vis"><col class="c-lock"><col class="c-del"></colgroup><thead><tr><th title="${esc(t('Capa activa: recibe los elementos nuevos'))}">${esc(t('Activa'))}</th><th></th><th>${esc(t('Referencia'))}</th><th title="${esc(t('Visible'))}">👁</th><th title="${esc(t('Bloqueada (no seleccionable)'))}">🔒</th><th></th></tr></thead><tbody>
+    <table class="ly-tbl"><colgroup><col class="c-act"><col class="c-col"><col><col class="c-vis"><col class="c-lock"><col class="c-del"></colgroup><thead><tr><th title="${esc(t('Capa activa: recibe los elementos nuevos'))}">${esc(t('Activa'))}</th><th></th><th>${esc(t('Referencia'))}</th><th class="ly-vis-all" style="cursor:pointer" title="${esc(t('Visible — clic: mostrar u ocultar todas las capas'))}">👁</th><th title="${esc(t('Bloqueada (no seleccionable)'))}">🔒</th><th></th></tr></thead><tbody>
     ${m.layers.map(l => `<tr data-ly="${l.id}">
       <td><input type="radio" name="ly-active" class="ly-act" ${l.id === m.activeLayer ? 'checked' : ''}></td>
       <td><input type="color" class="ly-col" value="${esc(l.color)}" title="${esc(t('Color de la capa'))} (${count.get(l.id) || 0} ${esc(t('elemento(s)'))})"></td>
@@ -48,6 +48,8 @@ export function renderLayersPanel(app) {
     r.addEventListener('blur', () => done(true));
   });
   box.querySelectorAll('.ly-vis').forEach(r => r.addEventListener('change', () => { lay(r).visible = r.checked; changed(); }));
+  // eye header: all layers on/off (all visible → hide all; otherwise show all)
+  box.querySelector('.ly-vis-all')?.addEventListener('click', () => { const on = !m.layers.every(l => l.visible !== false); for (const l of m.layers) l.visible = on; changed(); });
   box.querySelectorAll('.ly-lock').forEach(r => r.addEventListener('change', () => { lay(r).locked = r.checked; changed(); }));
   box.querySelectorAll('.ly-del').forEach(b => b.addEventListener('click', () => { app.snapshot?.(); removeLayer(m, lay(b).id); changed(); }));
   box.querySelector('#ly-colorby')?.addEventListener('change', (e) => { m.layerView.colorByLayer = e.target.checked; if (e.target.checked) m.layerView.colorBySection = false; changed(); app.viewport.refreshExtrusion?.(); });
