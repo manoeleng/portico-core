@@ -133,6 +133,13 @@ export class MenuBar {
       case 'wind':           import('./wind_dialog.js?v=7').then(m => m.openWindDialog(a)); break;
       case 'connections':    import('./connections_dialog.js?v=7').then(m => m.openConnectionsDialog(a)); break;
       case 'connections-model': import('./connections_model_dialog.js?v=7').then(m => m.openConnectionsModelDialog(a)); break;
+      case 'connections-3d': import('./connections_3d.js?v=7').then(m => {
+        const rows = a.model.connectionDesign?.rows || (a._connectionDesignFor === a._fileName ? a._connectionDesign?.rows : null);
+        if (!rows?.length) { a.toast?.('Nenhuma ligação gravada no modelo — use Assistente → Ligações do modelo → Gravar no modelo', 'warn'); return; }
+        a._connMarkers?.clear();
+        a._connMarkers = new m.ConnectionMarkers(a.viewport, { onPick: (q) => a.toast?.(`${q.id}: ${q.desc || ''} — razão ${(+q.ratio || 0).toFixed(3)} ${q.ok ? 'OK' : 'NÃO'}`, q.ok ? 'ok' : 'warn') });
+        a._connMarkers.show(rows, a.model);
+      }); break;
       case 'typology':       a.typologyWizard();             break;
       case 'materials':      a.panel.openLibrary('mat');     break;
       case 'sections':       a.panel.openLibrary('sec');     break;

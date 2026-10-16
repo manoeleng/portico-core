@@ -8,6 +8,7 @@ import { angleProps } from '../design/cf_geom.js?v=7';
 import { figTruss, figShear, figBase, figSplice, figLmss, figWeldedSplice, figChapaBanzo } from '../design/connections_figs.js?v=7';
 import { resultHTML, CSS } from './connections_dialog.js?v=7';
 import { esc } from '../utils/escape.js?v=7';
+import { ConnectionMarkers } from './connections_3d.js?v=7';
 
 const nf = (v, d = 2) => (v == null || !isFinite(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: d });
 const TIPO = { base: 'Base de pilar (6.7)', flexivel: 'Viga–pilar / viga–viga flexível', trelica: 'Barra de treliça × chapa de nó', emenda: 'Emenda com talas',
@@ -87,6 +88,7 @@ export function openConnectionsModelDialog(app) {
       <div class="prop-field"><label>Tipo de emenda</label><select id="cm-emt"><option value="talas">talas parafusadas</option><option value="soldada">soldada (penetração total)</option></select></div>
       <div id="cm-spl" style="max-height:160px;overflow:auto;border:1px solid var(--border2,#e2e8f0);border-radius:6px;padding:4px">${cands.length ? cands.map((c) => `<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-spl="${c.node}"> nó ${c.node} — ${esc(c.name)}</label>`).join('') : '<span class="panel-hint">nenhum nó com 2 barras colineares da mesma seção</span>'}</div>
       <div style="display:flex;gap:6px;margin-top:10px"><button class="btn-primary" id="cm-run" style="flex:1">Dimensionar ligações</button><button id="cm-rep">🖨 Relatório</button></div>
+      <button id="cm-3d" style="width:100%;margin-top:6px" title="Mostra as ligações como marcadores no 3D (verde atende, vermelho não atende); clique no marcador para ver a ligação">🧊 Ver no 3D</button>
       <button id="cm-save" style="width:100%;margin-top:6px" title="Grava a geometria adotada e o resumo no arquivo do modelo (.s3d) e inclui a seção 3.1 no memorial">💾 Gravar no modelo (e no memorial)</button>
       <p class="panel-hint" style="margin-top:8px">Geometria pré-dimensionada: a primeira, na ordem de custo, que atende a todas as combinações de ELU (s = 3db, bordas da Tab. 16, gabaritos AISC 1-7A, viga–pilar Gerdau, chapas comerciais). Conferir no projeto; o desenho de fabricação fica com o Detalhador.</p>
     </div>
@@ -144,7 +146,13 @@ export function openConnectionsModelDialog(app) {
     try { app.markDirty?.(); } catch { /* optional */ }
     app.toast?.(`${rows.length} ligações gravadas no modelo (seção 3.1 do memorial)`, 'ok');
   };
-  $('#cm-close').onclick = () => el.remove();
+  // 3D markers: hide the panel, show the markers; a click on a marker (or "Tabela") brings the panel back on that connection
+  app._connMarkers?.clear();
+  const markers = app.viewport ? (app._connMarkers = new ConnectionMarkers(app.viewport, {
+    onPick: (q) => { el.style.display = 'flex'; const i = out ? out.rows.indexOf(q.row) : -1; if (i >= 0) $('#cm-det').innerHTML = detail(out.rows[i]); },
+    onTable: () => { el.style.display = 'flex'; } })) : null;
+  $('#cm-3d').onclick = () => { if (!out || !markers) return; markers.show(out.rows, app.model); el.style.display = 'none'; };
+  $('#cm-close').onclick = () => { markers?.clear(); el.remove(); };
   $('#cm-rep').onclick = () => {
     if (!out) return;
     const obra = app._fileName || 'Modelo';

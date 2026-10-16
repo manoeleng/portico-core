@@ -67,6 +67,7 @@ arruelas soldadas com tração/cortante, mínimo de 50 % de NRd da perna (NBR 14
 correção do caso sem tração (T ≤ 0); flexão da placa entre as pernas e ancoragem: LACUNA declarada. Oráculo: C4 do Wanderson (Y 2,04 / 1,715 cm,
 T 38,6 kN, t 1,26 / 1,39 cm) e C1 (T = 0, Y 3,15 cm); `tests/test_connections_base_pff.mjs`. Galpão do Wanderson: por perna 360 × 160 × 19 mm, 4 × ¾"
 A36; placa única 1060 × 370 × 22,4 mm. Revisão de cálculo **FECHADO**.
+**Ligações no 3D — marcadores (16/10/2026)** — `js/ui/connections_3d.js`: marcador de tamanho constante por ligação (verde/vermelho, letra do tipo), na barra junto ao nó ou empilhado no nó; legenda com filtro por tipo; clique → memória da ligação (janela Ligações do modelo → "Ver no 3D") ou resumo (menu Assistente → Ligações gravadas — mostrar no 3D). Próximos: galpão completo do Wanderson em 3D; geometria simplificada das ligações no 3D.
 
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
