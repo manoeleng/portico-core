@@ -290,7 +290,8 @@ export function profileToSection(name) {
   if (p.rhs) {
     const r = rhsEN10219(...p.rhs);
     return { A: r.A, Iz: r.Iyy, Iy: r.Izz, J: r.It, Avy: 2 * r.H * r.T, Avz: 2 * r.B * r.T,
-      design: { shape: 'box', dims: { ...p.dims }, profile: name, Sz: r.Welyy, Sy: r.Welzz, Zz: r.Wplyy, Zy: r.Wplzz,
+      design: { shape: 'box', dims: { ...p.dims, flatOffset: 2 * r.ro }, profile: name, Sz: r.Welyy,   // flat part = B − 2·ro (NBR 8800 5.1.2.2-d)
+      Sy: r.Welzz, Zz: r.Wplyy, Zy: r.Wplzz,
         rz: Math.sqrt(r.Iyy / r.A), ry: Math.sqrt(r.Izz / r.A),
         lambdaWeb: (r.H - 2 * r.ro) / r.T, lambdaFlange: (r.B - 2 * r.ro) / r.T, fabricacao: 'conformado a frio' } };
   }

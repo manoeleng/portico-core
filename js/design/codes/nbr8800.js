@@ -328,6 +328,62 @@ function checkNBR8800({ demands, mat, sec, member = {}, options = {} }) {
     const MnFLMy = lamF <= lpF ? Mply : lamF <= lrF ? interp(Mply, Mry, lamF, lpF, lrF) : McrFy;
     const Mny = Math.min(MnFLMy, 1.5 * Wy * fy);
     flexaoY = ratObj(My, Mny / ga1, { eixo: 'fraco (My = Msd,y)', formula: 'MRd = min(FLM, 1,5·W·fy)/γa1 (Anexo D)' });
+  } else if ((shape === 'box' || shape === 'rhs') && dims.b > 0 && dims.h > 0 && dims.t > 0 && Zz > 0 && Zy > 0) {
+    // rectangular tube / box, doubly symmetric — NBR 8800:2024 D.2.7 (FLM, FLA) and Tab. D.1 (FLT, major axis only,
+    // D.2.8-g). Added 15/10/2026 (literature check, Manual CBCA de perfis tubulares 3.7.4: the simplified Mpl was
+    // 10 % above). Tubular: flat width = outside width − 4t when the corner radius is not known (5.1.2.2-d); box
+    // (welded caixão, sec.caixao): clear distance between the webs/flanges (5.1.2.2-b/c).
+    const caixao = sec.caixao === true || dims.caixao === true, t = dims.t;
+    const sq = Math.sqrt(E / fy), flat = (B) => caixao ? B - 2 * t : (dims.flatOffset > 0 ? B - dims.flatOffset : B - 4 * t);
+    const tubeM = (Bf, Hw, W, Z, I, major) => {
+      const Mpl = Z * fy, out = { Mpl };
+      // FLM
+      const bF = flat(Bf), lam = bF / t, lp = 1.12 * sq, lr = (caixao ? 1.49 : 1.40) * sq;
+      if (lam <= lp) out.FLM = Mpl;
+      else if (lam <= lr) out.FLM = Mpl - (Mpl - fy * W) * (3.57 * lam / sq - 4.0);
+      else {                                                                     // fy·Wef, bef by 5.3.4.2 with (b/t)lim = λr, χ = 1
+        const c1 = caixao ? 0.18 : 0.20, c2 = caixao ? 1.31 : 1.38, rs = c2 * lr / lam;   // √(σel/fy)
+        const bef = Math.min(bF, bF * (1 - c1 * rs) * rs), dA = (bF - bef) * t, yc = (Hw - t) / 2;
+        const A1 = A - dA, e = dA * yc / A1, Ief = I - dA * yc * yc - A1 * e * e;
+        out.Wef = Ief / (Hw / 2 + e); out.FLM = fy * out.Wef;
+      }
+      out.lamF = lam; out.lpF = lp; out.lrF = lr;
+      // FLA
+      const hW = flat(Hw), lw = hW / t, lpw = 2.42 * sq, lrw = 5.70 * sq;
+      out.lamW = lw;
+      if (lw <= lpw) out.FLA = Mpl;
+      else if (lw <= lrw) out.FLA = Math.min(Mpl - (Mpl - fy * W) * (0.305 * lw / sq - 0.738), Mpl);
+      else { out.FLA = NaN; out.blocked = `alma h/t = ${lw.toFixed(1)} > λr = ${lrw.toFixed(1)} (D.2.7: Anexo E) — NÃO verificado.`; }
+      // FLT (Tab. D.1), only about the axis of greater inertia
+      if (major) {
+        const rmin = Math.sqrt(Math.min(Iz, Iy) / A), lt = Lb / rmin, Mr = (fy - sr) * W, sJA = Math.sqrt(J * A);
+        const lpt = 0.13 * E * sJA / Mpl, lrt = 2 * Cb * E * sJA / Mr, Mcr = 2 * Cb * E * sJA / lt;
+        out.FLT = lt <= lpt ? Mpl : lt <= lrt ? interp(Mpl, Mr, lt, lpt, lrt) : Mcr;
+        out.lamT = lt;
+      } else out.FLT = Mpl;
+      out.Mn = Math.min(out.FLM, isNaN(out.FLA) ? Infinity : out.FLA, out.FLT, 1.5 * W * fy);
+      out.ramo = out.Mn === out.FLM ? 'FLM (D.2.7)' : out.Mn === out.FLA ? 'FLA (D.2.7)' : out.Mn === out.FLT ? 'FLT (Tab. D.1)' : '1,5·W·fy';
+      return out;
+    };
+    const majorZ = Iz >= Iy;
+    const tz = tubeM(dims.b, dims.h, Sz, Zz, Iz, majorZ), ty = tubeM(dims.h, dims.b, Sy, Zy, Iy, !majorZ);
+    const fmt = (o) => ({ ramo: o.ramo, Mpl: o.Mpl, MRdFLM: o.FLM / ga1, MRdFLA: isNaN(o.FLA) ? null : o.FLA / ga1, MRdFLT: o.FLT / ga1,
+      lambdaMesa: +o.lamF.toFixed(3), lambdaAlma: +o.lamW.toFixed(3), ...(o.Wef ? { Wef: o.Wef } : {}) });
+    flexaoX = ratObj(Mz, tz.Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ...fmt(tz), formula: `MRd = min(FLM, FLA, FLT)/γa1 — ${caixao ? 'seção-caixão' : 'tubo retangular'} (D.2.7, Tab. D.1)` });
+    flexaoY = ratObj(My, ty.Mn / ga1, { eixo: 'fraco (My = Msd,y)', ...fmt(ty), formula: `MRd = min(FLM, FLA${!majorZ ? ', FLT' : ''})/γa1 (D.2.7)` });
+    for (const [o, f] of [[tz, flexaoX], [ty, flexaoY]]) if (o.blocked) { f.ratio = Infinity; avisos.push(`Flexão ${f.eixo}: ${o.blocked}`); }
+    if (!caixao && !(dims.flatOffset > 0)) avisos.push('Tubo retangular: parte plana = largura externa − 4t (raio de concordância não informado, 5.1.2.2-d).');
+  } else if ((shape === 'pipe' || shape === 'chs' || shape === 'tube') && dims.D > 0 && dims.t > 0) {
+    // circular tube — NBR 8800:2024 D.2.6 (local buckling of the wall, the only applicable limit state; D/t ≤ 0,45·E/fy).
+    // Added 15/10/2026 (Manual CBCA de perfis tubulares 3.7.7: the simplified Mpl was 4,6 % above).
+    const lam = dims.D / dims.t, lp = 0.07 * E / fy, lr = 0.31 * E / fy, W = Sz, Mpl = Zz * fy;
+    let Mn = lam <= lp ? Mpl : lam <= lr ? (0.021 * E / lam + fy) * W : 0.33 * E / lam * W;
+    Mn = Math.min(Mn, 1.5 * W * fy);
+    const ramo = lam <= lp ? 'Mpl (λ ≤ λp)' : lam <= lr ? '(0,021·E/(D/t) + fy)·W' : 'Mcr = 0,33·E/(D/t)·W';
+    const o = { ramo, lambda: +lam.toFixed(3), lambdaP: +lp.toFixed(3), lambdaR: +lr.toFixed(3), formula: 'MRd por D.2.6 (flambagem local da parede)' };
+    flexaoX = ratObj(Mz, Mn / ga1, { eixo: 'forte (Mz = Msd,x)', ...o });
+    flexaoY = ratObj(My, Mn / ga1, { eixo: 'fraco (My = Msd,y)', ...o });
+    if (lam > 0.45 * E / fy) { flexaoX.ratio = Infinity; flexaoY.ratio = Infinity; avisos.push(`Tubo circular com D/t = ${lam.toFixed(1)} > 0,45·E/fy = ${(0.45 * E / fy).toFixed(1)}: fora do escopo da NBR 8800 (D.2.6) — NÃO verificado.`); }
   } else {
     const Mnz = Math.min(Zz * fy, 1.5 * Sz * fy), Mny = Math.min(Zy * fy, 1.5 * Sy * fy);
     flexaoX = ratObj(Mz, Mnz / ga1, { eixo: 'forte (Mz = Msd,x)', ramo: 'Mpl (simplificada)', formula: 'MRd = Mpl/γa1 ≤ 1,5·W·fy/γa1' });
