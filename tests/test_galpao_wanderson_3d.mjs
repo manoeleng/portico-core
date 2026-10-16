@@ -83,5 +83,10 @@ ok(sec.filter((e) => e.cable).length === 2 * (2 * 8 + 2 * 2), 'X na cobertura (8
   near(w.cpe_telhado.EFI, -(3.86 / (1.6 * 6) / 0.35) + 0.2, 0.01, 'EFI × Wanderson (−0,949)');
   near(w.cpe_telhado.GHJ, -(2.03 / (1.6 * 6) / 0.35) + 0.2, 0.01, 'GHJ × Wanderson (−0,404)');
 }
+// connections saved in the example (tools/design_galpao_pff_wanderson_3d_ligacoes.mjs): Assistente → "Ligações gravadas — mostrar no 3D"
+{
+  const cd = m3.connectionDesign, nComb = m3.combinations.size;
+  ok(cd?.rows?.length === 1328 && cd.nCombos === nComb && cd.rows.every((r) => r.geo && r.ok), `ligações gravadas no exemplo: ${cd?.rows?.length} (${cd?.nCombos} de ${nComb} combinações), todas com geometria e atendendo`);
+}
 console.log(`test_galpao_wanderson_3d: ${pass}/${pass + fail}`);
 if (fail) process.exit(1);
