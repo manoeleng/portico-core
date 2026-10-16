@@ -505,8 +505,13 @@ function checkNBR6118({ demands, mat, sec, member = {}, options = {} }) {
     t.aslNec = Math.max(t.aslNec, rhoMin * t.he * t.ue);
     const legs = stir ? (+stir.legs || 2) : 2;
     const legS = sv.aswS / legs;                                                   // provided, one leg (m²/m)
-    // peripheral leg: shear part shared by all legs + torsion (one wall, 17.5.1.6); total ≥ ρsw,mín·bw (17.5.1.2)
-    const legNec = Math.max(Math.max(VyD - sv.Vc, 0) / sv.kSw / legs + t.a90Nec, sv.aswMin / legs);
+    // peripheral leg (17.7.2.3): SUM of the stirrups designed separately — the shear stirrup with its own minimum
+    // (17.4.1.1.1: ρsw,mín even when VSd ≤ Vc), shared by all legs, plus the torsion A90/s of one wall (17.5.1.6).
+    // Fixed 15/10/2026 (literature check, Bastos UNESP Torção Ex.3 VS1 p.75): the minimum was applied once to the total.
+    // The torsion stirrup has its own minimum (17.5.1.2, ρsw ≥ 0,2·fct,m/fywk): Asw is not defined there — read as in
+    // Bastos (Ex.3 VS1, A90/s of ONE leg ≥ ρ·bw), the stricter reading (review 15/10/2026).
+    const a90 = Math.max(t.a90Nec, rhoMin * b);
+    const legNec = Math.max(Math.max(VyD - sv.Vc, 0) / sv.kSw, sv.aswMin) / legs + a90;
     const rTransv = legS > 0 ? legNec / legS : Infinity;                           // 17.7.2.3 (sum V + T)
     const aslProv = reb.Asl_torcao_cm2 != null ? reb.Asl_torcao_cm2 / 1e4 : null;
     const rLong = aslProv != null ? (aslProv > 0 ? t.aslNec / aslProv : Infinity) : Infinity;

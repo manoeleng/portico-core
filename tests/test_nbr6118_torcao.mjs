@@ -29,7 +29,9 @@ const run = (V, T, rebarExtra, options = {}) => nbr6118.check({ demands: { N: 0,
 
 { const r = run(60, 10, { Asl_torcao_cm2: 3.0 });
   ok('2a. interação V/VRd2 + T/TRd2', r.torcao.interacaoVT, 0.49597, 1e-3);
-  ok('2b. razão dos estribos (só torção, VSd < Vc)', r.torcao.razaoEstribos, 0.45394, 1e-3);
+  // 17.7.2.3 + 17.4.1.1.1 (corrigido 15/10/2026, Bastos UNESP Torção Ex.3 VS1 p.75): cortante com o seu mínimo
+  // ρ·bw/2 = 1,02596 cm²/m por ramo + A90/s = 2,2817 = 3,3077 → /5,02655 = 0,65804 (antes 0,45394, só a torção)
+  ok('2b. razão dos estribos (VSd < Vc: Asw,mín da cortante + torção)', r.torcao.razaoEstribos, 0.65804, 1e-3);
   ok('2c. razão longitudinal 2,464/3,0', r.torcao.razaoLongitudinal, 2.4643 / 3.0, 1e-3);
   ok('2d. razão da torção = máx.', r.torcao.ratio, 2.4643 / 3.0, 1e-3); }
 
@@ -45,10 +47,11 @@ const run = (V, T, rebarExtra, options = {}) => nbr6118.check({ demands: { N: 0,
   assert('6. TSd > TRd2 reprova pela biela', r.torcao.interacaoVT > 1 && r.state === 'NO CUMPLE'); }
 
 // (7) Taxas mínimas 17.5.1.2 (achado da revisão): TSd = 1 kN·m, VSd = 10 kN, As,l = 3,0 cm²
-//   ρmín = 0,2·2,5649/500 = 1,02596e-3; estribo: ρ·bw = 2,0519 cm²/m total → 1,02596 por ramo (> A90/s = 0,2282)
-//   → 1,02596/5,02655 = 0,20411; As,l mín = ρ·he·ue = 1,02596e-3·0,071429·1,08 = 0,79146 cm² → /3,0 = 0,26382
+//   ρmín = 0,2·2,5649/500 = 1,02596e-3; estribo (corrigido 15/10/2026 — 17.7.2.3 soma V + T; mínimo de torção da
+//   17.5.1.2 aplicado ao A90/s de um ramo, leitura de Bastos UNESP Ex.3): cortante ρ·bw/2 = 1,02596 + torção
+//   máx(0,2282; ρ·bw = 2,0519) = 3,0779 cm²/m → /5,02655 = 0,61232 (antes 0,20411); As,l mín = ρ·he·ue = 1,02596e-3·0,071429·1,08 = 0,79146 cm² → /3,0 = 0,26382
 { const r = run(10, 1, { Asl_torcao_cm2: 3.0 });
-  ok('7a. estribo pela taxa mínima', r.torcao.razaoEstribos, 0.20411, 1e-3);
+  ok('7a. estribo pelas taxas mínimas de V e de T', r.torcao.razaoEstribos, 0.61232, 1e-3);
   ok('7b. As,l pela taxa mínima', r.torcao.razaoLongitudinal, 0.26382, 1e-3); }
 // (8) Estribo de 4 ramos: cortante dividido por 4 + torção num ramo periférico
 //   (150 − 70,793)/(0,9·0,46·434 783)/4 = 1,1001 cm²/m + 2,2817 = 3,3818 → /5,02655 = 0,67278
