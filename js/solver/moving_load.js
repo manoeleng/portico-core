@@ -238,17 +238,40 @@ export function trainEnvelopeFromIL(il, train, opts = {}) {
   }
   const positions = [...cand].filter(r => r >= s0 - Lv - 1e-9 && r <= sN + 1e-9).sort((a, b) => a - b);
   const seriesMax = [], seriesMin = [];
-  let max = -Infinity, min = Infinity, atMax = 0, atMin = 0;
+  let max = -Infinity, min = Infinity, atMax = 0, atMin = 0, iMax = 0, iMin = 0;
   const totPos = ilSignedIntegral(s, v, s0, sN, +1), totNeg = ilSignedIntegral(s, v, s0, sN, -1);
-  for (const ref of positions) {
+  const evalAt = (ref) => {
     let conc = 0;
     for (const ax of train.axles) { const x = ref + ax.offset; if (x >= s0 - 1e-9 && x <= sN + 1e-9) conc += ax.P * ilAt(s, v, x); }
     const inPos = ilSignedIntegral(s, v, ref, ref + Lv, +1), inNeg = ilSignedIntegral(s, v, ref, ref + Lv, -1);
-    const eMax = conc + train.qExt * (totPos - inPos) + train.qInt * inPos;
-    const eMin = conc + train.qExt * (totNeg - inNeg) + train.qInt * inNeg;
+    return [conc + train.qExt * (totPos - inPos) + train.qInt * inPos, conc + train.qExt * (totNeg - inNeg) + train.qInt * inNeg];
+  };
+  positions.forEach((ref, i) => {
+    const [eMax, eMin] = evalAt(ref);
     seriesMax.push(eMax); seriesMin.push(eMin);
-    if (eMax > max) { max = eMax; atMax = ref; }
-    if (eMin < min) { min = eMin; atMin = ref; }
+    if (eMax > max) { max = eMax; atMax = ref; iMax = i; }
+    if (eMin < min) { min = eMin; atMin = ref; iMin = i; }
+  });
+  // local refinement between the neighbouring candidates: with qInt ≠ qExt the response is piecewise quadratic
+  // in the position and its extreme can fall between two candidates (where η(ref) = η(ref + length)) — golden
+  // section on each side of the best candidate; only an improvement is kept
+  const refine = (i, k, sgn) => {
+    let best = { f: sgn * (k ? seriesMin : seriesMax)[i], x: positions[i] };
+    for (const [a0, b0] of [[positions[i - 1], positions[i]], [positions[i], positions[i + 1]]]) {
+      if (a0 == null || b0 == null || !(b0 > a0)) continue;
+      let a = a0, b = b0; const g = (Math.sqrt(5) - 1) / 2;
+      let c = b - g * (b - a), d = a + g * (b - a), fc = sgn * evalAt(c)[k], fd = sgn * evalAt(d)[k];
+      for (let it = 0; it < 40 && b - a > 1e-6; it++) {
+        if (fc > fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = sgn * evalAt(c)[k]; }
+        else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = sgn * evalAt(d)[k]; }
+      }
+      for (const [x, f] of [[c, fc], [d, fd]]) if (f > best.f + 1e-12) best = { f, x };
+    }
+    return best;
+  };
+  if (positions.length) {
+    const bM = refine(iMax, 0, +1); if (bM.f > max) { max = bM.f; atMax = bM.x; }
+    const bm = refine(iMin, 1, -1); if (-bm.f < min) { min = -bm.f; atMin = bm.x; }
   }
   return { max, min, atMax, atMin, positions, seriesMax, seriesMin };
 }
@@ -293,9 +316,18 @@ export function computeMovingLoad(model, cfg) {
     : responseSection(cfg.elemId, cfg.xi, cfg.key);
   if (cfg.mode === 'bridge') {   // bridge train over the nodal IL (e.g. TB-450, NBR 7188:2024)
     const il = influenceLineNodes(model, lane, resp);
-    const e = trainEnvelopeFromIL(il, cfg.bridgeTrain, { nPos: cfg.nPos });
-    return { mode: 'bridge', lane, label: cfg.label, unit: cfg.unit, xs: e.positions, ys: e.seriesMax, ys2: e.seriesMin,
-             max: e.max, min: e.min, sMax: e.atMax, sMin: e.atMin, trainLen: cfg.bridgeTrain.length, il, info: cfg.info };
+    // transverse candidates (trainFromTransverseIL): the vehicle position of largest EFFECT, separately for the
+    // max and the min — not the one of largest Ση
+    const trains = cfg.bridgeTrain.candidates?.length ? cfg.bridgeTrain.candidates : [cfg.bridgeTrain];
+    let eMx = null, eMn = null, tMx = null, tMn = null;
+    for (const tr of trains) {
+      const e = trainEnvelopeFromIL(il, tr, { nPos: cfg.nPos });
+      if (!eMx || e.max > eMx.max) { eMx = e; tMx = tr; }
+      if (!eMn || e.min < eMn.min) { eMn = e; tMn = tr; }
+    }
+    return { mode: 'bridge', lane, label: cfg.label, unit: cfg.unit, xs: eMx.positions, ys: eMx.seriesMax, ys2: eMn.seriesMin,
+             max: eMx.max, min: eMn.min, sMax: eMx.atMax, sMin: eMn.atMin, trainLen: cfg.bridgeTrain.length, il, info: cfg.info,
+             yVehicleMax: tMx.yVehicle, yVehicleMin: tMn.yVehicle };
   }
   if (cfg.mode === 'il') {
     const il = influenceLine(model, lane, resp, { nPos: cfg.nPos, P: 1 });

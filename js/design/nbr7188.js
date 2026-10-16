@@ -22,6 +22,22 @@
 //   · 5.1.3.3 CIA = 1,25 (concreto ou mista) / 1,15 (aço) — SÓ para lajes e transversinas ligadas à
 //            laje a menos de 5,0 m da junta/descontinuidade; demais elementos CIA = 1,0.
 //            (Na 2013 o CIA valia para todas as seções a menos de 5 m da junta — mudou.)
+//   · 5.1.3.1 infraestrutura totalmente enterrada e empuxo de terra das cargas móveis: CIV pode ser 1,00.
+//   · 5.1.1  homogeneização: a área do veículo é ocupada pela carga distribuída e as rodas são
+//            reduzidas da parcela dessa carga (18,0 m² / 6 rodas = 3,0 m² por roda → Q − 3q); permitida
+//            em obras com vãos ≥ 30 m, exceto no cálculo de lajes e transversinas.
+//   · 5.2.1  frenagem/aceleração: Hfr = 0,05·p·B·L·CNF ≥ 0,30·(6·P), p e P característicos (sem
+//            CIV/CIA); B, L = largura e comprimento do tabuleiro carregados com p (4.2.2).
+//   · 5.2.2  centrífuga: Hfc = 2,4·P (R ≤ 200 m); 480·P/R (200 < R ≤ 1 500 m); 0 (R > 1 500 m), kN.
+//   · Anexo A (normativo) veículo-tipo especial (Figura A.1): 2 × 16 eixos de 160 kN a 1,55 m
+//            (15 × 1,55 = 23,25 m por grupo), 15 m entre grupos, 61,5 m, 5 120 kN; na verificação
+//            desprezam-se a carga distribuída, o vento, CIV, CNF, CIA, frenagem, centrífuga e ações
+//            excepcionais (A.1.3); ELU com as combinações últimas especiais da NBR 8681 (A.1.4).
+//            Seção transversal (Figura A.1): 8 rodas de 20 kN, faixas de 20 cm, folgas 10/30/10/60/10/30/10 cm,
+//            320 cm → centros a 10, 40, 90, 120, 200, 230, 280, 310 cm da borda; veículo no eixo da estrutura
+//            (A.1.2 b) → sem busca transversal.
+//   · Distribuição espacial a 45° (5.1.1, Figura 2) e a 30° em estrutura enterrada (Figura 3): é
+//            efeito local em laje/placa — fora do modelo de barras (não implementada).
 //
 // Trem-tipo longitudinal de uma viga (formato do oae-kit, C:\projetos\oae-kit\src\oaekit\calc\
 // trem_tipo.py): 3 eixos de carga Paxle a 1,5/3,0/4,5 m da borda traseira de uma "área do veículo"
@@ -50,9 +66,10 @@ export const SIDEWALK_LOCAL = 5.0;        // kN/m², 5.1.2 b)
 /**
  * CIV (5.1.3.1).
  * @param {number} LIV  vão para o CIV, m (ver livFromSpans)
- * @param {object} [o]  { hcob }  espessura de cobertura de estrutura enterrada, m
+ * @param {object} [o]  { hcob }  espessura de cobertura de estrutura enterrada, m; { enterrada: true } → 1,00
  */
 export function civ(LIV, o = {}) {
+  if (o.enterrada) return 1.0;   // infraestrutura totalmente enterrada / empuxo de terra (5.1.3.1)
   if (!(LIV > 0)) throw new Error('NBR 7188: LIV deve ser > 0');
   if (LIV > 200) throw new Error('NBR 7188 5.1.3.1: vão > 200 m exige estudo específico do CIV');
   let c = LIV < 10 ? 1.35 : 1 + 1.06 * (20 / (LIV + 50));
@@ -98,7 +115,7 @@ export function cia({ nearJoint = false, element = 'outro', material = 'concreto
 export function loads7188(o) {
   const v = VEHICLES[o.vehicle || 'TB-450'];
   if (!v) throw new Error(`NBR 7188: veículo desconhecido ${o.vehicle}`);
-  const CIV = o.CIV ?? civ(o.LIV, { hcob: o.hcob });
+  const CIV = o.CIV ?? civ(o.LIV, { hcob: o.hcob, enterrada: o.enterrada });
   const CNF = o.CNF ?? cnf(o.b, { transversal: o.transversal });
   const CIA = o.CIA ?? cia(o.ciaOpts);
   const k10 = o.plus10 ? 1.10 : 1.0;   // anel rodoviário / acesso portuário (5.1.1)
@@ -111,14 +128,58 @@ export function loads7188(o) {
  * eixo = 2 rodas → Paxle = 2Q; fora do veículo qExt = q·b; ao lado do veículo qInt = q·(b − 3,0).
  * Passeios (5.1.2 a), sem coeficientes): bSidewalk total, somado a qExt e qInt.
  */
-export function trainWholeDeck({ Q, q, b, bSidewalk = 0, pSidewalk = SIDEWALK_CONCURRENT }) {
+export function trainWholeDeck({ Q, q, b, bSidewalk = 0, pSidewalk = SIDEWALK_CONCURRENT, homog = false }) {
   if (!(b >= VEHICLE_GEOM.width)) throw new Error('NBR 7188: largura carregada b < 3,0 m (largura do veículo)');
-  const qs = pSidewalk * bSidewalk;
+  const qs = pSidewalk * bSidewalk, Qw = homog ? wheelHomog(Q, q) : Q;
   return {
     length: VEHICLE_GEOM.length,
-    axles: VEHICLE_GEOM.axleOffsets.map(offset => ({ offset, P: VEHICLE_GEOM.wheelsPerAxle * Q })),
-    qExt: q * b + qs, qInt: q * (b - VEHICLE_GEOM.width) + qs,
+    axles: VEHICLE_GEOM.axleOffsets.map(offset => ({ offset, P: VEHICLE_GEOM.wheelsPerAxle * Qw })),
+    qExt: q * b + qs, qInt: q * (homog ? b : b - VEHICLE_GEOM.width) + qs, homog,
   };
+}
+
+// 5.1.1 homogeneização: roda reduzida da carga distribuída que passa a ocupar a área do veículo (18 m² / 6 rodas)
+export const wheelHomog = (Q, q) => Q - q * (VEHICLE_GEOM.length * VEHICLE_GEOM.width) / 6;
+/** 5.1.1: homogeneização só em obras com vãos ≥ 30 m e nunca no cálculo de lajes e transversinas */
+export function homogAllowed(span, { transversal = false } = {}) {
+  if (transversal) return { ok: false, motivo: 'NBR 7188:2024 5.1.1: homogeneização não permitida para lajes e transversinas' };
+  if (!(span >= 30)) return { ok: false, motivo: 'NBR 7188:2024 5.1.1: homogeneização só em obras com vãos ≥ 30 m' };
+  return { ok: true };
+}
+
+/** 5.2.1 frenagem/aceleração (kN): Hfr = 0,05·p·B·L·CNF ≥ 0,30·(6·P) — p e P característicos; plus10: a majoração de
+ *  10 % de 5.1.1 vale para as cargas móveis características (p e P), logo também para Hfr */
+export function frenagem({ vehicle = 'TB-450', B, L, CNF = 1.0, plus10 = false }) {
+  const v = VEHICLES[vehicle]; if (!v) throw new Error(`NBR 7188: veículo desconhecido ${vehicle}`);
+  const k = plus10 ? 1.10 : 1.0, dist = 0.05 * v.p * k * B * L * CNF, minimo = 0.30 * 6 * v.P * k;
+  return { Hfr: Math.max(dist, minimo), dist, minimo, governa: dist >= minimo ? 'distribuída' : 'mínimo 0,30·6P' };
+}
+
+/** 5.2.2 força centrífuga (kN) em curva de raio R (m) no eixo da obra; R nulo/∞ → 0 */
+export function centrifuga({ vehicle = 'TB-450', R, plus10 = false }) {
+  const v = VEHICLES[vehicle]; if (!v) throw new Error(`NBR 7188: veículo desconhecido ${vehicle}`);
+  if (!(R > 0) || R > 1500) return 0;
+  const P = v.P * (plus10 ? 1.10 : 1.0);
+  return R <= 200 ? 2.4 * P : 480 * P / R;
+}
+
+/** Anexo A (Figura A.1): veículo-tipo especial — 2 × 16 eixos de 160 kN a 1,55 m, 15 m entre grupos, 61,5 m.
+ *  Sem carga distribuída e sem CIV/CNF/CIA (A.1.3). Trem do tabuleiro inteiro (eixo = 160 kN). */
+export const SPECIAL_ANNEX_A = { name: 'Especial (Anexo A)', axleP: 160, perGroup: 16, spacing: 1.55, gap: 15 };
+export const SPECIAL_WHEELS_X = [0.10, 0.40, 0.90, 1.20, 2.00, 2.30, 2.80, 3.10];   // m da borda (Figura A.1), 8 × 20 kN
+/** opts.transverse = { ys, eta, axisY } → eixo = 20 kN·Σ η(rodas), veículo centrado em axisY (A.1.2 b) */
+export function trainSpecialAnnexA(opts = {}) {
+  const { axleP, perGroup, spacing, gap } = SPECIAL_ANNEX_A, g1 = (perGroup - 1) * spacing;
+  let P = axleP, sumEta = null;
+  if (opts.transverse) {
+    const { ys, eta, axisY } = opts.transverse, y0 = axisY - 1.60;
+    sumEta = SPECIAL_WHEELS_X.reduce((a, x) => a + interp(ys, eta, y0 + x), 0);
+    P = (axleP / SPECIAL_WHEELS_X.length) * sumEta;
+  }
+  const axles = [];
+  for (let i = 0; i < perGroup; i++) axles.push({ offset: i * spacing, P });
+  for (let i = 0; i < perGroup; i++) axles.push({ offset: g1 + gap + i * spacing, P });
+  return { length: 2 * g1 + gap, axles, qExt: 0, qInt: 0, especial: true, sumEta };
 }
 
 // ∫ max(η,0) dy sobre [a,b] de uma polilinha (ys crescente) — exata (cruzamentos por zero).
@@ -152,7 +213,7 @@ function interp(ys, eta, y) {
  *                     sidewalks: [[ya,yb],…], pSidewalk, step }
  */
 export function trainFromTransverseIL(o) {
-  const { Q, q, ys, eta } = o;
+  const { q, ys, eta } = o, Q = o.homog ? wheelHomog(o.Q, o.q) : o.Q;
   const [y0, y1] = o.lane;
   const w = VEHICLE_GEOM.width, step = o.step || 0.05;
   if (y1 - y0 < w) throw new Error('NBR 7188: pista mais estreita que o veículo (3,0 m)');
@@ -160,16 +221,19 @@ export function trainFromTransverseIL(o) {
   const qPas = (o.sidewalks || []).reduce((acc, [a, b]) => acc + pS * integPos(ys, eta, a, b), 0);
   const qLane = q * integPos(ys, eta, y0, y1);
   let best = null;
-  const nPos = Math.max(1, Math.round((y1 - w - y0) / step));
+  const nPos = Math.max(1, Math.round((y1 - w - y0) / step)), all = [];
   for (let i = 0; i <= nPos; i++) {
     const yv = y0 + (y1 - w - y0) * i / nPos;
     const sEta = VEHICLE_GEOM.wheelY.reduce((acc, dy) => acc + interp(ys, eta, yv + dy), 0);
-    const qInt = q * (integPos(ys, eta, y0, yv) + integPos(ys, eta, yv + w, y1)) + qPas;
-    if (!best || sEta > best.sEta + 1e-12 || (Math.abs(sEta - best.sEta) <= 1e-12 && qInt > best.qInt)) best = { yv, sEta, qInt };
+    const qInt = o.homog ? qLane + qPas : q * (integPos(ys, eta, y0, yv) + integPos(ys, eta, yv + w, y1)) + qPas;
+    const c = { yv, sEta, qInt }; all.push(c);
+    if (!best || sEta > best.sEta + 1e-12 || (Math.abs(sEta - best.sEta) <= 1e-12 && qInt > best.qInt)) best = c;
   }
-  return {
-    length: VEHICLE_GEOM.length,
-    axles: VEHICLE_GEOM.axleOffsets.map(offset => ({ offset, P: Q * best.sEta })),
-    qExt: qLane + qPas, qInt: best.qInt, yVehicle: best.yv, sumEta: best.sEta,
-  };
+  const mk = (c) => ({ length: VEHICLE_GEOM.length, axles: VEHICLE_GEOM.axleOffsets.map(offset => ({ offset, P: Q * c.sEta })),
+    qExt: qLane + qPas, qInt: c.qInt, yVehicle: c.yv, sumEta: c.sEta, homog: !!o.homog });
+  // every transverse position as a candidate: the envelope picks the one of largest EFFECT (moving_load.js) —
+  // the max-Ση position is not always the worst with a non-linear transverse IL (Fauchart, cantilever)
+  const stride = Math.max(1, Math.ceil(all.length / 41));
+  const candidates = all.filter((c, i) => i % stride === 0 || i === all.length - 1 || c === best).map(mk);
+  return { ...mk(best), candidates };
 }

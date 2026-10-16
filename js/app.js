@@ -32,7 +32,7 @@ import { ModalResults }                    from './solver/modal_results.js?v=7';
 import { parseAccelerogram, accStats, scaleToPGA, DEMO_PRESETS, G as GACC } from './solver/accelerograms.js?v=7';
 import { tendonEquivalentLoads, applyTendon, tendonEcc } from './solver/tendon.js?v=7';
 import { computeMovingLoad } from './solver/moving_load.js?v=7';
-import { loads7188, trainWholeDeck, trainFromTransverseIL, livFromSpans, NBR7188_EDITION } from './design/nbr7188.js?v=7';
+import { loads7188, trainWholeDeck, trainFromTransverseIL, livFromSpans, NBR7188_EDITION, homogAllowed, frenagem, centrifuga, trainSpecialAnnexA, cnf as cnf7188 } from './design/nbr7188.js?v=7';
 import { buildShearStories, runShearHistory, shearFreqs } from './solver/shear_building.js?v=7';
 import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
@@ -4315,13 +4315,21 @@ class App {
       <div id="ml-bridge" style="display:none">
         <p class="panel-hint" style="margin:0 0 4px">${esc(livDef.txt)}</p>
         <div class="prop-row">
-          <div class="prop-field"><label>Vehículo</label><select id="ml-veh"><option value="TB-450">TB-450</option><option value="TB-240">TB-240</option></select></div>
+          <div class="prop-field"><label>Vehículo</label><select id="ml-veh"><option value="TB-450">TB-450</option><option value="TB-240">TB-240</option><option value="especial">Especial (Anexo A)</option></select></div>
           <div class="prop-field"><label>LIV (m)</label><input type="number" id="ml-liv" value="${livDef.LIV.toFixed(2)}" min="0.1" step="0.5" style="width:80px" title="${esc(livDef.txt)}"></div>
           <div class="prop-field"><label>Ancho cargado b (m)</label><input type="number" id="ml-b" value="7" min="3" step="0.5" style="width:70px"></div>
         </div>
         <div class="prop-row">
           <div class="prop-field" title="NBR 7188:2024 5.1.3.3: CIA solo en losas y transversinas ligadas a la losa a menos de 5,0 m de cada lado de la junta; vigas principales y demás elementos: 1,00"><label>CIA (5.1.3.3)</label><select id="ml-cia"><option value="1">1,00 (vigas principales y demás)</option><option value="1.25">1,25 (losa/transversina de hormigón o mixta a &lt; 5 m de la junta)</option><option value="1.15">1,15 (losa/transversina de acero a &lt; 5 m de la junta)</option></select></div>
           <div class="prop-field"><label><input type="checkbox" id="ml-plus10"> +10 % (anillo vial / puerto)</label></div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-field" title="NBR 7188:2024 5.1.3.1: infraestructura totalmente enterrada y empuje de tierra de las cargas móviles"><label><input type="checkbox" id="ml-enterr"> Infraestructura enterrada (CIV = 1,00)</label></div>
+          <div class="prop-field" title="NBR 7188:2024 5.1.1: área del vehículo ocupada por la carga distribuida y ruedas reducidas de esa parcela; solo vanos ≥ 30 m y nunca losas/transversinas"><label><input type="checkbox" id="ml-homog"> Homogeneización (vano ≥ 30 m)</label></div>
+          <div class="prop-field" title="NBR 7188:2024 5.2.2: radio de la curva horizontal en el eje de la obra (vacío = recta)"><label>Radio R (m)</label><input type="number" id="ml-radius" min="0" step="10" style="width:70px" placeholder="—"></div>
+        </div>
+        <div class="prop-row">
+          <div class="prop-field" title="NBR 7188:2024: CNF = 1,00 en elementos transversales al tráfico (5.1.3.2) y homogeneización prohibida (5.1.1)"><label><input type="checkbox" id="ml-transv"> Elemento transversal al tráfico (losa / transversina)</label></div>
         </div>
         <div class="prop-row cols1">
           <div class="prop-field"><label>LI transversal de la viga «y,η» por línea (vacío = tablero entero de ancho b; pista de y = 0 a b)</label>
@@ -4373,16 +4381,31 @@ class App {
     }
     if (mode === 'bridge') {   // NBR 7188:2024 — js/design/nbr7188.js (kN, m)
       const b = +document.getElementById('ml-b').value, LIV = +document.getElementById('ml-liv').value;
+      const veh = document.getElementById('ml-veh').value, homog = document.getElementById('ml-homog').checked;
+      const R = +document.getElementById('ml-radius').value || null, Ltab = this._laneLength(sel);
       try {
-        const L = loads7188({ vehicle: document.getElementById('ml-veh').value, LIV, b,
-          CIA: +document.getElementById('ml-cia').value || 1, plus10: document.getElementById('ml-plus10').checked });
         const pts = document.getElementById('ml-tril').value.split(/\n/).map(l => l.trim()).filter(Boolean)
           .map(l => l.split(/[,;\s]+/).map(Number)).filter(p => p.length >= 2 && p.every(Number.isFinite)).sort((p, q) => p[0] - q[0]);
-        cfg.bridgeTrain = pts.length >= 2
-          ? trainFromTransverseIL({ Q: L.Q, q: L.q, ys: pts.map(p => p[0]), eta: pts.map(p => p[1]), lane: [0, b] })
-          : trainWholeDeck({ Q: L.Q, q: L.q, b });
-        const t = cfg.bridgeTrain;
-        cfg.info = `${NBR7188_EDITION} · ${L.vehicle} · CIV ${L.CIV.toFixed(4)} · CNF ${L.CNF.toFixed(2)} · CIA ${L.CIA.toFixed(2)}${L.k10 > 1 ? ' · +10 %' : ''} · Q ${L.Q.toFixed(2)} kN · q ${L.q.toFixed(3)} kN/m² → ${t.axles.length} × ${t.axles[0].P.toFixed(2)} kN, qExt ${t.qExt.toFixed(2)} kN/m, qInt ${t.qInt.toFixed(2)} kN/m`;
+        if (veh === 'especial') {   // Anexo A: sem carga distribuída e sem CIV/CNF/CIA (A.1.3)
+          // A.1.2 b): vehicle on the axis of the structure — centred on the lane (b/2); wheels of Figure A.1
+          cfg.bridgeTrain = trainSpecialAnnexA(pts.length >= 2 ? { transverse: { ys: pts.map(p => p[0]), eta: pts.map(p => p[1]), axisY: b / 2 } } : {});
+          cfg.info = `${NBR7188_EDITION} · ${i18n.t('Anexo A — vehículo especial')}: 32 × 160 kN (5 120 kN, 61,5 m) · ${i18n.t('sin carga distribuida, CIV, CNF, CIA, frenado ni centrífuga (A.1.3) · ELU con combinaciones últimas especiales de la NBR 8681 (A.1.4)')}`;
+        } else {
+          const transv = document.getElementById('ml-transv').checked;
+          // 5.1.1 "obras com vãos ≥ 30 m": every span of the lane (the smallest), not the LIV mean of a continuous beam
+          if (homog) { const h = homogAllowed(Math.min(...(livDef.spans?.length ? livDef.spans : [LIV])), { transversal: transv }); if (!h.ok) throw new Error(h.motivo); }
+          const L = loads7188({ vehicle: veh, LIV, b, transversal: transv, enterrada: document.getElementById('ml-enterr').checked,
+            CIA: +document.getElementById('ml-cia').value || 1, plus10: document.getElementById('ml-plus10').checked });
+          cfg.bridgeTrain = pts.length >= 2
+            ? trainFromTransverseIL({ Q: L.Q, q: L.q, ys: pts.map(p => p[0]), eta: pts.map(p => p[1]), lane: [0, b], homog })
+            : trainWholeDeck({ Q: L.Q, q: L.q, b, homog });
+          const t = cfg.bridgeTrain, plus10 = document.getElementById('ml-plus10').checked, fr = frenagem({ vehicle: veh, B: b, L: Ltab, CNF: cnf7188(b), plus10 }), fc = centrifuga({ vehicle: veh, R, plus10 });
+          cfg.info = `${NBR7188_EDITION} · ${L.vehicle} · CIV ${L.CIV.toFixed(4)} · CNF ${L.CNF.toFixed(2)} · CIA ${L.CIA.toFixed(2)}${L.k10 > 1 ? ' · +10 %' : ''}${homog ? ` · ${i18n.t('homogeneizado')}` : ''} · Q ${L.Q.toFixed(2)} kN · q ${L.q.toFixed(3)} kN/m² → ${t.axles.length} × ${t.axles[0].P.toFixed(2)} kN, qExt ${t.qExt.toFixed(2)} kN/m, qInt ${t.qInt.toFixed(2)} kN/m`
+            + ` · Hfr ${fr.Hfr.toFixed(1)} kN (5.2.1, ${fr.governa}; B ${b} m × L ${Ltab.toFixed(2)} m)`
+            + ` · Hfc ${fc.toFixed(1)} kN (5.2.2${R ? `, R ${R} m` : `, ${i18n.t('recta')}`})`
+            + (pts.length >= 2 ? ` · ${i18n.t('posición transversal del vehículo por el mayor efecto')}` : '');
+        }
+        cfg.info += ` · ${i18n.t('premisa: vehículo rígido entrando en el vano (ruedas fuera de la pista no cuentan)')}`;
       } catch (err) { this.toast(err.message, 'warn'); return null; }
     }
     return cfg;
