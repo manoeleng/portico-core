@@ -151,7 +151,8 @@ export function figTelhado(st, alpha, cpi = null, what = 'cpe') {
     g += wind(x + w / 2, H - 6, x + w / 2, y + hh + 6, '') + T(x + w / 2 + 22, H - 12, '90°', 'font-weight="700" font-size="14"');
   }
   g += L(x, y + hh / 2, x + w, y + hh / 2, 'stroke="#111827" stroke-width="2.2"') + T(x + 4, y + hh / 2 - 4, 'cumeeira', 'text-anchor="start" font-size="9" fill="#475569"');
-  g += dim(x, y + hh, x + w, y + hh, `a = ${F(a)} m`, 16) + dim(x + w, y, x + w, y + hh, `b = ${F(b)} m`, -18);
+  // a: below for 0° (the zone widths are on top), on top for 90° (the wind arrow comes from below)
+  g += (alpha === 0 ? dim(x, y + hh, x + w, y + hh, `a = ${F(a)} m`, 16) : dim(x, y, x + w, y, `a = ${F(a)} m`, -14)) + dim(x + w, y, x + w, y + hh, `b = ${F(b)} m`, -18);
   const tt = what === 'cpe' ? 'Cpe' : what === 'cp' ? `Cp (Cpi = ${S(cpi, 1)})` : `p [N/m²] (Cpi = ${S(cpi, 1)})`;
   return svg(W, H, g, `Telhado — vento ${alpha}° — ${tt}`);
 }
