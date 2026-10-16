@@ -1,0 +1,6627 @@
+{
+  "version": "1.0",
+  "units": "kN-m",
+  "mode": "3D",
+  "planar": true,
+  "nodes": [
+    {
+      "id": 1,
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "restraints": {
+        "ux": 1,
+        "uy": 1,
+        "uz": 1,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 2,
+      "x": 0,
+      "y": 0,
+      "z": 0.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 3,
+      "x": 0,
+      "y": 0,
+      "z": 1,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 4,
+      "x": 0,
+      "y": 0,
+      "z": 1.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 5,
+      "x": 0,
+      "y": 0,
+      "z": 2,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 6,
+      "x": 0,
+      "y": 0,
+      "z": 2.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 7,
+      "x": 0,
+      "y": 0,
+      "z": 3,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 8,
+      "x": 0,
+      "y": 0,
+      "z": 3.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 9,
+      "x": 0,
+      "y": 0,
+      "z": 4,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 10,
+      "x": 0,
+      "y": 0,
+      "z": 4.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 11,
+      "x": 0,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 12,
+      "x": 0,
+      "y": 0,
+      "z": 5.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 13,
+      "x": 0.5,
+      "y": 0,
+      "z": 0,
+      "restraints": {
+        "ux": 1,
+        "uy": 1,
+        "uz": 1,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 14,
+      "x": 0.5,
+      "y": 0,
+      "z": 0.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 15,
+      "x": 0.5,
+      "y": 0,
+      "z": 1,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 16,
+      "x": 0.5,
+      "y": 0,
+      "z": 1.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 17,
+      "x": 0.5,
+      "y": 0,
+      "z": 2,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 18,
+      "x": 0.5,
+      "y": 0,
+      "z": 2.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 19,
+      "x": 0.5,
+      "y": 0,
+      "z": 3,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 20,
+      "x": 0.5,
+      "y": 0,
+      "z": 3.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 21,
+      "x": 0.5,
+      "y": 0,
+      "z": 4,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 22,
+      "x": 0.5,
+      "y": 0,
+      "z": 4.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 23,
+      "x": 0.5,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 24,
+      "x": 0.5,
+      "y": 0,
+      "z": 5.5767,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 25,
+      "x": 15,
+      "y": 0,
+      "z": 0,
+      "restraints": {
+        "ux": 1,
+        "uy": 1,
+        "uz": 1,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 26,
+      "x": 15,
+      "y": 0,
+      "z": 0.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 27,
+      "x": 15,
+      "y": 0,
+      "z": 1,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 28,
+      "x": 15,
+      "y": 0,
+      "z": 1.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 29,
+      "x": 15,
+      "y": 0,
+      "z": 2,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 30,
+      "x": 15,
+      "y": 0,
+      "z": 2.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 31,
+      "x": 15,
+      "y": 0,
+      "z": 3,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 32,
+      "x": 15,
+      "y": 0,
+      "z": 3.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 33,
+      "x": 15,
+      "y": 0,
+      "z": 4,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 34,
+      "x": 15,
+      "y": 0,
+      "z": 4.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 35,
+      "x": 15,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 36,
+      "x": 15,
+      "y": 0,
+      "z": 5.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 37,
+      "x": 14.5,
+      "y": 0,
+      "z": 0,
+      "restraints": {
+        "ux": 1,
+        "uy": 1,
+        "uz": 1,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 38,
+      "x": 14.5,
+      "y": 0,
+      "z": 0.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 39,
+      "x": 14.5,
+      "y": 0,
+      "z": 1,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 40,
+      "x": 14.5,
+      "y": 0,
+      "z": 1.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 41,
+      "x": 14.5,
+      "y": 0,
+      "z": 2,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 42,
+      "x": 14.5,
+      "y": 0,
+      "z": 2.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 43,
+      "x": 14.5,
+      "y": 0,
+      "z": 3,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 44,
+      "x": 14.5,
+      "y": 0,
+      "z": 3.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 45,
+      "x": 14.5,
+      "y": 0,
+      "z": 4,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 46,
+      "x": 14.5,
+      "y": 0,
+      "z": 4.5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 47,
+      "x": 14.5,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 48,
+      "x": 14.5,
+      "y": 0,
+      "z": 5.5767,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 49,
+      "x": 1.5,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 50,
+      "x": 2.9767,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 51,
+      "x": 4.4533,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 52,
+      "x": 5.93,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 53,
+      "x": 7.5,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 54,
+      "x": 9.07,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 55,
+      "x": 10.5467,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 56,
+      "x": 12.0233,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 57,
+      "x": 13.5,
+      "y": 0,
+      "z": 5,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 58,
+      "x": 1.5,
+      "y": 0,
+      "z": 5.73,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 59,
+      "x": 2.9767,
+      "y": 0,
+      "z": 5.9564,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 60,
+      "x": 4.4533,
+      "y": 0,
+      "z": 6.1828,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 61,
+      "x": 5.93,
+      "y": 0,
+      "z": 6.4093,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 62,
+      "x": 7.5,
+      "y": 0,
+      "z": 6.65,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 63,
+      "x": 9.07,
+      "y": 0,
+      "z": 6.4093,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 64,
+      "x": 10.5467,
+      "y": 0,
+      "z": 6.1828,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 65,
+      "x": 12.0233,
+      "y": 0,
+      "z": 5.9564,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    },
+    {
+      "id": 66,
+      "x": 13.5,
+      "y": 0,
+      "z": 5.73,
+      "restraints": {
+        "ux": 0,
+        "uy": 0,
+        "uz": 0,
+        "rx": 0,
+        "ry": 1,
+        "rz": 0
+      },
+      "nodeMass": {
+        "mx": 0,
+        "my": 0,
+        "mz": 0,
+        "irx": 0,
+        "iry": 0,
+        "irz": 0
+      },
+      "springs": {
+        "kux": 0,
+        "kuy": 0,
+        "kuz": 0,
+        "krx": 0,
+        "kry": 0,
+        "krz": 0
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "n1": 1,
+      "n2": 2,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 2,
+      "n1": 2,
+      "n2": 3,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 3,
+      "n1": 3,
+      "n2": 4,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 4,
+      "n1": 4,
+      "n2": 5,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 5,
+      "n1": 5,
+      "n2": 6,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 6,
+      "n1": 6,
+      "n2": 7,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 7,
+      "n1": 7,
+      "n2": 8,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 8,
+      "n1": 8,
+      "n2": 9,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 9,
+      "n1": 9,
+      "n2": 10,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 10,
+      "n1": 10,
+      "n2": 11,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 11,
+      "n1": 11,
+      "n2": 12,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 12,
+      "n1": 13,
+      "n2": 14,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 13,
+      "n1": 14,
+      "n2": 15,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 14,
+      "n1": 15,
+      "n2": 16,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 15,
+      "n1": 16,
+      "n2": 17,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 16,
+      "n1": 17,
+      "n2": 18,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 17,
+      "n1": 18,
+      "n2": 19,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 18,
+      "n1": 19,
+      "n2": 20,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 19,
+      "n1": 20,
+      "n2": 21,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 20,
+      "n1": 21,
+      "n2": 22,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 21,
+      "n1": 22,
+      "n2": 23,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 22,
+      "n1": 23,
+      "n2": 24,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 23,
+      "n1": 1,
+      "n2": 14,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 24,
+      "n1": 14,
+      "n2": 3,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 25,
+      "n1": 3,
+      "n2": 16,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 26,
+      "n1": 16,
+      "n2": 5,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 27,
+      "n1": 5,
+      "n2": 18,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 28,
+      "n1": 18,
+      "n2": 7,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 29,
+      "n1": 7,
+      "n2": 20,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 30,
+      "n1": 20,
+      "n2": 9,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 31,
+      "n1": 9,
+      "n2": 22,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 32,
+      "n1": 22,
+      "n2": 11,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 33,
+      "n1": 11,
+      "n2": 24,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 34,
+      "n1": 2,
+      "n2": 14,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 35,
+      "n1": 3,
+      "n2": 15,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 36,
+      "n1": 4,
+      "n2": 16,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 37,
+      "n1": 5,
+      "n2": 17,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 38,
+      "n1": 6,
+      "n2": 18,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 39,
+      "n1": 7,
+      "n2": 19,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 40,
+      "n1": 8,
+      "n2": 20,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 41,
+      "n1": 9,
+      "n2": 21,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 42,
+      "n1": 10,
+      "n2": 22,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 43,
+      "n1": 11,
+      "n2": 23,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 44,
+      "n1": 12,
+      "n2": 24,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 45,
+      "n1": 25,
+      "n2": 26,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 46,
+      "n1": 26,
+      "n2": 27,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 47,
+      "n1": 27,
+      "n2": 28,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 48,
+      "n1": 28,
+      "n2": 29,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 49,
+      "n1": 29,
+      "n2": 30,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 50,
+      "n1": 30,
+      "n2": 31,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 51,
+      "n1": 31,
+      "n2": 32,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 52,
+      "n1": 32,
+      "n2": 33,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 53,
+      "n1": 33,
+      "n2": 34,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 54,
+      "n1": 34,
+      "n2": 35,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 55,
+      "n1": 35,
+      "n2": 36,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 56,
+      "n1": 37,
+      "n2": 38,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 57,
+      "n1": 38,
+      "n2": 39,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 58,
+      "n1": 39,
+      "n2": 40,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 59,
+      "n1": 40,
+      "n2": 41,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 60,
+      "n1": 41,
+      "n2": 42,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 61,
+      "n1": 42,
+      "n2": 43,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 62,
+      "n1": 43,
+      "n2": 44,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 63,
+      "n1": 44,
+      "n2": 45,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 64,
+      "n1": 45,
+      "n2": 46,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 65,
+      "n1": 46,
+      "n2": 47,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 66,
+      "n1": 47,
+      "n2": 48,
+      "matId": 2,
+      "secId": 3,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 67,
+      "n1": 25,
+      "n2": 38,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 68,
+      "n1": 38,
+      "n2": 27,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 69,
+      "n1": 27,
+      "n2": 40,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 70,
+      "n1": 40,
+      "n2": 29,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 71,
+      "n1": 29,
+      "n2": 42,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 72,
+      "n1": 42,
+      "n2": 31,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 73,
+      "n1": 31,
+      "n2": 44,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 74,
+      "n1": 44,
+      "n2": 33,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 75,
+      "n1": 33,
+      "n2": 46,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 76,
+      "n1": 46,
+      "n2": 35,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 77,
+      "n1": 35,
+      "n2": 48,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 78,
+      "n1": 26,
+      "n2": 38,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 79,
+      "n1": 27,
+      "n2": 39,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 80,
+      "n1": 28,
+      "n2": 40,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 81,
+      "n1": 29,
+      "n2": 41,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 82,
+      "n1": 30,
+      "n2": 42,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 83,
+      "n1": 31,
+      "n2": 43,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 84,
+      "n1": 32,
+      "n2": 44,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 85,
+      "n1": 33,
+      "n2": 45,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 86,
+      "n1": 34,
+      "n2": 46,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 87,
+      "n1": 35,
+      "n2": 47,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 88,
+      "n1": 36,
+      "n2": 48,
+      "matId": 2,
+      "secId": 6,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 89,
+      "n1": 23,
+      "n2": 49,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 90,
+      "n1": 49,
+      "n2": 50,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 91,
+      "n1": 50,
+      "n2": 51,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 92,
+      "n1": 51,
+      "n2": 52,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 93,
+      "n1": 52,
+      "n2": 53,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 94,
+      "n1": 53,
+      "n2": 54,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 95,
+      "n1": 54,
+      "n2": 55,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 96,
+      "n1": 55,
+      "n2": 56,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 97,
+      "n1": 56,
+      "n2": 57,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 98,
+      "n1": 57,
+      "n2": 47,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": 90
+    },
+    {
+      "id": 99,
+      "n1": 24,
+      "n2": 58,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 100,
+      "n1": 58,
+      "n2": 59,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 101,
+      "n1": 59,
+      "n2": 60,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 102,
+      "n1": 60,
+      "n2": 61,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 103,
+      "n1": 61,
+      "n2": 62,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 104,
+      "n1": 62,
+      "n2": 63,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 105,
+      "n1": 63,
+      "n2": 64,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 106,
+      "n1": 64,
+      "n2": 65,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 107,
+      "n1": 65,
+      "n2": 66,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 108,
+      "n1": 66,
+      "n2": 48,
+      "matId": 2,
+      "secId": 2,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1,
+      "betaOwn": true,
+      "beta": -90
+    },
+    {
+      "id": 109,
+      "n1": 49,
+      "n2": 58,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 110,
+      "n1": 50,
+      "n2": 59,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 111,
+      "n1": 51,
+      "n2": 60,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 112,
+      "n1": 52,
+      "n2": 61,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 113,
+      "n1": 53,
+      "n2": 62,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 114,
+      "n1": 54,
+      "n2": 63,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 115,
+      "n1": 55,
+      "n2": 64,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 116,
+      "n1": 56,
+      "n2": 65,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 117,
+      "n1": 57,
+      "n2": 66,
+      "matId": 2,
+      "secId": 5,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 118,
+      "n1": 23,
+      "n2": 58,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 119,
+      "n1": 49,
+      "n2": 59,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 120,
+      "n1": 50,
+      "n2": 60,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 121,
+      "n1": 51,
+      "n2": 61,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 122,
+      "n1": 52,
+      "n2": 62,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 123,
+      "n1": 62,
+      "n2": 54,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 124,
+      "n1": 63,
+      "n2": 55,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 125,
+      "n1": 64,
+      "n2": 56,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 126,
+      "n1": 65,
+      "n2": 57,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    },
+    {
+      "id": 127,
+      "n1": 66,
+      "n2": 47,
+      "matId": 2,
+      "secId": 4,
+      "releases": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "layer": 1
+    }
+  ],
+  "areas": [],
+  "materials": [
+    {
+      "id": 2,
+      "name": "MR250",
+      "E": 200000000,
+      "G": 77000000,
+      "nu": 0.3,
+      "rho": 7.85,
+      "alpha": 0.00001
+    }
+  ],
+  "sections": [
+    {
+      "id": 2,
+      "name": "U 100x50x2,25 (banzos)",
+      "A": 0.000433,
+      "Iz": 6.857e-7,
+      "Iy": 1.082e-7,
+      "J": 7.422890625000001e-10,
+      "kappay": 0.833,
+      "kappaz": 0.833,
+      "mod": {
+        "A": 1,
+        "Iy": 1,
+        "Iz": 1,
+        "J": 1
+      },
+      "design": {
+        "shape": "U",
+        "profile": "U 100x50x2,25",
+        "cfProps": {
+          "shape": "U",
+          "designacao": "U 100x50x2,25",
+          "massa": 3.4,
+          "dims": {
+            "bw": 0.1,
+            "bf": 0.05,
+            "D": 0,
+            "t": 0.0022500000000000003,
+            "ri": 0.0022500000000000003
+          },
+          "A": 0.000433,
+          "Iz": 6.857e-7,
+          "Iy": 1.082e-7,
+          "Sz": 0.000013710000000000001,
+          "Sy": 0.00000297,
+          "rz": 0.0398,
+          "ry": 0.0158,
+          "J": 7.422890625000001e-10,
+          "JTab": 7.3e-10,
+          "Cw": 1.8302e-10,
+          "x0": 0.030699999999999998,
+          "xg": 0.013500000000000002,
+          "r0": 0.0527,
+          "fonte": "ABNT NBR 6355:2012 Tab. A.2"
+        }
+      },
+      "Avy": 0.00022500000000000005,
+      "Avz": 0.00022500000000000005
+    },
+    {
+      "id": 3,
+      "name": "U 100x50x2,25 (pernas do pilar)",
+      "A": 0.000433,
+      "Iz": 6.857e-7,
+      "Iy": 1.082e-7,
+      "J": 7.422890625000001e-10,
+      "kappay": 0.833,
+      "kappaz": 0.833,
+      "mod": {
+        "A": 1,
+        "Iy": 1,
+        "Iz": 1,
+        "J": 1
+      },
+      "design": {
+        "shape": "U",
+        "profile": "U 100x50x2,25",
+        "cfProps": {
+          "shape": "U",
+          "designacao": "U 100x50x2,25",
+          "massa": 3.4,
+          "dims": {
+            "bw": 0.1,
+            "bf": 0.05,
+            "D": 0,
+            "t": 0.0022500000000000003,
+            "ri": 0.0022500000000000003
+          },
+          "A": 0.000433,
+          "Iz": 6.857e-7,
+          "Iy": 1.082e-7,
+          "Sz": 0.000013710000000000001,
+          "Sy": 0.00000297,
+          "rz": 0.0398,
+          "ry": 0.0158,
+          "J": 7.422890625000001e-10,
+          "JTab": 7.3e-10,
+          "Cw": 1.8302e-10,
+          "x0": 0.030699999999999998,
+          "xg": 0.013500000000000002,
+          "r0": 0.0527,
+          "fonte": "ABNT NBR 6355:2012 Tab. A.2"
+        }
+      },
+      "Avy": 0.00022500000000000005,
+      "Avz": 0.00022500000000000005
+    },
+    {
+      "id": 4,
+      "name": "2L 40x2,25 costas g8 (diagonais)",
+      "A": 0.000344,
+      "Iz": 5.42e-8,
+      "Iy": 1.3160000000000001e-7,
+      "J": 5.904140625000001e-10,
+      "kappay": 0.833,
+      "kappaz": 0.833,
+      "mod": {
+        "A": 1,
+        "Iy": 1,
+        "Iz": 1,
+        "J": 1
+      },
+      "Avy": 0.00018,
+      "Avz": 0.00018,
+      "design": {
+        "shape": "2L",
+        "profile": "2L 40x2,25 costas g8",
+        "cfProps": {
+          "shape": "2L",
+          "arr": "costas",
+          "base": "L 40x2,25",
+          "gap": 0.008,
+          "closed": false,
+          "designacao": "2L 40x2,25 costas g8",
+          "massa": 2.7,
+          "dims": {
+            "b": 0.04,
+            "t": 0.0022500000000000003,
+            "ri": 0.0022500000000000003,
+            "bf": 0.04,
+            "gap": 0.008,
+            "kind": "2L",
+            "arr": "costas"
+          },
+          "A": 0.000344,
+          "Iz": 5.42e-8,
+          "Iy": 1.3160000000000001e-7,
+          "J": 5.904140625000001e-10,
+          "Cw": null,
+          "Sz": 0.00000271,
+          "Sy": 0.0000029909090909090914,
+          "rz": 0.012552216518801918,
+          "ry": 0.01955909352538823,
+          "Avy": 0.00018,
+          "Avz": 0.00018,
+          "fonte": "Composta de 2 × L 40x2,25 (ABNT NBR 6355:2012), Steiner"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "2L 40x2,25 costas g8 (montantes)",
+      "A": 0.000344,
+      "Iz": 5.42e-8,
+      "Iy": 1.3160000000000001e-7,
+      "J": 5.904140625000001e-10,
+      "kappay": 0.833,
+      "kappaz": 0.833,
+      "mod": {
+        "A": 1,
+        "Iy": 1,
+        "Iz": 1,
+        "J": 1
+      },
+      "Avy": 0.00018,
+      "Avz": 0.00018,
+      "design": {
+        "shape": "2L",
+        "profile": "2L 40x2,25 costas g8",
+        "cfProps": {
+          "shape": "2L",
+          "arr": "costas",
+          "base": "L 40x2,25",
+          "gap": 0.008,
+          "closed": false,
+          "designacao": "2L 40x2,25 costas g8",
+          "massa": 2.7,
+          "dims": {
+            "b": 0.04,
+            "t": 0.0022500000000000003,
+            "ri": 0.0022500000000000003,
+            "bf": 0.04,
+            "gap": 0.008,
+            "kind": "2L",
+            "arr": "costas"
+          },
+          "A": 0.000344,
+          "Iz": 5.42e-8,
+          "Iy": 1.3160000000000001e-7,
+          "J": 5.904140625000001e-10,
+          "Cw": null,
+          "Sz": 0.00000271,
+          "Sy": 0.0000029909090909090914,
+          "rz": 0.012552216518801918,
+          "ry": 0.01955909352538823,
+          "Avy": 0.00018,
+          "Avz": 0.00018,
+          "fonte": "Composta de 2 × L 40x2,25 (ABNT NBR 6355:2012), Steiner"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "2L 40x2,25 costas g8 (travejamento)",
+      "A": 0.000344,
+      "Iz": 5.42e-8,
+      "Iy": 1.3160000000000001e-7,
+      "J": 5.904140625000001e-10,
+      "kappay": 0.833,
+      "kappaz": 0.833,
+      "mod": {
+        "A": 1,
+        "Iy": 1,
+        "Iz": 1,
+        "J": 1
+      },
+      "Avy": 0.00018,
+      "Avz": 0.00018,
+      "design": {
+        "shape": "2L",
+        "profile": "2L 40x2,25 costas g8",
+        "cfProps": {
+          "shape": "2L",
+          "arr": "costas",
+          "base": "L 40x2,25",
+          "gap": 0.008,
+          "closed": false,
+          "designacao": "2L 40x2,25 costas g8",
+          "massa": 2.7,
+          "dims": {
+            "b": 0.04,
+            "t": 0.0022500000000000003,
+            "ri": 0.0022500000000000003,
+            "bf": 0.04,
+            "gap": 0.008,
+            "kind": "2L",
+            "arr": "costas"
+          },
+          "A": 0.000344,
+          "Iz": 5.42e-8,
+          "Iy": 1.3160000000000001e-7,
+          "J": 5.904140625000001e-10,
+          "Cw": null,
+          "Sz": 0.00000271,
+          "Sy": 0.0000029909090909090914,
+          "rz": 0.012552216518801918,
+          "ry": 0.01955909352538823,
+          "Avy": 0.00018,
+          "Avz": 0.00018,
+          "fonte": "Composta de 2 × L 40x2,25 (ABNT NBR 6355:2012), Steiner"
+        }
+      }
+    }
+  ],
+  "diaphragms": [],
+  "links": [],
+  "loadCases": [
+    {
+      "id": 1,
+      "name": "CP",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            0,
+            0,
+            -2.28,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            0,
+            0,
+            -0.72,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0,
+            0,
+            -2.28,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "dead"
+    },
+    {
+      "id": 2,
+      "name": "SC",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            0,
+            0,
+            -0.75,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            0,
+            0,
+            -1.5,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0,
+            0,
+            -0.75,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "live"
+    },
+    {
+      "id": 3,
+      "name": "V1 (0°, Cpi −0,3)",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            0.025765538135347692,
+            0,
+            -0.16803611827400666,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            -0.34,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            -0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            -0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            -0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            -0.051531076270695385,
+            0,
+            -0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            -0.025765538135347692,
+            0,
+            -0.16803611827400666,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            0.11,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 10,
+          "F": [
+            0.29,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 7,
+          "F": [
+            0.34,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 4,
+          "F": [
+            0.17,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            -0.11,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 34,
+          "F": [
+            -0.29,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 31,
+          "F": [
+            -0.34,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 28,
+          "F": [
+            -0.17,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "wind"
+    },
+    {
+      "id": 4,
+      "name": "V2 (0°, Cpi +0,3)",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            -0.28493653937913915,
+            0,
+            1.8582817785596029,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            -0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            -0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            -0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            -0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            3.76,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            0.5698730787582783,
+            0,
+            3.7165635571192057,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0.28493653937913915,
+            0,
+            1.8582817785596029,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            -1.25,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 10,
+          "F": [
+            -3.14,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 7,
+          "F": [
+            -3.76,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 4,
+          "F": [
+            -1.88,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            1.25,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 34,
+          "F": [
+            3.14,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 31,
+          "F": [
+            3.76,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 28,
+          "F": [
+            1.88,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "wind"
+    },
+    {
+      "id": 5,
+      "name": "V3 (90°, Cpi 0)",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            -0.2909990189403974,
+            0,
+            1.897819688741722,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            -0.5804824179904804,
+            0,
+            3.7857548999379147,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            -0.5804824179904804,
+            0,
+            3.7857548999379147,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            -0.5804824179904804,
+            0,
+            3.7857548999379147,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            -0.5804824179904804,
+            0,
+            3.7857548999379147,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            2.6,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            0.20763992497309613,
+            0,
+            1.354173423737583,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            0.20763992497309613,
+            0,
+            1.354173423737583,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            0.20763992497309613,
+            0,
+            1.354173423737583,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            0.20763992497309613,
+            0,
+            1.354173423737583,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0.10306215254139077,
+            0,
+            0.6721444730960267,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            0.8,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 10,
+          "F": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 7,
+          "F": [
+            2.39,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 4,
+          "F": [
+            1.2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0.57,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 34,
+          "F": [
+            1.43,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 31,
+          "F": [
+            1.71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 28,
+          "F": [
+            0.86,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "wind"
+    },
+    {
+      "id": 6,
+      "name": "V4 (90°, Cpi −0,3)",
+      "loads": [
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            -0.2121867846440398,
+            0,
+            1.3838268563741722,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 58,
+          "F": [
+            -0.4243735692880796,
+            0,
+            2.7676537127483445,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 59,
+          "F": [
+            -0.4243735692880796,
+            0,
+            2.7676537127483445,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 60,
+          "F": [
+            -0.4243735692880796,
+            0,
+            2.7676537127483445,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 61,
+          "F": [
+            -0.4243735692880796,
+            0,
+            2.7676537127483445,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 62,
+          "F": [
+            0,
+            0,
+            1.57,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 63,
+          "F": [
+            0.051531076270695385,
+            0,
+            0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 64,
+          "F": [
+            0.051531076270695385,
+            0,
+            0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 65,
+          "F": [
+            0.051531076270695385,
+            0,
+            0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 66,
+          "F": [
+            0.051531076270695385,
+            0,
+            0.3360722365480133,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0.025765538135347692,
+            0,
+            0.16803611827400666,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 12,
+          "F": [
+            1.14,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 10,
+          "F": [
+            2.85,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 7,
+          "F": [
+            3.42,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 4,
+          "F": [
+            1.71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 36,
+          "F": [
+            0.23,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 34,
+          "F": [
+            0.57,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 31,
+          "F": [
+            0.68,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "nodal",
+          "nodeId": 28,
+          "F": [
+            0.34,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "selfWeight": false,
+      "type": "static",
+      "specDir": null,
+      "loadType": "wind"
+    }
+  ],
+  "combinations": [
+    {
+      "id": 1,
+      "name": "C1 – 1,25CP + 1,5SC + 0,84V1",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 2,
+          "factor": 1.5
+        },
+        {
+          "lcId": 3,
+          "factor": 0.84
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "C2 – 1,0CP + 1,4V2",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1
+        },
+        {
+          "lcId": 4,
+          "factor": 1.4
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "C3 – 1,0CP + 1,4V3",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1
+        },
+        {
+          "lcId": 5,
+          "factor": 1.4
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "C4 – 1,0CP + 1,4V4",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1
+        },
+        {
+          "lcId": 6,
+          "factor": 1.4
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "C5 – 1,25CP + 1,5SC + 0,84V2",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 2,
+          "factor": 1.5
+        },
+        {
+          "lcId": 4,
+          "factor": 0.84
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "C6 – 1,25CP + 1,5SC + 0,84V3",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 2,
+          "factor": 1.5
+        },
+        {
+          "lcId": 5,
+          "factor": 0.84
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "C7 – 1,25CP + 1,5SC + 0,84V4",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 2,
+          "factor": 1.5
+        },
+        {
+          "lcId": 6,
+          "factor": 0.84
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "C8 – 1,25CP + 1,4V2 + 1,2SC",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 4,
+          "factor": 1.4
+        },
+        {
+          "lcId": 2,
+          "factor": 1.2
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "C9 – 1,25CP + 1,4V3 + 1,2SC",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 5,
+          "factor": 1.4
+        },
+        {
+          "lcId": 2,
+          "factor": 1.2
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "C10 – 1,25CP + 1,4V4 + 1,2SC",
+      "factors": [
+        {
+          "lcId": 1,
+          "factor": 1.25
+        },
+        {
+          "lcId": 6,
+          "factor": 1.4
+        },
+        {
+          "lcId": 2,
+          "factor": 1.2
+        }
+      ]
+    }
+  ],
+  "grids": {
+    "x": [],
+    "y": [],
+    "z": []
+  },
+  "massSource": null,
+  "layers": [
+    {
+      "id": 1,
+      "name": "padrão",
+      "color": "#64748b",
+      "visible": true,
+      "locked": false
+    }
+  ],
+  "panels": [],
+  "activeLayer": 1,
+  "layerView": {
+    "colorByLayer": false,
+    "categories": {
+      "nos": true,
+      "pilares": true,
+      "vigas": true,
+      "diagonais": true,
+      "placas": true,
+      "panos": true
+    }
+  },
+  "_counters": {
+    "nodes": 66,
+    "elements": 127,
+    "areas": 0,
+    "materials": 2,
+    "sections": 6,
+    "diaphragms": 0,
+    "loadCases": 6,
+    "combinations": 10,
+    "links": 0
+  }
+}
