@@ -12,7 +12,8 @@ const ok = (c, msg) => { if (c) pass++; else { fail++; console.log('FAIL', msg);
 const near = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg}: ${a} × ${b}`);
 const rd = (f) => new Serializer().fromJSON(fs.readFileSync(new URL('examples/' + f, R), 'utf8'));
 const m2 = rd('galpao_pff_wanderson.s3d'), m3 = rd('galpao_pff_wanderson_3d.s3d');
-ok(m3.nodes.size === 8 * m2.nodes.size && !m3.planar, 'oito pórticos, modelo espacial');
+const nFr = [...m3.nodes.keys()].filter((id) => id < 100000).length;
+ok(nFr === 8 * m2.nodes.size && !m3.planar, `oito pórticos, modelo espacial (${nFr} nós dos pórticos + ${m3.nodes.size - nFr} nós das mãos-francesas nas terças)`);
 const E0 = m2.elements.size, SC = [...m2.loadCases.values()].find((l) => l.name === 'SC').id;
 const r2 = new StaticSolver().solve(m2, SC, false), r3 = new StaticSolver().solve(m3, SC, false);
 let worst = 0, Nmax = 0;
@@ -20,16 +21,37 @@ for (const e of m2.elements.values()) {
   const a = r2.getElemForces(e.id).N, b = r3.getElemForces(3 * E0 + e.id).N;   // pórtico 4 (interno)
   worst = Math.max(worst, Math.abs(a - b)); Nmax = Math.max(Nmax, Math.abs(a));
 }
-ok(Nmax > 10 && worst < 1e-3 * Nmax, `pórtico interno × plano: |ΔN|máx = ${worst} kN (|N|máx ${Nmax})`);
+// the mãos-francesas tie the bottom chord to the purlins between frames: the frames are no longer independent — a small
+// coupling (bottom-chord vs. purlin vertical displacement) is expected; 1 % of |N|max bounds it (0,25 % with the MF layout)
+ok(Nmax > 10 && worst < 1e-2 * Nmax, `pórtico interno × plano: |ΔN|máx = ${worst} kN (|N|máx ${Nmax})`);
 let s2 = 0, s3 = 0;
 for (const n of m2.nodes.values()) if (n.restraints.uz) s2 += r2.getReaction(n.id)[2];
 for (const n of m3.nodes.values()) if (n.restraints.uz) s3 += r3.getReaction(n.id)[2];
 ok(Math.abs(s3 - 7 * s2) < 1e-6 * Math.abs(s2), `ΣRz SC: 3D ${s3} × 7 · plano ${7 * s2}`);
 // secondary members: hinged, no self-weight, out of member design; rods tension-only
 const sec = [...m3.elements.values()].filter((e) => e.layer > 1);
-ok(sec.every((e) => e.designExcluded && e.releases[4] && e.releases[5] && e.releases[10] && e.releases[11]), 'secundárias rotuladas e fora do dimensionamento');
+// hinged where they meet the frames (node ids < 100000); purlins continuous between frames on the MF lines; MF hinged at both ends
+const atFrame = (e, o) => (o ? e.n2 : e.n1) < 100000;
+ok(sec.every((e) => e.designExcluded && [0, 6].every((o) => !atFrame(e, o) || (e.releases[o + 4] && e.releases[o + 5]))), 'secundárias rotuladas nos pórticos e fora do dimensionamento');
+const mf = sec.filter((e) => e.layer === 5);
+ok(mf.length === 2 * 7 * 7 && mf.every((e) => e.releases[4] && e.releases[5] && e.releases[10] && e.releases[11]), `mãos-francesas: 7 linhas × 7 vãos × 2 (V) = ${mf.length}, rotuladas`);
+{ // 45°: from the bottom chord to the purlin 1,5 m away from the frame (truss depth 1,5 m)
+  const e = mf[0], a = m3.nodes.get(e.n1), b = m3.nodes.get(e.n2);
+  near(Math.abs(b.y - a.y), 1.5, 1e-9, 'mão-francesa encontra a terça a 1,5 m do pórtico'); near(Math.abs(b.z - a.z), 1.5, 0.01, 'altura 1,5 m (45°)');
+}
+// unbraced lengths: bottom chord out of plane ≤ 3,45 m (Wanderson KL = 3,2 m), top chord 1,6 m (purlins anchored by the bracing)
+{
+  const { unbracedLengths } = await import(R + 'js/design/unbraced.js');
+  const { localAxes } = await import(R + 'js/solver/timoshenko.js');
+  const ub = unbracedLengths(m3, localAxes), inner = m2.nodes.size; void inner;
+  const bot = [...m2.elements.values()].filter((e) => [e.n1, e.n2].every((n) => n % 2 === 0 && n >= 32 && n <= 60)).map((e) => ub.get(3 * E0 + e.id).Lx);
+  const topc = [...m2.elements.values()].filter((e) => [e.n1, e.n2].every((n) => n % 2 === 1 && n >= 31 && n <= 59)).map((e) => ub.get(3 * E0 + e.id).Lx);
+  ok(bot.length && Math.max(...bot) <= 3.4476 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo inferior (maior vão entre MF 9,55–13,0 m, medido no banzo inclinado): Lx fora do plano máx ${Math.max(...bot).toFixed(2)} m (MF)`);
+  ok(topc.length && Math.max(...topc) <= 1.8556 / Math.cos(Math.atan(0.1)) + 1e-3, `banzo superior (maior vão entre terças, junto à cumeeira): Lx fora do plano máx ${Math.max(...topc).toFixed(2)} m (terças)`);
+}
 ok(sec.every((e) => m3.materials.get(e.matId).rho === 0), 'secundárias sem peso próprio (já nas cargas nodais do pórtico)');
 ok(sec.filter((e) => e.cable).length === 2 * (2 * 8 + 2 * 2), 'X na cobertura (8 painéis) e nas duas paredes, nos dois tramos extremos');
+ok(sec.filter((e) => e.cable && e.layer === 4 && [e.n1, e.n2].some((n) => [13, 28].includes(n % 1000)) && [e.n1, e.n2].some((n) => [1, 16].includes(n % 1000))).length === 8, 'X das paredes da base ao beiral (9,5 m)');
 // wind of our NBR 6123:2023 engine (windNBR6123): resultants by hand — walls 3,0–9,5 m (h = 6,5 m) × L = 42 m, roof
 // horizontal projection 13 m per slope, rise 1,3 m, gables 26 × 6,5 + 26 × 1,3 / 2 m²; p = q·(Cpe − Cpi), N/m² → kN
 {
