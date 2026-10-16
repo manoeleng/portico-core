@@ -51,7 +51,8 @@ import { resolveMaterial } from './design/material_props.js?v=7';
 import { resolveSectionProps } from './design/section_props.js?v=7';
 import { autoDetectDiaphragms, computeFloorCR } from './solver/diaphragm.js?v=7';
 import { interstoryDrifts, buildStoryLevels } from './solver/drift.js?v=7';
-import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements } from './model/discretize.js?v=7';
+import { splitElement, splitByLength, discretizeAll, joinElements, intersectElements, splitElementAtNode } from './model/discretize.js?v=7';
+import { findCrossings } from './model/crossings.js?v=7';
 import { unbracedLengths, memberWithUnbraced } from './design/unbraced.js?v=7';
 import { senseOfMy, myExtremes } from './design/sense_my.js?v=7';
 import { designMembers } from './design/design_envelope.js?v=7';
@@ -2118,6 +2119,57 @@ class App {
       if (weak.length) out.push({ id: node.id, dofs: weak });
     }
     return out;
+  }
+
+  // ── Crossings without a node (model audit) ─────────────────────────────────
+  // Members whose axes cross, or a node lying on a member, with no shared node: no force transfer between them.
+  // "Verificar" = crossings between non-tension members (often a modelling error); "prováveis intencionais" = those
+  // with a tension-only rod (X brace passing a purlin, the two rods of an X, a sag rod). Selecionar / Ligar per row.
+  crossingsDialog() {
+    const overlay = document.getElementById('modal-overlay');
+    const render = () => {
+      const { cruz, no } = findCrossings(this.model);
+      const m = this.model, secN = (id) => { const e = m.elements.get(id); return e ? (m.sections.get(e.secId)?.name || '') : ''; };
+      const lyr = (id) => { const e = m.elements.get(id); return (m.layers || []).find((l) => l.id === (e?.layer ?? 1))?.name || ''; };
+      const desc = (id) => `#${id} ${esc(secN(id))}${lyr(id) ? ` <span style="color:var(--text-muted)">[${esc(lyr(id))}]</span>` : ''}`;
+      const rows = [
+        ...cruz.map((c) => ({ ...c, tipo: 'cruz', ids: [c.a, c.b], txt: `${desc(c.a)} × ${desc(c.b)}`, pt: c.P })),
+        ...no.map((c) => { const n = m.nodes.get(c.node); return { ...c, tipo: 'no', ids: [c.elem], txt: `${i18n.t('nodo')} #${c.node} ${i18n.t('sobre')} ${desc(c.elem)}`, pt: [n.x, n.y, n.z] }; }),
+      ];
+      const ver = rows.filter((r) => !r.provavelIntencional), intc = rows.filter((r) => r.provavelIntencional);
+      const tr = (r, k) => `<tr><td>${r.tipo === 'cruz' ? '✕' : 'T'}</td><td>${r.txt}</td><td style="white-space:nowrap">(${r.pt.map((v) => (+v).toFixed(2)).join('; ')})</td>
+        <td style="white-space:nowrap"><button class="btn-secondary cx-sel" data-k="${k}" style="font-size:11px">${i18n.t('Seleccionar')}</button>
+        <button class="btn-secondary cx-join" data-k="${k}" style="font-size:11px" title="${i18n.t('Crea el nodo común y divide las barras')}">${i18n.t('Unir')}</button></td></tr>`;
+      const tab = (list, off) => list.length ? `<table class="dis-table" style="width:100%;font-size:11px"><tbody>${list.map((r, i) => tr(r, off + i)).join('')}</tbody></table>` : `<p class="panel-hint">${i18n.t('Ninguno.')}</p>`;
+      document.getElementById('modal-body').innerHTML = `
+        <p style="font-size:12px;margin:0 0 8px">${i18n.t('Barras que se cruzan (✕) o un nodo sobre una barra (T) sin nodo común: no transmiten esfuerzo entre sí. Una con «Unir» solo si el detalle real las conecta.')}</p>
+        <h4 style="margin:8px 0 4px">${i18n.t('Verificar')} (${ver.length})</h4>${tab(ver, 0)}
+        <details ${ver.length ? '' : 'open'} style="margin-top:8px"><summary style="cursor:pointer"><b>${i18n.t('Probablemente intencionales — con tirante')} (${intc.length})</b></summary>
+          <p class="panel-hint">${i18n.t('Contraviento en X pasando junto a la correa o la otra barra del X, tensor (corrente) cruzando el contraviento: en la obra no se conectan.')}</p>${tab(intc, ver.length)}</details>`;
+      const all = [...ver, ...intc];
+      document.querySelectorAll('#modal-body .cx-sel').forEach((b) => b.addEventListener('click', () => {
+        const r = all[+b.dataset.k]; document.getElementById('modal-ok')?.click();
+        this.viewport.selectElements(r.ids); if (r.tipo === 'no') this.viewport.flagNodes?.([r.node]);
+        this.panel.showSelection?.(this.viewport.getSelected());
+      }));
+      document.querySelectorAll('#modal-body .cx-join').forEach((b) => b.addEventListener('click', () => {
+        const r = all[+b.dataset.k]; this.snapshot();
+        const res = r.tipo === 'cruz' ? intersectElements(this.model, r.a, r.b) : { ok: !!splitElementAtNode(this.model, r.elem, r.node) };
+        if (!res.ok) { this.toast(`${i18n.t('No se pudo unir:')} ${res.reason || ''}`, 'warn'); return; }
+        this.viewport.renderModel(this.model); this.refreshLoads(); this.markDirty(); this._updateStats();
+        this.toast(i18n.t('Barras unidas en un nodo común'), 'ok');
+        render();
+      }));
+      return rows.length;
+    };
+    document.getElementById('modal-title').textContent = i18n.t('Cruces de barras sin nodo');
+    const n = render();
+    document.getElementById('modal-cancel').style.display = 'none';
+    document.getElementById('modal-box')?.classList.add('modal-wide');
+    overlay.classList.remove('hidden');
+    new Promise((res) => { overlay._resolve = res; overlay._reject = () => res(false); })
+      .then(() => { document.getElementById('modal-box')?.classList.remove('modal-wide'); document.getElementById('modal-cancel').style.display = ''; });
+    if (!n) this.toast(i18n.t('No hay barras que se crucen sin nodo.'), 'ok');
   }
 
   // Runs the diagnosis, highlights the culprit nodes and shows the detail.

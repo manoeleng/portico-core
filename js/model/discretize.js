@@ -81,12 +81,27 @@ export function splitElement(model, elemId, nParts) {
 }
 
 /** Splits an element into TWO at an existing node lying on the segment. */
-function splitElementAtNode(model, elemId, nodeId) {
+export function splitElementAtNode(model, elemId, nodeId) {
   const elem = model.elements.get(elemId);
   if (!elem || elem.n1 === nodeId || elem.n2 === nodeId) return null;
   const e1 = model.addElement(elem.n1, nodeId, elem.matId, elem.secId);
   const e2 = model.addElement(nodeId, elem.n2, elem.matId, elem.secId);
   const newIds = [e1, e2].filter(Boolean).map(e => e.id);
+  // every other member property travels to both halves (layer, tension-only, design parameters, design exclusion…);
+  // ends (n1/n2/releases), β and offset are handled below
+  const END = ['endSprings', 'endFixity', 'rigidEnd'];   // end-specific: each end keeps its own (below)
+  for (const [k, v] of Object.entries(elem)) {
+    if (['id', 'n1', 'n2', 'releases', 'beta', 'offset', 'matId', 'secId', ...END].includes(k) || k.startsWith('_') || v === undefined) continue;
+    for (const e of [e1, e2]) if (e) e[k] = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v;
+  }
+  // end springs / partial fixity keyed by DOF 0–11: i-end DOFs (0–5) stay on the first half, j-end (6–11) on the second
+  for (const k of ['endSprings', 'endFixity']) if (elem[k] && e1 && e2) {
+    const a = {}, b = {};
+    for (const [d, v] of Object.entries(elem[k])) (+d < 6 ? a : b)[d] = v;
+    if (Object.keys(a).length) e1[k] = a;
+    if (Object.keys(b).length) e2[k] = b;
+  }
+  if (elem.rigidEnd && e1 && e2) { e1.rigidEnd = { i: +elem.rigidEnd.i || 0, j: 0 }; e2.rigidEnd = { i: 0, j: +elem.rigidEnd.j || 0 }; }
   if (+elem.beta) for (const e of [e1, e2]) if (e) e.beta = elem.beta;   // roll angle β
   if (elem.offset) for (const e of [e1, e2]) if (e) e.offset = { ...elem.offset };   // eccentricity
   if (elem.releases && e1 && e2) {

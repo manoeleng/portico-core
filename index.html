@@ -180,6 +180,7 @@
           <li class="sep"></li>
           <li data-action="global-matrices">Ver Matrices Globales K · M…</li>
           <li data-action="diag-estabilidad">Diagnosticar estabilidad (nodos sueltos)…</li>
+          <li data-action="cruces-sin-nodo" title="Barras que se cruzan o tocan sin nodo común (no transmiten esfuerzo entre sí)">Cruces de barras sin nodo…</li>
           <li class="sep"></li>
           <li data-action="clear-results" style="color:#ef4444" title="DESCARTA todos los resultados calculados (estático, modal, espectro, NL, diseño) y revierte la malla auto-discretizada. Pide confirmación. Para sólo volver a ver el modelo sin borrar nada, usa «Vista modelo» en la barra."><span style="color:#ef4444;font-weight:700">✕</span> Limpiar Resultados (descartar)</li>
         </ul>
@@ -339,6 +340,14 @@
           <line x1="9.2" y1="3.5" x2="9.2" y2="20.5"/><line x1="14.8" y1="3.5" x2="14.8" y2="20.5"/>
         </svg>
         <span>Mallar</span>
+      </button>
+      <button class="tool" data-mode="measure" title="Medir: clic en dos nodos → distancia y ΔX, ΔY, ΔZ  ·  Esc limpia">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2.5" y="8.5" width="19" height="7" rx="1"/>
+          <line x1="6" y1="8.5" x2="6" y2="12"/><line x1="9.5" y1="8.5" x2="9.5" y2="11"/><line x1="13" y1="8.5" x2="13" y2="12"/>
+          <line x1="16.5" y1="8.5" x2="16.5" y2="11"/><line x1="20" y1="8.5" x2="20" y2="12"/>
+        </svg>
+        <span>Medir</span>
       </button>
       <button class="tool" data-mode="addsupport" title="Asignar Apoyo  R">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

@@ -128,6 +128,7 @@ export class MenuBar {
       case 'combos':         a.openCombosTab();              break;
       case 'combos-norma':   a.createCodeCasesAndCombos();     break;
       case 'diag-estabilidad': a.runStabilityDiagnosis();    break;
+      case 'cruces-sin-nodo':  a.crossingsDialog();          break;
       case 'assistant':      a.assistantDialog();            break;
       case 'warehouse':      a.warehouseDialog();            break;
       case 'wind':           import('./wind_dialog.js?v=7').then(m => m.openWindDialog(a)); break;

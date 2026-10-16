@@ -270,6 +270,7 @@ export class Viewport {
         }
         // Cancel a rubber-band in progress (#80).
         if (this._rubber) { this._hideRubberBox(); this._rubber = null; this._controls.enabled = true; }
+        if (this.mode === 'measure') this._clearMeasure();
       }
       if (e.key === 'Enter' && this.mode === 'addarea')  { e.preventDefault(); this._finishArea(); }
       if (e.key === 'Enter' && this.mode === 'meshpick') { e.preventDefault(); this._finishMeshPick(); }
@@ -1747,6 +1748,7 @@ export class Viewport {
     this._mouse.copy(this._ndc(e));
     this._raycaster.setFromCamera(this._mouse, this._camera);
 
+    if (this.mode === 'measure') { this._clickMeasure(); return; }
     if (this._inResultsMode) {
       this._clickResults(e);
       return;
@@ -1760,6 +1762,41 @@ export class Viewport {
       case 'meshpick':   this._clickMeshPick();     break;
       case 'addsupport': this._clickAddSupport(e);  break;
     }
+  }
+
+  // ── Measure mode ───────────────────────────────────────────────────────────
+  // Two node clicks (node magnet, as in select) → dashed line + distance label in the view and d, ΔX, ΔY, ΔZ (model
+  // coordinates, m) in the status bar; a third click starts a new measurement; Esc or leaving the mode clears it.
+  _clickMeasure() {
+    const hit = this._pickNodes()[0];
+    if (!hit) return;
+    const id = hit.object.userData.id, node = this.app.model.nodes.get(id);
+    if (!node) return;
+    if (!this._measure || this._measure.b != null) { this._clearMeasure(); this._measure = { a: id, b: null, objs: [] }; }
+    else this._measure.b = id;
+    const m = this._measure, pos = (nid) => (this._nodeMeshes.get(nid) || hit.object).position.clone();
+    const mark = new THREE.Mesh(new THREE.SphereGeometry(NODE_R * 1.6, NODE_SEG, NODE_SEG),
+      new THREE.MeshBasicMaterial({ color: 0xff9800, depthTest: false, transparent: true, opacity: 0.9 }));
+    mark.position.copy(pos(id)); mark.renderOrder = 999; this._scene.add(mark); m.objs.push(mark);
+    const fmt = (v, d = 3) => { const s = (+v).toFixed(d); return i18n.getLocale() === 'pt' ? s.replace('.', ',') : s; };
+    if (m.b == null) { document.getElementById('sb-sel').textContent = `${i18n.t('Medir: nodo')} #${id} — ${i18n.t('clic en el segundo nodo')}`; return; }
+    const A = this.app.model.nodes.get(m.a), B = node;
+    const dx = B.x - A.x, dy = B.y - A.y, dz = B.z - A.z, d = Math.hypot(dx, dy, dz);
+    const pa = pos(m.a), pb = pos(m.b);
+    const g = new THREE.BufferGeometry().setFromPoints([pa, pb]);
+    const line = new THREE.Line(g, new THREE.LineDashedMaterial({ color: 0xff9800, dashSize: 0.15, gapSize: 0.08, depthTest: false }));
+    line.computeLineDistances(); line.renderOrder = 999; this._scene.add(line); m.objs.push(line);
+    const lab = this._makeDiagramLabel(`d = ${fmt(d)} m`, pa.clone().add(pb).multiplyScalar(0.5)); lab.renderOrder = 1000;
+    { const bb = this.app.model.getBounds(), span = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z, 1);
+      lab.scale.multiplyScalar(Math.max(1, span / 12)); }   // readable at the model's scale
+    this._scene.add(lab); m.objs.push(lab);
+    document.getElementById('sb-sel').textContent = `#${m.a} → #${m.b}:  d = ${fmt(d)} m  ·  ΔX = ${fmt(dx)}  ·  ΔY = ${fmt(dy)}  ·  ΔZ = ${fmt(dz)} m`;
+    this._measureLast = { a: m.a, b: m.b, d, dx, dy, dz };
+  }
+  _clearMeasure() {
+    if (!this._measure) return;
+    for (const o of this._measure.objs) { this._scene.remove(o); o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }
+    this._measure = null;
   }
 
   // ── Select mode ────────────────────────────────────────────────────────────
@@ -2659,6 +2696,7 @@ export class Viewport {
       this._previewSphere.visible = false;
     }
     if (mode !== 'addarea' && this._areaPick?.length) this._cancelAreaPick();
+    if (mode !== 'measure') this._clearMeasure?.();
     if (mode !== 'meshpick' && this._meshPick?.length) this._cancelMeshPick();
     // PAN (hand): dragging with the left button pans instead of orbiting. On leaving
     // the mode, orbit is restored (except in 2D/elevation view, which already pans).
@@ -2682,7 +2720,8 @@ export class Viewport {
       addelem:    'Agregar Elemento',
       addarea:    'Agregar Área',
       meshpick:   this._meshKind === 'panel' ? 'Mallar panel (4 esquinas)' : 'Mallar región',
-      addsupport: 'Asignar Apoyo'
+      addsupport: 'Asignar Apoyo',
+      measure:    'Medir'
     };
     document.getElementById('sb-mode').textContent = `${i18n.t('Modo:')} ${i18n.t(names[mode] || mode)}`;
     // Hint overlay
@@ -2695,7 +2734,8 @@ export class Viewport {
       meshpick:   this._meshKind === 'panel'
                     ? 'Clic en las 4 esquinas del panel → se malla solo al 4º nodo  ·  Esc reinicia'
                     : 'Clic en los nodos del contorno → Enter para mallar  ·  Esc reinicia',
-      addsupport: 'Clic en un nodo para editar sus restricciones'
+      addsupport: 'Clic en un nodo para editar sus restricciones',
+      measure:    'Clic en dos nodos para medir la distancia (ΔX, ΔY, ΔZ en la barra de estado)  ·  Esc limpia'
     };
     const el = document.getElementById('vp-hint');
     el.textContent = hints[mode] ? i18n.t(hints[mode]) : '';
