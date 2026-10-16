@@ -20,8 +20,14 @@ const show = (list) => list.map(c => c.nombre).join(' | ');
   assert('1b. ELU Q principal: 1,4G + 1,4Q + 0,84V0 (1,4·0,6)', has(r.elu, { G: 1.4, Q: 1.4, V0: 0.84 }), show(r.elu));
   assert('1c. ELU V principal: 1,4G + 1,4V0 + 0,7Q (1,4·0,5)', has(r.elu, { G: 1.4, V0: 1.4, Q: 0.7 }));
   assert('1d. ELU G favorable: 1,0G + 1,4V0', has(r.elu, { G: 1.0, V0: 1.4 }));
-  assert('1e. ELU total = 3', r.elu.length === 3, String(r.elu.length));
-  assert('1f. ELS-QP: G + 0,3Q (ψ2 viento = 0)', r.qp.length === 1 && has(r.qp, { G: 1, Q: 0.3 }), show(r.qp));
+  // 15/10/2026: a variável secundária favorável não atua (NBR 8681:2025 4.2.2.1.1) → cada combinação também sem ela:
+  // e G favorável (1,0) com TODA principal (5.1.3.1, revisão 15/10/2026): Q princ. {−, V0} × (1,4G; 1,0G) = 4 +
+  // V0 princ. {−, Q} × (1,4G; 1,0G) = 4 → 8 (antes 3; achado da validação contra Fakury 2017 4.4.1)
+  assert('1e. ELU total = 8', r.elu.length === 8, String(r.elu.length));
+  assert('1e3. G favorável com Q principal: 1,0G + 1,4Q', has(r.elu, { G: 1.0, Q: 1.4 }));
+  assert('1e2. ELU sem o vento secundário: 1,4G + 1,4Q', has(r.elu, { G: 1.4, Q: 1.4 }));
+  // ELS-QP com os subconjuntos (variável favorável não atua): G e G + 0,3Q (ψ2 do vento = 0)
+  assert('1f. ELS-QP: G e G + 0,3Q', r.qp.length === 2 && has(r.qp, { G: 1, Q: 0.3 }) && has(r.qp, { G: 1 }), show(r.qp));
   assert('1g. ELS-FREQ Q principal: G + 0,4Q', has(r.freq, { G: 1, Q: 0.4 }), show(r.freq));
   assert('1h. ELS-FREQ V principal: G + 0,3V0 + 0,3Q', has(r.freq, { G: 1, V0: 0.3, Q: 0.3 }));
   assert('1i. ELS-RARA: G + Q + 0,3V0', has(r.rara, { G: 1, Q: 1, V0: 0.3 }), show(r.rara));
@@ -40,7 +46,8 @@ const show = (list) => list.map(c => c.nombre).join(' | ');
 {
   const r = nbrCombinations({ family: 'concrete', cases: ['G', 'Q', 'V0', 'V90'] });
   assert('3a. ninguna combinación con V0 y V90 juntos', r.lista.every(c => !(('V0' in c.factores) && ('V90' in c.factores))));
-  assert('3b. Q principal con V0 y con V90 (2) + V0 (2) + V90 (2) = 6 ELU', r.elu.length === 6, show(r.elu));
+  // Q princ. {−, V0, V90} × (1,4G; 1,0G) = 6 + V0 princ. {−, Q} × 2 = 4 + V90 × 2 = 4 → 14
+  assert('3b. 14 ELU (secundárias em todos os subconjuntos, um vento por vez, G des/favorável)', r.elu.length === 14, show(r.elu));
   assert('3c. 1,4G + 1,4Q + 0,84V90', has(r.elu, { G: 1.4, Q: 1.4, V90: 0.84 }));
 }
 // (4) Uso comercial (acero): ψ0 = 0,7
@@ -106,7 +113,8 @@ const show = (list) => list.map(c => c.nombre).join(' | ');
   assert('10c. 1,2G + 1,0E0 − 0,3E90 + 0,5Q', has2(o.exc, { G: 1.2, E0: 1, E90: -0.3, Q: 0.5 }));
   assert('10d. 1,2G + 1,0E90 ± 0,3E0 + 0,5Q', has2(o.exc, { G: 1.2, E90: 1, E0: 0.3, Q: 0.5 }) && has2(o.exc, { G: 1.2, E90: 1, E0: -0.3, Q: 0.5 }));
   assert('10e. G favorável: 1,0G + 1,0E0 + 0,3E90', has2(o.exc, { G: 1, E0: 1, E90: 0.3 }));
-  assert('10f. 12 combinações excepcionais (2 direções × [2 sem + 4 com a ortogonal])', o.exc.length === 12, String(o.exc.length));
+  // por direção: com Q [1,2G+E+ψQ, G+E, ±0,3E⊥ em cada uma (4)] = 6 + sem Q [1,2G+E, 1,2G+E ± 0,3E⊥] = 3 → 9 × 2 = 18
+  assert('10f. 18 combinações excepcionais (2 direções × 9)', o.exc.length === 18, String(o.exc.length));
 }
 
 console.log(fails ? `\n${fails} FALLA(S)` : '\nOK');

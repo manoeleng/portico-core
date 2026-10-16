@@ -192,6 +192,11 @@ function windLoadNBR6123(ficha, w, h_techo) {
   if (!(a > 0 && b > 0)) { notas.push('Dimensões em planta não informadas (ficha.wind.a_m/b_m): adotado a = b (planta quadrada).'); a = b = a > 0 ? a : (b > 0 ? b : 10); }
   if (a < b) [a, b] = [b, a];
   const h = h_techo;
+  // h of Tab. 6 (Nota 1) / Tab. 7 = Detalhe I of Tab. 7: ground to the EAVE (wall–roof meeting), used in h/b and in the
+  // limits 2h of x (review 15/10/2026, literature check: CBCA Galpões p.24 h = 6 m, Gonçalves 3.3.1 h = 8 m); the top
+  // height stays for z (S2) and the face class — conservative.
+  const hE = g.eave_height_m > 0 ? g.eave_height_m : wf.h_beiral_m > 0 ? wf.h_beiral_m : h;
+  if (!(g.eave_height_m > 0 || wf.h_beiral_m > 0)) notas.push('Altura do beiral não informada (geometry.eave_height_m): adotado h do topo em h/b e no limite 2h (Detalhe I da Tab. 7 usa o beiral).');
   // class by the largest dimension of the FRONT surface (5.3.2): long side a for α = 90°, b for the gable (α = 0°)
   const classOf = (dimFront) => { const m = Math.max(dimFront, h); return m <= 20 ? 'A' : m <= 50 ? 'B' : 'C'; };
   const classe = classOf(a), classeEmp = classOf(b);
@@ -203,9 +208,8 @@ function windLoadNBR6123(ficha, w, h_techo) {
   const S2 = S2of(classe), S2e = S2of(classeEmp);
   const Vk = V0 * S1 * S2 * S3, Vke = V0 * S1 * S2e * S3;
   const q = 0.613 * Vk * Vk, qe = 0.613 * Vke * Vke;              // N/m² (α = 90° and gable α = 0°)
-  notas.push('h = altura do topo usada em z e em h/b (a Nota 1 da Tab. 6 usa a altura do Detalhe I; difere só perto de h/b = 0,5 e 1,5).');
   // walls (Tab. 6)
-  const hb = h / b, ab = a / b;
+  const hb = hE / b, ab = a / b;
   const rowsH = w.cpe_paredes.filter(r => (hb <= 0.5 && r.h_b === '<=1/2') || (hb > 0.5 && hb <= 1.5 && r.h_b === '1/2<h/b<=3/2') || (hb > 1.5 && r.h_b === '3/2<h/b<=6'));
   if (hb > 6) notas.push('h/b > 6: fora da Tabela 6.');
   if (ab > 4) notas.push('a/b > 4: fora da Tabela 6 (adotada a linha 2 ≤ a/b ≤ 4).');
@@ -217,7 +221,7 @@ function windLoadNBR6123(ficha, w, h_techo) {
   const tN3 = ab <= 1 ? 0 : ab >= 2 ? 1 : ab - 1;
   cpeW.A3B3 = +(cpeW.A2B2 + (-0.2 - cpeW.A2B2) * tN3).toFixed(3);
   // length of the first region for α = 0° (Tab. 6/7 figures): x = b/3 or a/4, the larger, but ≤ 2h
-  const x0 = Math.min(Math.max(b / 3, a / 4), 2 * h);
+  const x0 = Math.min(Math.max(b / 3, a / 4), 2 * hE);
   // roof (Tab. 7), two slopes
   const theta = g.roof_slope_deg ?? 0;
   const rowsR = w.cpe_telhado_2aguas.filter(r => (hb <= 0.5 && r.h_b === '<=1/2') || (hb > 0.5 && hb <= 1.5 && r.h_b === '1/2<h/b<=3/2') || (hb > 1.5 && r.h_b !== '<=1/2' && r.h_b !== '1/2<h/b<=3/2'));

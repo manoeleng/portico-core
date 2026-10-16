@@ -7,6 +7,16 @@
 todos verdes. Publicado no fork `github.com/manoeleng/portico-core`, branch `feat/i18n-pt-br` (sem PR no original).
 Revisão de especialista FECHADA nas fases 5, 6, 7, 8 e nos itens cantoneira (8800) e torção (6118).
 
+**Validação contra literatura (15/10/2026)** — testes `tests/test_lit_*.mjs`, valor esperado = o da fonte, edição conferida caso a caso:
+NBR 8800 45/45 (Fakury 2017, Pfeil 9ª ed., CBCA tubulares); NBR 14762 107 (apostilas Wanderson/INBEC Mód. 04–06, UFAL/Javaroni/Carvalho);
+NBR 6118 81 (Bastos UNESP — torção, cortante, flecha/fissuração, pilares; Kimura); ações 130 (Gonçalves et al. EESC, CBCA Galpões, Fakury,
+Parisenti/UFSC); NBR 7190 34 (Dias et al. 2019, Calil & Molina, TCC UESPI); solver 75 (Leet/Uang/Gilbert, Salem/Gogate AISC EJ, NAFEMS FV2).
+**Defeitos achados e corrigidos (revisão FECHADA), todos contra a segurança:** (1) 6118 estribos V + T sem o mínimo da cortante (−21 %);
+(2) 8800 flexão de tubo retangular/circular sem D.2.6/D.2.7 (+10 % / +4,6 %); (3) 8681 combinações sem omitir a variável secundária
+favorável (envoltória 21–86 % curta) e G favorável só com vento; (4) 6123 h do topo em h/b e 2h (Detalhe I da Tab. 7 = beiral).
+Pendentes registrados nos testes: faixas finitas (fsm.js) local do U simples +3,5 % e distorcional −3 a −4 % contra CUFSM; autovalores
+repetidos do modal com dispersão ≤ 0,17 % (critério de convergência); fichas BR-6123-02/04, BR-15421-01 (espectro 2023) sem exemplo publicado.
+
 **Falta para "concluído" (definition of done, seção 10):**
 1. Revisão do engenheiro responsável registrada nas fichas `docs/verifications/BR-*.md` (linhas em branco).
 2. Ratificação dos oráculos por cálculo manual: BR-8681-01, BR-15421-01, BR-6123-01..04, BR-8800-05f/g e 07, torção.

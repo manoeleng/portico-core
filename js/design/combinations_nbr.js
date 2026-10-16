@@ -5,7 +5,10 @@
 // [{ nombre, factores: { <case symbol>: factor } }]. Pure function, no DOM.
 //
 //   · ELU normal      Fd = Σγg·Gk + γq1·Q1k + Σ(j>1) γqj·ψ0j·Qjk     NBR 8681:2025 5.1.3.1
-//                     each variable as principal; G favourable (1,0) with wind principal
+//                     each variable as principal; G favourable (1,0) with wind principal. The secondary variables
+//                     enter in EVERY subset (each one may be absent): a variable with a favourable effect cannot be
+//                     considered acting (NBR 8681:2025 4.2.2.1.1) — e.g. wind suction relieving a roof truss
+//                     (fixed 15/10/2026, literature check against Fakury 2017 4.4.1: the envelope was 21–86 % short)
 //   · ELU excepcional Fd = γg·Gk + 1,0·E + Σ 1,0·ψ0j,ef·Qjk            NBR 15421:2023 5.4
 //                     γg = 1,2 (buildings, Q ≤ 5 kN/m²); wind, settlements and shrinkage not combined; ψ0,ef = ψ0, or ψ2 for actions of
 //                     very short duration (NBR 8681:2025 5.1.3.2 — option psiSismo)
@@ -77,10 +80,13 @@ export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo =
   const gq = (s) => g[kind(s)];
   // variables that may act together with the principal (one wind direction at a time)
   const companions = (p) => vars.filter(s => s !== p && !(kind(s) === 'V' && kind(p) === 'V'));
-  const pick = (others) => {          // others with the wind of one direction only
+  // every subset of the others with at most one wind direction (favourable variables are left out, 4.2.2.1.1)
+  const pick = (others) => {
     const winds = others.filter(s => kind(s) === 'V');
     const rest = others.filter(s => kind(s) !== 'V');
-    return winds.length ? winds.map(w => [...rest, w]) : [rest];
+    const subs = [[]];
+    for (const s of rest) for (const a of subs.slice()) subs.push([...a, s]);
+    return [...subs, ...winds.flatMap(w => subs.map(a => [...a, w]))];
   };
 
   const elu = [], exc = [], qp = [], freq = [], rara = [];
@@ -100,7 +106,13 @@ export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo =
       for (const s of set) f[s] = gq(s) * psi(s)[0];
       push(elu, 'ELU', f);
     }
-    if (kind(p) === 'V') push(elu, 'ELU', { G: g.gFav, [p]: gq(p) });   // uplift / overturning
+    // G favourable (5.1.3.1: one set with the permanent actions unfavourable, another favourable) — uplift, overturning,
+    // counterweight; for EVERY principal variable (review 15/10/2026)
+    for (const set of pick(companions(p))) {
+      const f = { G: g.gFav, [p]: gq(p) };
+      for (const s of set) f[s] = gq(s) * psi(s)[0];
+      push(elu, 'ELU', f);
+    }
   }
   if (!vars.length) push(elu, 'ELU', { G: g.gDes });
 
@@ -120,7 +132,8 @@ export function nbrCombinations({ family, cases, uso = 'residencial', psiSismo =
   }
 
   // ELS — quase permanente (one), frequente and rara (each variable as principal)
-  { const f = { G: 1.0 }; for (const s of vars) if (kind(s) !== 'V') f[s] = psi(s)[2]; push(qp, 'ELS-QP', f); }
+  // quasi-permanent: every subset of the variables too (a favourable one is not considered acting, 4.2.2.1.1)
+  for (const set of pick(vars.filter(s => kind(s) !== 'V'))) { const f = { G: 1.0 }; for (const s of set) f[s] = psi(s)[2]; push(qp, 'ELS-QP', f); }
   for (const p of vars) {
     for (const set of pick(companions(p))) {
       const ff = { G: 1.0, [p]: psi(p)[1] }, fr = { G: 1.0, [p]: 1.0 };

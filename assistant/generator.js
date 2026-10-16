@@ -2014,7 +2014,8 @@ export function generateWarehouse(spec, libs) {
   const regras = libs.reglas || {};
   if (cargas.wind && regras.loads?.wind?.metodo === 'NBR6123') {
     const theta = Math.atan(2 * hR / luz), sn = Math.sin(theta), cs = Math.cos(theta);
-    const vi = windLoad({ ...spec, geometry: { ...(spec.geometry || {}), roof_slope_deg: theta * 180 / Math.PI, length_m: umPortico ? sep : largo, width_m: luz } }, regras, H + hE + hR);
+    const vi = windLoad({ ...spec, geometry: { ...(spec.geometry || {}), roof_slope_deg: theta * 180 / Math.PI, length_m: umPortico ? sep : largo, width_m: luz,
+      eave_height_m: H + hE } }, regras, H + hE + hR);   // Detalhe I (Tab. 7): h at the eave for h/b and 2h; top for S2
     for (const n of vi._notas || []) addWarning('info', `Vento: ${n}`);
     if (!(vi.q_Nm2 > 0)) addWarning('omitted', 'Vento NBR 6123 não calculado (ver avisos): galpão sem casos de vento.');
     else {
