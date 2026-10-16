@@ -692,6 +692,8 @@ Nenhum app tem etapas construtivas de ponte. No PORTICO já existiam: cargas mó
 - Combinações de ponte (NBR 8681:2025 / NBR 7187) com a carga móvel: não ligadas ao gerador NBR.
 - Revisão do especialista (`revisor-calculo-nbr`) ainda não registrada para esta etapa.
 
+
+**Revisão (revisor-calculo-nbr, 16/10/2026): FECHADO para o motor de cálculo** — TB-450/TB-240, CIV, CNF, CIA (2024: só lajes e transversinas a < 5 m da junta), +10 % e passeio conferidos contra a NBR 7188:2024; M meio do vão 4419,943 kN·m, R 920,265 kN, TB-240 2832,411 kN·m e M_B −3171,246 kN·m refeitos de forma independente (Δ ≈ 0). Decisões aceitas: veículo rígido entrando no vão (R = 920,27 pressupõe isso; inteiro dentro do vão daria 854,67 kN); posição transversal pela maior Σ η (segura com η linear; com Fauchart/balanço pode não maximizar — D2); LIV = 10 m pela fórmula (texto literal). Importantes de interface CORRIGIDOS: I1 — LIV padrão = média dos vãos entre apoios ao longo da pista (antes: comprimento total, 2 × 20 m dava LIV 40 → CIV 5,2 % menor); I2 — CIA rotulado pela 5.1.3.3 (longarinas 1,00); I3 — aviso de que, sem LI transversal, o trem do tabuleiro inteiro é o esforço global da ponte. Desejáveis pendentes: D1 comentário de trainEnvelopeFromIL (extremo pode cair entre candidatos; grade de 201 posições cobre), D2 escolha transversal por efeito, D3 itens não implementados (45°/homogeneização, CIV enterrado, balanço, frenagem, centrífuga, Anexo A), D4 declarar no memorial a premissa do veículo entrando no vão.
 ## Fontes (acervo local `C:\projetos\_referencias`)
 
 Normas (raiz do acervo):

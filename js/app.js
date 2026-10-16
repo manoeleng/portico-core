@@ -32,7 +32,7 @@ import { ModalResults }                    from './solver/modal_results.js?v=7';
 import { parseAccelerogram, accStats, scaleToPGA, DEMO_PRESETS, G as GACC } from './solver/accelerograms.js?v=7';
 import { tendonEquivalentLoads, applyTendon, tendonEcc } from './solver/tendon.js?v=7';
 import { computeMovingLoad } from './solver/moving_load.js?v=7';
-import { loads7188, trainWholeDeck, trainFromTransverseIL, NBR7188_EDITION } from './design/nbr7188.js?v=7';
+import { loads7188, trainWholeDeck, trainFromTransverseIL, livFromSpans, NBR7188_EDITION } from './design/nbr7188.js?v=7';
 import { buildShearStories, runShearHistory, shearFreqs } from './solver/shear_building.js?v=7';
 import { solvePlastic } from './solver/plastic.js?v=7';
 import { linearBuckling, pDelta } from './solver/geometric_analysis.js?v=7';
@@ -4290,6 +4290,7 @@ class App {
     const nodeOpts = [...this.model.nodes.keys()].map(id => `<option value="${id}">Nodo ${id}</option>`).join('');
     const elemOpts = sel.map(id => `<option value="${id}">Elem ${id}</option>`).join('');
     const trainKN = '0,100\n4,100', trainDisp = isTf() ? `0,${+toDisp(100, 'F').toPrecision(4)}\n4,${+toDisp(100, 'F').toPrecision(4)}` : trainKN;
+    const livDef = this._laneLIV(sel);
     document.getElementById('modal-body').innerHTML = `
       <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
         Pista = <b>${sel.length}</b> elemento(s) seleccionado(s), en orden. La <b>línea de influencia</b> barre una
@@ -4312,19 +4313,21 @@ class App {
         <div class="prop-field"><label>Esfuerzo</label><select id="ml-key"><option value="Mz">Mz</option><option value="My">My</option><option value="Vy">Vy</option><option value="Vz">Vz</option><option value="N">N</option></select></div>
       </div>
       <div id="ml-bridge" style="display:none">
+        <p class="panel-hint" style="margin:0 0 4px">${esc(livDef.txt)}</p>
         <div class="prop-row">
           <div class="prop-field"><label>Vehículo</label><select id="ml-veh"><option value="TB-450">TB-450</option><option value="TB-240">TB-240</option></select></div>
-          <div class="prop-field"><label>LIV (m)</label><input type="number" id="ml-liv" value="${this._laneLength(sel).toFixed(2)}" min="0.1" step="0.5" style="width:80px"></div>
+          <div class="prop-field"><label>LIV (m)</label><input type="number" id="ml-liv" value="${livDef.LIV.toFixed(2)}" min="0.1" step="0.5" style="width:80px" title="${esc(livDef.txt)}"></div>
           <div class="prop-field"><label>Ancho cargado b (m)</label><input type="number" id="ml-b" value="7" min="3" step="0.5" style="width:70px"></div>
         </div>
         <div class="prop-row">
-          <div class="prop-field"><label>CIA</label><select id="ml-cia"><option value="1">1,00</option><option value="1.25">1,25 (hormigón/mixta, junta)</option><option value="1.15">1,15 (acero, junta)</option></select></div>
+          <div class="prop-field" title="NBR 7188:2024 5.1.3.3: CIA solo en losas y transversinas ligadas a la losa a menos de 5,0 m de cada lado de la junta; vigas principales y demás elementos: 1,00"><label>CIA (5.1.3.3)</label><select id="ml-cia"><option value="1">1,00 (vigas principales y demás)</option><option value="1.25">1,25 (losa/transversina de hormigón o mixta a &lt; 5 m de la junta)</option><option value="1.15">1,15 (losa/transversina de acero a &lt; 5 m de la junta)</option></select></div>
           <div class="prop-field"><label><input type="checkbox" id="ml-plus10"> +10 % (anillo vial / puerto)</label></div>
         </div>
         <div class="prop-row cols1">
           <div class="prop-field"><label>LI transversal de la viga «y,η» por línea (vacío = tablero entero de ancho b; pista de y = 0 a b)</label>
             <textarea id="ml-tril" rows="2" style="width:100%;font-family:var(--font-mono);font-size:11px"></textarea></div>
         </div>
+        <p class="panel-hint" style="margin:2px 0 0;color:var(--warn)">${i18n.t('Sin LI transversal: tren del tablero entero (ancho b) — esfuerzo GLOBAL del puente en la viga única, no el de una viga principal aislada. Para una viga, informe su LI transversal (Fauchart, Courbon, palanca).')}</p>
       </div>
       <div class="prop-row cols1" id="ml-train" style="display:none">
         <div class="prop-field"><label>${_uT('Tren «offset,P» por línea (offset m respecto al eje de referencia, P en kN ↓)', 'F')}</label>
@@ -4388,6 +4391,23 @@ class App {
   // Display value of a moving-load response: the envelope (train in kN) is converted; the influence line is the
   // response to a UNIT load, the same number in kN/kN and tf/tf (or m), so it is shown unchanged.
   _mlDisp(R, v) { return (R.mode === 'env' || R.mode === 'bridge') && R.kind ? toDisp(v, R.kind) : v; }
+  // LIV default (NBR 7188:2024 5.1.3.1): spans between supported nodes along the lane; continuous → mean of the spans
+  _laneLIV(ids) {
+    const f2 = (v) => { const t = (+v).toFixed(2); return i18n.getLocale() === 'pt' ? t.replace('.', ',') : t; };
+    const m = this.model, adj = new Map(), add = (a, b, L) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push([b, L]); };
+    for (const id of ids) { const e = m.elements.get(id), a = e && m.nodes.get(e.n1), b = e && m.nodes.get(e.n2); if (!a || !b) continue; const L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); add(a.id, b.id, L); add(b.id, a.id, L); }
+    const total = this._laneLength(ids), fb = { LIV: total, spans: [total], txt: `LIV = ${f2(total)} m (${i18n.t('longitud de la pista; verifique los vanos')})` };
+    const start = [...adj.keys()].find((k) => adj.get(k).length === 1);
+    if (start == null) return fb;
+    const path = [[start, 0]], seen = new Set([start]);
+    for (let cur = start, s = 0; ;) { const nx = adj.get(cur).find(([n]) => !seen.has(n)); if (!nx) break; s += nx[1]; cur = nx[0]; seen.add(cur); path.push([cur, s]); }
+    if (path.length !== adj.size) return fb;                                       // branched lane: keep the total
+    const sup = path.filter(([n]) => { const r = m.nodes.get(n)?.restraints || {}, k = m.nodes.get(n)?.springs || {}; return r.uz || (+k.kuz > 0); }).map(([, s]) => s);
+    if (sup.length < 2) return fb;
+    const spans = sup.slice(1).map((s, i) => +(s - sup[i]).toFixed(4)).filter((L) => L > 1e-6);
+    const LIV = livFromSpans(spans, spans.length > 1 ? 'continua' : 'isostatica');
+    return { LIV, spans, txt: `LIV = ${f2(LIV)} m — ${spans.length > 1 ? `${i18n.t('media de los vanos')} (${spans.map((L) => f2(L)).join(' + ')}) / ${spans.length}` : `${i18n.t('vano')} ${f2(spans[0])} m`} (NBR 7188:2024 5.1.3.1)` };
+  }
   _laneLength(ids) {
     let L = 0;
     for (const id of ids) { const e = this.model.elements.get(id), a = e && this.model.nodes.get(e.n1), b = e && this.model.nodes.get(e.n2); if (a && b) L += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); }
