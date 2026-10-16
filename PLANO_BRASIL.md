@@ -63,7 +63,9 @@ limitação da cantoneira que foi corrigida na NBR 8800.
     **CORREÇÃO 15/10/2026 — diagrama de My(x):** usava dM/dx = −V (lei do Mz); o certo é dMy/dx = +Vz. Toda barra com
     Vz ≠ 0 tinha o My de cálculo (maior |My| do diagrama) errado, para mais ou para menos: REFAZER dimensionamentos
     anteriores. DMF de My desenhado do lado tracionado. Revisão FECHADA; tests/test_my_diagram.mjs.
-    Fila do /loop: (8) NBR 14762
+    (8) NBR 14762 sentido de My pelo diagrama (`ee5e3d6`) e extensão declarada da Tab. 6 para AL com ψ < −1 (k = 23,8,
+    bc = b/2) FEITOS 15/10/2026, revisão FECHADA. LACUNA mantida: cortante Vz nas mesas de U/Ue (9.8.3 só trata a alma).
+    Fila do /loop: (9) compostas: esbeltez entre presilhas e verificação.  [antigo: (8) NBR 14762
     sentido de My do U/Ue pelo diagrama; (9) compostas: esbeltez entre presilhas e verificação.
 
 ---

@@ -133,7 +133,12 @@ function effAA(b, t, sa, sb, E) {
 }
 
 // AL element (end a supported, end b free) — Tab. 6, 9.2.2.1. Effective part adjacent to the support.
-function effAL(b, t, sa, sb, E) {
+// EXTENSION (review 15/10/2026, declared — not a literal reading): σ1 at the support with ψ < −1 (e.g. the flanges of a
+// plain U with the web compressed, ψ ≈ −3,7) is outside Tab. 6 (caso c: −1 ≤ ψ < 0). k grows as ψ decreases (smaller
+// compressed zone), so k(ψ = −1) = 23,8 is a lower bound; with it λp ≤ 0,673 for any b/t admitted by Tab. 4 and the
+// element is fully effective, whatever ψ < −1. In the ρ < 1 branch bc = b/2 (larger than b/(1 − ψ)) — conservative.
+const _alNotes = new Set();
+export function effAL(b, t, sa, sb, E) {
   if (!(Math.max(sa, sb) > 0)) return FULL;
   let psi, k, s1, bc = b, bef, gap;
   if (sa >= sb) {                                                                      // σ1 at the support: casos a, b, c
@@ -141,8 +146,8 @@ function effAL(b, t, sa, sb, E) {
     if (psi >= 1 - 1e-9) k = 0.43;
     else if (psi >= 0) k = 0.578 / (psi + 0.34);
     else if (psi >= -1) k = 1.7 - 5 * psi + 17.1 * psi * psi;
-    else return { unverified: `AL com ψ = ${psi.toFixed(2)} < −1 fora da Tab. 6` };
-    if (psi < 0) bc = b / (1 - psi);
+    else { k = 23.8; _alNotes.add(`elemento AL com ψ < −1 (borda apoiada comprimida): extensão da Tab. 6 com k = 23,8 (valor de ψ = −1, limite inferior por monotonia) e bc = b/2 — não é leitura literal da NBR 14762.`); }
+    if (psi < 0) bc = psi < -1 ? b / 2 : b / (1 - psi);
     const lp = lamP(b, t, k, s1, E);
     bef = bc * rhoOf(lp);
     gap = bef < bc - 1e-12 ? [bef, bc] : null;
@@ -370,6 +375,7 @@ export function ctPerfil14762({ Ct, ligacao, todosConectados, nDirecao, x, Lc, d
 
 function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   const avisos = [];
+  _alNotes.clear();
   const E = mat.E / 1e4, fy = mat.Fy / 1e4;                                           // kN/cm²
   const G = (mat.G ?? 0.385 * mat.E) / 1e4;                                           // 77 000 MPa (4.6)
   if (Math.abs(mat.E - 2e8) > 1e5) avisos.push(`E = ${(mat.E / 1e6).toFixed(0)} GPa ≠ 200 GPa (NBR 14762:2010 4.6): conferir o material.`);
@@ -712,6 +718,7 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
     avisos.push('Momento torçor ≠ 0: a NBR 14762:2010 não traz verificação de torção para seção aberta (LACUNA) — resultado NÃO verificado.');
     shear = { ratio: Infinity, demand: Math.abs(demands.T), capacity: 0, verificado: false, modo: 'torção', motivo: 'torção não coberta pela NBR 14762:2010 (LACUNA).' };
   }
+  for (const nt of _alNotes) avisos.push(nt);
   return finalize({ material: 'aço formado a frio', metodo: 'ABNT NBR 14762:2010 (MLE)', axial, bending, shear, interaction,
     interaction99, interactionMV, flexaoX, flexaoY, corteY, corteZ, avisos }, options);
 }
