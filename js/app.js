@@ -19,6 +19,7 @@ import { areaStress, areaBendingStress, vonMises, areaLocalFrame } from './solve
 import { ModalSolver, guyanReduce }        from './solver/modal_solver.js?v=7';
 import { buildNodeIndex, assembleK, assembleF, getNodeDOFs } from './solver/assembler.js?v=7';
 import { assembleSparseGlobal, extractFreeCSR } from './solver/sparse.js?v=7';
+import { SparseStaticSolver } from './solver/static_sparse.js?v=7';
 import { solveCorotBeam } from './solver/corotbeam.js?v=7';
 import { insertInfill } from './model/macromodel.js?v=7';
 import { hasTensionOnly, solveCombinationTensionOnly } from './solver/tension_only.js?v=7';
@@ -8397,7 +8398,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
     let n = 0, slackMax = 0, notConv = 0;
     for (const combo of this.model.combinations.values()) {
       try {
-        const r = solveCombinationTensionOnly(this.model, combo, StaticSolver);
+        const r = solveCombinationTensionOnly(this.model, combo, SparseStaticSolver);   // sparse: re-solved per iteration
         if (!r?.res) continue;
         this._resultsByCase.set('C' + combo.id, r.res);
         n++; slackMax = Math.max(slackMax, r.slack.length); if (!r.converged) notConv++;
