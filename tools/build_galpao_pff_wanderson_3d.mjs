@@ -25,6 +25,20 @@ for (let k = 0; k < NP; k++) {
   for (const e of P.elements) add({ ...JSON.parse(JSON.stringify(e)), id: undefined, n1: nid(k, e.n1), n2: nid(k, e.n2), layer: 1, frame: k + 1 });
 }
 for (const e of out.elements) delete e.frame;
+// 2L built-up members (NBR 14762 9.7.5): Wanderson, Resumo p.196–197 — diagonais e montantes "considerando mínimo 3
+// presilhas – barra composta" → l1 = L/4; travejamento do pilar "considerar sem presilhas" (p.199) → none (two profiles)
+{
+  const nodeOf = new Map(out.nodes.map((n) => [n.id, n])), secName = new Map(P.sections.map((x) => [x.id, x.name]));
+  for (const e of out.elements) {
+    if (!/diagonais|montantes/.test(secName.get(e.secId) || '')) continue;
+    const a = nodeOf.get(e.n1), b = nodeOf.get(e.n2), L = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    e.design = { ...(e.design || {}), presilhas: { l1: +(L / 4).toFixed(4), tipo: 'presilha' } };
+  }
+}
+// chords and legs: twist restrained at every truss node by the gusset plates and web members — Wanderson, Resumo
+// p.195/198: (KL)z = 1 600 mm (the panel) for chords and legs → "contenções também impedem a torção" (Lb = Lz = Ly, the
+// in-plane restraint spacing); the program's default (Lb = Lz between the chain ends) would be 13 m on the chords
+for (const e of out.elements) if (e.layer === 1 && /banzos|pernas/.test(P.sections.find((x) => x.id === e.secId)?.name || '')) e.design = { ...(e.design || {}), contencaoTorcao: true };
 // materials: secondary members without self-weight (their weight is already in the nodal CP loads of the frame)
 const mat0 = P.materials[0];
 const MAT2 = 3;

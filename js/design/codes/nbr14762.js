@@ -862,7 +862,22 @@ function checkNBR14762({ demands = {}, mat, sec, member = {}, options = {} }) {
   }
   warnUnv(Vy, 'Cortante Vy', whyF);
   if (isL && gL && !whyF) corteZ = shearL(Vz, 'Vz (aba horizontal)');
-  else {
+  else if (isCh && g && !whyF && Vz > 0) {
+    // shear parallel to the flanges of U / Ue (Manoel, 16/10/2026 — same decision as the angle legs): the NBR 14762:2010
+    // 9.8.3 is written for webs; EXTERNAL reference NBR 8800:2024 5.4.3.5 (U bent about the axis perpendicular to the
+    // flanges): procedure of 5.4.3.1.1 with kv = 1,2, tw = t, Vpl = 0,60·Aw·fy, γa1 = 1,10; as in 9.8.3 for the web
+    // (h = flat width), h = FLAT flange width b = bf − (t + ri) and Aw = 2·b·t (revisor-calculo-nbr 16/10/2026: the safer of
+    // the two readings — the 8800 text takes bf, 5–8 % higher). The lip of the Ue is ignored (conservative); no M + V for Vz
+    // (5.4.3.5 does not require it); the shear is assumed introduced in the flanges (a web-only connection loads them
+    // through the web and the corners — local distortion not checked). b/t ≤ 260 borrowed from 5.4.3.3/5.4.3.4.
+    const t = g.t, b = g.bf - (t + g.ri), kv = 1.2, lam = b / t, lp = 1.10 * Math.sqrt(kv * E / fy), lr = 1.37 * Math.sqrt(kv * E / fy);
+    const Vpl = 0.60 * 2 * b * t * fy, ga = 1.10;
+    const VRk = lam <= lp ? Vpl : lam <= lr ? (lp / lam) * Vpl : 1.24 * (lp / lam) ** 2 * Vpl;
+    corteZ = lam > 260 ? unverified(Vz, `mesa b/t = ${lam.toFixed(0)} > 260 (limite das NBR 8800 5.4.3.3/5.4.3.4, adotado).`, { dir: 'Vz (mesas)' })
+      : ratObj(Vz, VRk / ga, { dir: 'Vz (mesas)', regime: lam <= lp ? 'plastificação' : lam <= lr ? 'inelástico' : 'elástico', kv, ht: fix(lam), lp: fix(lp), lr: fix(lr),
+        formula: 'VRd pela NBR 8800:2024 5.4.3.5 (referência externa à NBR 14762): kv = 1,2; h = parte plana da mesa b = bf − (t + ri); tw = t; Aw = 2·b·t; γa1 = 1,10' });
+    avisos.push('Cortante Vz (paralela às mesas) pela NBR 8800:2024 5.4.3.5 (kv = 1,2; h = parte plana da mesa, Aw = 2·b·t) — referência externa: a NBR 14762:2010 9.8.3 só trata alma; enrijecedor de borda do Ue desprezado; M + V não verificada para Vz; admite a força introduzida nas mesas (ligação só pela alma: distorção local não verificada).');
+  } else {
     corteZ = Vz > 0 ? unverified(Vz, 'cortante paralelo às mesas (Vz): 9.8.3 trata só a(s) alma(s) — LACUNA.', { dir: 'Vz (mesas)' })
       : { demand: 0, capacity: 0, ratio: 0, dir: 'Vz (mesas)' };
     if (Vz > 0) avisos.push('Cortante Vz (mesas): NÃO verificado — 9.8.3 trata só a(s) alma(s) (LACUNA).');
