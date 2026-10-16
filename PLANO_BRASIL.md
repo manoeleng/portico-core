@@ -76,8 +76,9 @@ limitação da cantoneira que foi corrigida na NBR 8800.
     Vista 3D livre em perspectiva ou ortográfica (menu Vista, tecla P) FEITO 15/10/2026.
     2L em U (abas horizontais para dentro, afastamento g entre as pontas) FEITO 15/10/2026: 2 × isolada + 9.7.5 (a composta
     só para costas). Seleção na vista sólida 3D e "Selecionar barras" da seção FEITOS 15/10/2026.
-    Pedido do Manoel 15/10/2026: terça de cumeeira dupla no gerador (uma por água, β = ±θ), afastamento definido no lançamento
-    (usual 10 a 15 cm entre as terças).
+    Terça de cumeeira dupla no gerador FEITA 15/10/2026: uma por água (β = ±θ), nós no banzo a vão/2 ∓ g/2, ápice
+    mantido; afastamento g no formulário (padrão 15 cm, usual 10 a 15 cm); correntes T2 para a terça da mesma água;
+    teste assistant/test_galpao_cumeeira.mjs.
 
 ---
 

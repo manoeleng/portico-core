@@ -1803,6 +1803,12 @@ export function generateWarehouse(spec, libs) {
   const serie = (Lt, seg) => { const a = [0]; let x = seg; while (x < Lt - 1e-6) { a.push(+x.toFixed(4)); x += seg; } a.push(+Lt.toFixed(4)); return a; };
   const empot = { ux: 1, uy: 1, uz: 1, rx: 1, ry: 1, rz: 1 };
 
+  // ridge purlins: 'simples' (one purlin on the apex, web vertical) | 'dupla' (one per slope, each web perpendicular to
+  // its own slope, gap between them set at launch — usually 10 to 15 cm, CBCA ridge detail with the ridge flashing)
+  let cumDupla = /dupl|doubl|dobl/i.test(String(g.ridge_purlins || ''));
+  const gapC = g.ridge_purlin_gap_m > 0 ? +g.ridge_purlin_gap_m : 0.15;
+  if (cumDupla && !(g.ridge_purlin_gap_m > 0)) addWarning('estimated', 'Afastamento entre as terças da cumeeira não informado: 15 cm (usual 10 a 15 cm; defina no lançamento).');
+  if (cumDupla && !(gapC / 2 < 0.9 * luz / nT)) { addWarning('replacement', `Afastamento das terças da cumeeira (${gapC} m) não cabe no painel do banzo: terça única na cumeeira.`); cumDupla = false; }
   const along = (i) => +(i * luz / nT).toFixed(5);
   const zRoof = (a) => +(hE + (a <= luz / 2 ? (2 * hR / luz) * a : (2 * hR / luz) * (luz - a))).toFixed(5);
   const Yf = umPortico ? [0] : serie(largo, sep);          // frame positions
@@ -1851,14 +1857,23 @@ export function generateWarehouse(spec, libs) {
     // bottom chord (tie) through every panel node and, with lattice columns, the inner chord tops x = w and span − w
     const xsB = [...new Set([...Array.from({ length: nT + 1 }, (_, i) => along(i)), ...(pilarTrel ? [wCol, luz - wCol] : [])].map(v => +v.toFixed(5)))].sort((p, q) => p - q);
     for (let i = 0; i + 1 < xsB.length; i++) addEl(getNode(xsB[i], yf, H), getNode(xsB[i + 1], yf, H), secCord.id);
+    // double ridge purlin: two top-chord nodes at span/2 ∓ gap/2 (the apex node stays — web members meet there)
+    let TL = null, TR = null;
+    if (cumDupla) { const xl = luz / 2 - gapC / 2, xr = luz / 2 + gapC / 2; TL = getNode(xl, yf, +(H + zRoof(xl)).toFixed(4)); TR = getNode(xr, yf, +(H + zRoof(xr)).toFixed(4)); }
     for (let i = 0; i < nT; i++) {
-      const e = addEl(T[i], T[i + 1], secCord.id);
-      const da = along(i + 1) - along(i); const Lsl = Math.hypot(da, zRoof(along(i + 1)) - zRoof(along(i))) || da;
-      tops.push({ elemId: e, dx: da, Lsl });
+      const pts = cumDupla && i === nT / 2 - 1 ? [T[i], TL, T[i + 1]] : cumDupla && i === nT / 2 ? [T[i], TR, T[i + 1]] : [T[i], T[i + 1]];
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const a = nodes[pts[k] - 1], b = nodes[pts[k + 1] - 1];
+        const e = addEl(pts[k], pts[k + 1], secCord.id);
+        const da = +(b.x - a.x).toFixed(6); const Lsl = Math.hypot(da, b.z - a.z) || da;
+        tops.push({ elemId: e, dx: da, Lsl });
+      }
     }
     weaveTrussWeb(B, T, nT, tCel, addEl, secDiag.id);
     if (tCel === 'warren') addEl(B[nT / 2], T[nT / 2], secDiag.id);   // king post
-    frames.push({ T, B, tops });
+    // purlin nodes of the frame, eave to eave: the apex replaced by the two ridge nodes when the ridge purlin is double
+    const P = cumDupla ? [...T.slice(0, nT / 2), TL, TR, ...T.slice(nT / 2 + 1)] : T;
+    frames.push({ T, B, tops, P });
   }
   // sag-rod lines ("linhas de corrente", Manual CBCA de galpões 2.10–2.11): 0, 1 (mid-span) or 2 (thirds) lines per
   // bay along the slope, tying the purlins in their weak direction → Ly = Lb = bay/(n + 1). Flexible = threaded round
@@ -1875,27 +1890,29 @@ export function generateWarehouse(spec, libs) {
   // purlins: tie consecutive frames at each chord node (top chord split at the sag points)
   for (let s = 0; s + 1 < Yf.length; s++) {
     const yA = Yf[s], yB = Yf[s + 1], ys = [yA, ...Array.from({ length: nSag }, (_, k) => yA + (k + 1) * (yB - yA) / (nSag + 1)), yB];
-    const line = [];
-    for (let i = 0; i <= nT; i++) {
-      const tA = nodes[frames[s].T[i] - 1], ids = ys.map((y, k) => k === 0 ? frames[s].T[i] : k === ys.length - 1 ? frames[s + 1].T[i] : getNode(tA.x, y, tA.z));
+    const line = [], PA = frames[s].P, PB = frames[s + 1].P;
+    for (let i = 0; i < PA.length; i++) {
+      const tA = nodes[PA[i] - 1], ids = ys.map((y, k) => k === 0 ? PA[i] : k === ys.length - 1 ? PB[i] : getNode(tA.x, y, tA.z));
       for (let k = 0; k + 1 < ids.length; k++) addEl(ids[k], ids[k + 1], secDiag.id);
       line.push(ids);
       // bottom-chord tie; at the eave of a triangular truss B = T and the (split) eave purlin already ties it
-      if (frames[s].B[i] !== frames[s].T[i]) addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
+      if (!cumDupla && frames[s].B[i] !== frames[s].T[i]) addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
     }
+    if (cumDupla) for (let i = 0; i <= nT; i++) if (frames[s].B[i] !== frames[s].T[i]) addEl(frames[s].B[i], frames[s + 1].B[i], secDiag.id);
     if (secSag) {
       const sagEl = (a, b) => { const id = addEl(a, b, secSag.id); if (id != null) { const e = elements[id - 1]; e.releases = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1]; if (!sagRigid) e.cable = true; } };
-      const iR = nT / 2, last = nSag + 1;
+      // ridge purlin line(s): one (apex) or two (one per slope, double ridge purlin)
+      const iRL = nT / 2, iRR = cumDupla ? nT / 2 + 1 : nT / 2, nL = line.length - 1, last = nSag + 1;
       for (let k = 1; k <= nSag; k++) {
-        for (let i = 0; i + 1 < iR; i++) sagEl(line[i][k], line[i + 1][k]);            // T1, left slope
-        for (let i = iR + 1; i < nT; i++) sagEl(line[i][k], line[i + 1][k]);           // T1, right slope
-        // T2: to the ridge purlin at the nearer frame(s) — both when the point is the middle one
+        for (let i = 0; i + 1 < iRL; i++) sagEl(line[i][k], line[i + 1][k]);            // T1, left slope
+        for (let i = iRR + 1; i < nL; i++) sagEl(line[i][k], line[i + 1][k]);           // T1, right slope
+        // T2: to the ridge purlin of its slope at the nearer frame(s) — both when the point is the middle one
         const ends = 2 * k < last ? [0] : 2 * k > last ? [last] : [0, last];
-        for (const j of ends) { sagEl(line[iR - 1][k], line[iR][j]); sagEl(line[iR + 1][k], line[iR][j]); }
+        for (const j of ends) { sagEl(line[iRL - 1][k], line[iRL][j]); sagEl(line[iRR + 1][k], line[iRR][j]); }
       }
     }
   }
-  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, do beiral até a terça abaixo da cumeeira (T1) e diagonais até a terça da cumeeira nos pórticos (T2) — Manual CBCA de galpões 2.10–2.11, Fig. 77. Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1} (hipótese de projeto); na verificação da terça use Lx = vão do pórtico. As terças têm a alma perpendicular ao pano (ângulo β = ±θ; a da cumeeira, alma vertical). LIMITAÇÃO: a telha carrega os banzos — a componente da carga no eixo de menor inércia da terça (g·senθ) e as forças nas correntes não saem da análise: calcule-as como no CBCA 2.11.`);
+  if (secSag) addWarning('info', `Linhas de corrente: ${nSag} por vão (${nSag === 1 ? 'meio do vão' : 'terços'}), ${sagRigid ? `rígidas (${secSag.name})` : `flexíveis (barra redonda φ${String(+(dSag * 1000).toFixed(1)).replace('.', ',')} mm, só tração)`}, do beiral até a terça abaixo da cumeeira (T1) e diagonais até a terça da cumeeira nos pórticos (T2) — Manual CBCA de galpões 2.10–2.11, Fig. 77. Terças contínuas entre correntes e rotuladas nos pórticos: Ly = Lb = vão/${nSag + 1} (hipótese de projeto); na verificação da terça use Lx = vão do pórtico. As terças têm a alma perpendicular ao pano (ângulo β = ±θ; ${cumDupla ? `cumeeira com terça dupla, uma por água, afastadas ${String(+(gapC * 100).toFixed(1)).replace('.', ',')} cm` : 'a da cumeeira, alma vertical'}). LIMITAÇÃO: a telha carrega os banzos — a componente da carga no eixo de menor inércia da terça (g·senθ) e as forças nas correntes não saem da análise: calcule-as como no CBCA 2.11.`);
   if (comContrav) {
     // pin both ends of the truss web and of the purlins (ry, rz released; torsion kept): chords stay continuous
     const PIN = [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1];

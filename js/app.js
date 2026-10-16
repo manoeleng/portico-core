@@ -7298,6 +7298,7 @@ ${row(2, sel('wh-mchord', t('Acero de los cordones'), opt(ACOS, 'MR250')) + sel(
 ${row(2, sel('wh-mweb', t('Acero de montantes y diagonales'), opt(ACOS, 'MR250')) + sel('wh-sdiag', t('Montantes y diagonales'), fam('W 150 x 13,0')))}
 ${sec(t('4. Correas y líneas de tirantes'))}
 ${row(2, sel('wh-mpurl', t('Acero de las correas'), opt(ACOS, 'MR250')) + sel('wh-sterca', t('Correas'), `<option value="">${t('Automática (d ≥ L/40)')}</option>` + opt(UE, '')))}
+${row(2, sel('wh-ridge', t('Correa de cumbrera'), `<option value="dupla" selected>${t('Doble (una por agua)')}</option><option value="simples">${t('Simple (alma vertical)')}</option>`) + num('wh-ridgegap', t('Separación entre las correas de cumbrera (cm)'), 15, 1, 2), 'ridge')}
 ${row(2, sel('wh-sagn', t('Líneas de tirantes por vano'), `<option value="0">${t('Ninguna')}</option><option value="1">${t('1 (centro del vano)')}</option><option value="2">${t('2 (tercios)')}</option>`) + sel('wh-sagt', t('Tipo'), `<option value="flexivel">${t('Flexible (barra redonda)')}</option><option value="rigida">${t('Rígida (angular)')}</option>`), 'sag0')}
 ${row(2, num('wh-sagd', t('Diámetro (mm)'), 12.5, 0.5, 8), 'sagflex')}
 ${row(2, sel('wh-sags', t('Perfil de la línea rígida'), opt(LDF, 'L 50x3,00')), 'sagrig')}
@@ -7328,6 +7329,7 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
           column_concrete: tp === 'concreto' ? { b_cm: n('wh-cb'), h_cm: n('wh-ch') } : undefined,
           chord_size: v('wh-schord'), diagonal_size: v('wh-sdiag'), column_lacing_section: v('wh-slace'),
           purlin_section: v('wh-sterca') || undefined, bracing_rod_mm: n('wh-rod'),
+          ridge_purlins: v('wh-ridge'), ridge_purlin_gap_m: v('wh-ridge') === 'dupla' && n('wh-ridgegap') > 0 ? n('wh-ridgegap') / 100 : undefined,
           sag_rod_lines: +v('wh-sagn'), sag_rod_type: v('wh-sagt'), sag_rod_mm: n('wh-sagd'), sag_rod_section: v('wh-sags'),
           materials: { columns: tp === 'concreto' ? v('wh-ccol') : steelCol ? v('wh-mcol') : undefined, chords: v('wh-mchord'),
             web: v('wh-mweb'), purlins: v('wh-mpurl'), rods: v('wh-mrod') } },
@@ -7341,7 +7343,8 @@ ${sec(t('6. Cargas y viento (NBR 6123)'))}
       // dependent fields: column type, sag-rod type, chosen bays; length = (n − 1)·spacing; bays 1 … n − 1
       const tp = v('wh-ctype'), sagN = +v('wh-sagn'), sagR = v('wh-sagt') === 'rigida';
       const show = { steelcol: tp === 'laminado' || tp === 'treliçado', lattice: tp === 'treliçado', concrete: tp === 'concreto',
-        sag0: true, sagflex: sagN > 0 && !sagR, sagrig: sagN > 0 && sagR };
+        sag0: true, sagflex: sagN > 0 && !sagR, sagrig: sagN > 0 && sagR, ridge: true };
+      $('wh-ridgegap').disabled = v('wh-ridge') !== 'dupla';
       el.querySelectorAll('[data-show]').forEach(r => { r.style.display = show[r.dataset.show] ? '' : 'none'; });
       $('wh-sagt').disabled = sagN === 0;
       $('wh-len').value = String(+((nPort() - 1) * n('wh-sep')).toFixed(2)).replace('.', ',');
